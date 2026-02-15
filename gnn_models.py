@@ -521,12 +521,11 @@ class _GTSComposer(nn.Module):
 class _GTSFFN(nn.Module):
     def __init__(self, embed_dim: int, dropout: float = 0.0, activation: str = "relu", norm: str = "layer"):
         super().__init__()
+        activation = _normalize_gts_activation(activation)
         if activation == "relu":
             act = nn.ReLU
-        elif activation == "gelu":
-            act = nn.GELU
         else:
-            raise ValueError("Original GTS supports only relu/gelu activations.")
+            act = nn.GELU
         self.mlp = nn.Sequential(
             nn.Linear(embed_dim, embed_dim * 2),
             act(),
@@ -640,12 +639,11 @@ def _gts_apply_mask_2d(node_features, node_batch):
 class _GTSHead(nn.Module):
     def __init__(self, embed_dim: int, output_dim: int, activation: str = "relu"):
         super().__init__()
+        activation = _normalize_gts_activation(activation)
         if activation == "relu":
             act_fn = nn.ReLU
-        elif activation == "gelu":
-            act_fn = nn.GELU
         else:
-            raise ValueError("Original GTS supports only relu/gelu activations.")
+            act_fn = nn.GELU
         self.mlp = nn.Sequential(
             nn.Linear(embed_dim, embed_dim // 2),
             act_fn(),
@@ -673,8 +671,7 @@ class _GTSEdgeTransformerNodeModel(nn.Module):
         activation: str,
     ):
         super().__init__()
-        if activation not in {"relu", "gelu"}:
-            raise ValueError("Original GTS uses relu or gelu activation.")
+        activation = _normalize_gts_activation(activation)
         self.feature_encoder = _GTSFeatureEncoder(hidden_dim, in_dim, edge_dim)
         self.composer = _GTSComposer(hidden_dim)
         self.layers = nn.ModuleList(
@@ -848,3 +845,12 @@ def _get_activation(name: str) -> nn.Module:
     raise ValueError(
         "Unsupported activation. Choose from: relu, silu, gelu, tanh, elu, leaky_relu."
     )
+
+
+def _normalize_gts_activation(name: str) -> str:
+    name = name.lower()
+    if name in {"relu", "gelu"}:
+        return name
+    # Keep the original GTS behavior constraints while avoiding hard crashes
+    # in mixed pipelines that default to non-GTS activations like SiLU.
+    return "relu"

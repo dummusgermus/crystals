@@ -667,7 +667,8 @@ class _GTSEdgeTransformerNodeModel(nn.Module):
         num_layers: int,
         out_dim: int,
         num_heads: int,
-        dropout: float,
+        attention_dropout: float,
+        ffn_dropout: float,
         activation: str,
     ):
         super().__init__()
@@ -679,8 +680,8 @@ class _GTSEdgeTransformerNodeModel(nn.Module):
                 _GTSEdgeTransformerLayer(
                     hidden_dim,
                     num_heads,
-                    dropout,
-                    dropout,
+                    ffn_dropout,
+                    attention_dropout,
                     activation=activation,
                     norm="layer",
                     norm_first=True,
@@ -714,7 +715,8 @@ class TriangularTransformerNodeRegressor(nn.Module):
         num_layers: int = 3,
         out_dim: int = 1,
         num_heads: int = 4,
-        dropout: float = 0.0,
+        attention_dropout: float = 0.2,
+        ffn_dropout: float = 0.0,
         activation: str = "relu",
     ) -> None:
         super().__init__()
@@ -725,7 +727,8 @@ class TriangularTransformerNodeRegressor(nn.Module):
             num_layers=num_layers,
             out_dim=out_dim,
             num_heads=num_heads,
-            dropout=dropout,
+            attention_dropout=attention_dropout,
+            ffn_dropout=ffn_dropout,
             activation=activation,
         )
 
@@ -806,11 +809,12 @@ def build_hadamard_model_from_dataset(
 
 def build_transformer_model_from_dataset(
     dataset,
-    hidden_dim: int = 128,
-    num_layers: int = 3,
+    hidden_dim: int = 64,
+    num_layers: int = 10,
     out_dim: int = 1,
-    num_heads: int = 4,
-    dropout: float = 0.0,
+    num_heads: int = 8,
+    attention_dropout: float = 0.2,
+    ffn_dropout: float = 0.0,
     activation: str = "gelu",
 ) -> TriangularTransformerNodeRegressor:
     sample = dataset[0]
@@ -823,7 +827,8 @@ def build_transformer_model_from_dataset(
         num_layers=num_layers,
         out_dim=out_dim,
         num_heads=num_heads,
-        dropout=dropout,
+        attention_dropout=attention_dropout,
+        ffn_dropout=ffn_dropout,
         activation=activation,
     )
 

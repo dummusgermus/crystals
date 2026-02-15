@@ -267,7 +267,8 @@ def main() -> None:
                 hidden_dim=args.hidden_dim,
                 num_layers=args.num_layers,
                 num_heads=args.num_heads,
-                dropout=args.dropout,
+                attention_dropout=args.dropout,
+                ffn_dropout=args.dropout,
                 activation=args.activation,
             )
         return build_hadamard_model_from_dataset(

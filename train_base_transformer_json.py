@@ -141,7 +141,7 @@ def main() -> None:
     )
     parser.add_argument("--dataset", type=str, default="pyg_dataset.pt")
     parser.add_argument("--output", type=str, default="base_transformer_test_curves.json")
-    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument(
         "--transformer-batch-size",

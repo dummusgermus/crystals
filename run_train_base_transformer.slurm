@@ -36,7 +36,7 @@ export PYTHONUNBUFFERED=1
 python -u train_base_transformer_json.py \
   --dataset pyg_dataset.pt \
   --output base_transformer_test_curves.json \
-  --epochs 100 \
+  --epochs 300 \
   --batch-size 32 \
   --transformer-batch-size 1 \
   --lr 1e-4 \

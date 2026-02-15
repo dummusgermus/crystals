@@ -19,7 +19,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=str,
-        default="base_transformer_test_curves.png",
+        default="base_transformer_test_curves_300.png",
         help="Output plot path.",
     )
     args = parser.parse_args()

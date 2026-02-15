@@ -811,7 +811,7 @@ def build_transformer_model_from_dataset(
     out_dim: int = 1,
     num_heads: int = 4,
     dropout: float = 0.0,
-    activation: str = "relu",
+    activation: str = "gelu",
 ) -> TriangularTransformerNodeRegressor:
     sample = dataset[0]
     in_dim = sample.x.size(-1)

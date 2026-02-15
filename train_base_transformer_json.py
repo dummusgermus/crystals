@@ -152,8 +152,8 @@ def main() -> None:
     parser.add_argument(
         "--transformer-max-nodes",
         type=int,
-        default=48,
-        help="Maximum nodes per graph for transformer (0 disables capping).",
+        default=0,
+        help="Maximum nodes per graph for transformer (0 keeps full graphs; fair/base-comparable setting).",
     )
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-5)
@@ -163,6 +163,12 @@ def main() -> None:
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--use-batch-norm", action="store_true")
     parser.add_argument("--activation", type=str, default="silu")
+    parser.add_argument(
+        "--transformer-activation",
+        type=str,
+        default="gelu",
+        help="Transformer activation (original GTS defaults are typically gelu).",
+    )
     parser.add_argument("--metric", type=str, default="mae", choices=["mae", "rmse", "mse"])
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
@@ -222,14 +228,15 @@ def main() -> None:
         num_layers=args.num_layers,
         num_heads=args.num_heads,
         dropout=args.dropout,
-        activation=args.activation,
+        activation=args.transformer_activation,
     ).to(device)
 
     curves: Dict[str, List[float]] = {}
     print(
         f"Base batch size: {args.batch_size} | "
         f"Transformer batch size: {args.transformer_batch_size} | "
-        f"Transformer max nodes: {args.transformer_max_nodes}"
+        f"Transformer max nodes: {args.transformer_max_nodes} | "
+        f"Transformer activation: {args.transformer_activation}"
     )
     curves["transformer"] = train_and_collect_test_curve(
         model_name="transformer",

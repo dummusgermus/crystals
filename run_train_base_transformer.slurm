@@ -3,7 +3,7 @@
 #SBATCH --output=logs/%x-%j.out
 #SBATCH --error=logs/%x-%j.err
 #SBATCH --time=24:00:00
-#SBATCH --partition=c23g
+#SBATCH --partition=log_gpu_24gb
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
@@ -39,7 +39,7 @@ python -u train_base_transformer_json.py \
   --epochs 300 \
   --transformer-epochs 300 \
   --batch-size 32 \
-  --transformer-batch-size 32 \
+  --transformer-batch-size 1 \
   --transformer-max-nodes 0 \
   --lr 1e-4 \
   --weight-decay 1e-5 \

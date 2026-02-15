@@ -25,15 +25,15 @@ if [ ! -d ".venv" ]; then
 fi
 
 source .venv/bin/activate
-python -m pip install --upgrade pip
+export PYTHONUNBUFFERED=1
 
-# Install dependencies. If you have requirements.txt, prefer this line:
-# pip install -r requirements.txt
-#
-# Minimal fallback (adjust versions to your cluster/CUDA setup):
-pip install torch torch-geometric numpy matplotlib
+# Dependencies are expected to be installed in .venv already.
+# One-time setup (run manually, not in each job):
+#   source .venv/bin/activate
+#   python -m pip install --upgrade pip
+#   pip install torch torch-geometric numpy matplotlib
 
-python train_base_transformer_json.py \
+python -u train_base_transformer_json.py \
   --dataset pyg_dataset.pt \
   --output base_transformer_test_curves.json \
   --epochs 100 \

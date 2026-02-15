@@ -1,0 +1,47 @@
+# -----------------------------
+# Python / environment
+# -----------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# -----------------------------
+# OS / editor
+# -----------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# -----------------------------
+# Runtime outputs
+# -----------------------------
+logs/
+*.log
+*.out
+*.err
+plots/
+
+# -----------------------------
+# Large raw simulation data
+# (keep generated datasets/models, skip raw atomistic files)
+# -----------------------------
+SIMULATIONS/
+towards-principled-gts-main/
+*.dump
+*.data
+
+# Keep datasets and model checkpoints tracked
+!datasets/
+!datasets/**/*
+!*.pt
+!*.pth
+!*.ckpt

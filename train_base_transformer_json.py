@@ -6,6 +6,7 @@ import time
 from typing import Dict, List
 
 import torch
+from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 
 from gnn_models import build_model_from_dataset, build_transformer_model_from_dataset
@@ -18,6 +19,54 @@ from train_single import (
     set_seed,
     summarize_split,
 )
+
+
+def _token_index_for_graph(num_nodes: int, device: torch.device) -> torch.Tensor:
+    if num_nodes <= 0:
+        return torch.zeros((2, 0), dtype=torch.long, device=device)
+    row = torch.arange(num_nodes, device=device).repeat_interleave(num_nodes)
+    col = torch.arange(num_nodes, device=device).repeat(num_nodes)
+    return torch.stack([row, col], dim=0)
+
+
+def _induced_subgraph_by_nodes(data: Data, keep_idx: torch.Tensor) -> Data:
+    keep_idx = keep_idx.to(dtype=torch.long, device=data.x.device)
+    keep_idx = torch.unique(keep_idx, sorted=True)
+    node_map = torch.full((data.num_nodes,), -1, dtype=torch.long, device=data.x.device)
+    node_map[keep_idx] = torch.arange(keep_idx.numel(), device=data.x.device)
+
+    src = data.edge_index[0]
+    dst = data.edge_index[1]
+    edge_mask = (node_map[src] >= 0) & (node_map[dst] >= 0)
+    new_edge_index = node_map[data.edge_index[:, edge_mask]]
+
+    new_data = data.clone()
+    new_data.x = data.x[keep_idx]
+    new_data.y = data.y[keep_idx]
+    if getattr(data, "pos", None) is not None:
+        new_data.pos = data.pos[keep_idx]
+    new_data.edge_index = new_edge_index
+    if getattr(data, "edge_attr", None) is not None:
+        new_data.edge_attr = data.edge_attr[edge_mask]
+    new_data.token_index = _token_index_for_graph(new_data.num_nodes, new_data.x.device)
+    return new_data
+
+
+def _prepare_transformer_dataset(dataset: List[Data], max_nodes: int) -> List[Data]:
+    processed: List[Data] = []
+    use_cap = max_nodes > 0
+
+    for data in dataset:
+        d = data.clone()
+        if use_cap and d.num_nodes > max_nodes:
+            # Our node feature index 3 is distance-to-defect from graph_maker.py.
+            dist = d.x[:, 3]
+            keep_idx = torch.topk(dist, k=max_nodes, largest=False).indices
+            d = _induced_subgraph_by_nodes(d, keep_idx)
+        else:
+            d.token_index = _token_index_for_graph(d.num_nodes, d.x.device)
+        processed.append(d)
+    return processed
 
 
 def train_and_collect_test_curve(
@@ -100,6 +149,12 @@ def main() -> None:
         default=1,
         help="Batch size for transformer. Keep small: triangular attention is memory intensive.",
     )
+    parser.add_argument(
+        "--transformer-max-nodes",
+        type=int,
+        default=48,
+        help="Maximum nodes per graph for transformer (0 disables capping).",
+    )
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-5)
     parser.add_argument("--hidden-dim", type=int, default=128)
@@ -129,14 +184,24 @@ def main() -> None:
     val_loader_base = DataLoader(val_set, batch_size=args.batch_size, shuffle=False)
     test_loader_base = DataLoader(test_set, batch_size=args.batch_size, shuffle=False)
 
+    train_set_transformer = _prepare_transformer_dataset(
+        train_set, max_nodes=args.transformer_max_nodes
+    )
+    val_set_transformer = _prepare_transformer_dataset(
+        val_set, max_nodes=args.transformer_max_nodes
+    )
+    test_set_transformer = _prepare_transformer_dataset(
+        test_set, max_nodes=args.transformer_max_nodes
+    )
+
     train_loader_transformer = DataLoader(
-        train_set, batch_size=args.transformer_batch_size, shuffle=True
+        train_set_transformer, batch_size=args.transformer_batch_size, shuffle=True
     )
     val_loader_transformer = DataLoader(
-        val_set, batch_size=args.transformer_batch_size, shuffle=False
+        val_set_transformer, batch_size=args.transformer_batch_size, shuffle=False
     )
     test_loader_transformer = DataLoader(
-        test_set, batch_size=args.transformer_batch_size, shuffle=False
+        test_set_transformer, batch_size=args.transformer_batch_size, shuffle=False
     )
 
     train_targets = torch.cat([data.y for data in train_set], dim=0).view(-1)
@@ -163,7 +228,8 @@ def main() -> None:
     curves: Dict[str, List[float]] = {}
     print(
         f"Base batch size: {args.batch_size} | "
-        f"Transformer batch size: {args.transformer_batch_size}"
+        f"Transformer batch size: {args.transformer_batch_size} | "
+        f"Transformer max nodes: {args.transformer_max_nodes}"
     )
     curves["transformer"] = train_and_collect_test_curve(
         model_name="transformer",

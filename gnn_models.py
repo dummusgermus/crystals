@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import importlib.util
-import os
+import math
 import torch
+import torch.nn.functional as F
 from torch import nn
 from torch_geometric.nn import (
     MessagePassing,
@@ -12,6 +12,7 @@ from torch_geometric.nn import (
     GlobalAttention,
     Set2Set,
 )
+from torch_geometric.utils import scatter, to_dense_adj, to_dense_batch
 
 
 class MLP(nn.Module):
@@ -471,27 +472,242 @@ class GNNNodeRegressorHadamard(nn.Module):
         return self.output_mlp(x)
 
 
-def _load_principled_gts_module():
-    module_path = os.path.join(
-        os.path.dirname(__file__),
-        "towards-principled-gts-main",
-        "edge_transformer.py",
-    )
-    if not os.path.exists(module_path):
-        raise FileNotFoundError(
-            "Expected edge transformer source at "
-            f"{module_path}. Please ensure towards-principled-gts-main is present."
+class _GTSMLP(nn.Sequential):
+    def __init__(self, input_dim: int, output_dim: int, dropout: float = 0.0, linear: bool = False):
+        if linear:
+            super().__init__(nn.Linear(input_dim, output_dim))
+            return
+        hidden_dim = output_dim
+        super().__init__(
+            nn.BatchNorm1d(input_dim),
+            nn.Linear(input_dim, hidden_dim),
+            nn.Dropout(dropout),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim),
+            nn.Dropout(dropout),
         )
-    spec = importlib.util.spec_from_file_location("principled_gts_edge_transformer", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Could not load module spec from {module_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+
+
+class _GTSFeatureEncoder(nn.Module):
+    def __init__(self, embed_dim: int, node_dim: int, edge_dim: int):
+        super().__init__()
+        self.node_encoder = nn.Linear(node_dim, embed_dim)
+        self.edge_encoder = nn.Linear(edge_dim, embed_dim)
+
+    def forward(self, data):
+        data.x = self.node_encoder(data.x)
+        if not hasattr(data, "edge_attr") or data.edge_attr is None:
+            data.edge_attr = torch.ones((data.edge_index.size(1), 1), device=data.x.device)
+        data.edge_attr = self.edge_encoder(data.edge_attr)
+        return data
+
+
+class _GTSComposer(nn.Module):
+    def __init__(self, embed_dim: int):
+        super().__init__()
+        self.node_proj = _GTSMLP(2 * embed_dim, embed_dim, linear=True)
+
+    def forward(self, x, edge_index, edge_attr, batch, token_index, token_attr=None):
+        edge_features = to_dense_adj(edge_index, batch, edge_attr)
+        if token_attr is not None:
+            token_attr = to_dense_adj(token_index, batch, token_attr)
+            edge_features = torch.cat([edge_features, token_attr], -1)
+        x = x[token_index.T].flatten(1, 2)
+        x = self.node_proj(x)
+        x = to_dense_adj(token_index, batch, x)
+        return x + edge_features
+
+
+class _GTSFFN(nn.Module):
+    def __init__(self, embed_dim: int, dropout: float = 0.0, activation: str = "relu", norm: str = "layer"):
+        super().__init__()
+        if activation == "relu":
+            act = nn.ReLU
+        elif activation == "gelu":
+            act = nn.GELU
+        else:
+            raise ValueError("Original GTS supports only relu/gelu activations.")
+        self.mlp = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim * 2),
+            act(),
+            nn.Dropout(dropout),
+            nn.Linear(embed_dim * 2, embed_dim),
+            nn.Dropout(dropout),
+        )
+        if norm == "batch":
+            self.norm = nn.BatchNorm1d(embed_dim)
+            self.norm_aggregate = nn.BatchNorm1d(embed_dim)
+        elif norm == "layer":
+            self.norm = nn.LayerNorm(embed_dim)
+            self.norm_aggregate = nn.LayerNorm(embed_dim)
+        else:
+            raise ValueError("Unsupported norm type.")
+        self.dropout_aggregate = nn.Dropout(dropout)
+
+    def forward(self, x_prior, x):
+        x = self.dropout_aggregate(x)
+        x = x_prior + x
+        x = self.norm_aggregate(x)
+        x = self.mlp(x) + x
+        return self.norm(x)
+
+
+class _GTSEdgeAttention(nn.Module):
+    """Original dense triangular attention block from principled GTS."""
+
+    def __init__(self, embed_dim: int, num_heads: int, dropout: float):
+        super().__init__()
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.d_k = embed_dim // num_heads
+        self.linears = nn.ModuleList([nn.Linear(embed_dim, embed_dim, bias=False) for _ in range(5)])
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, query, key, value, mask=None):
+        num_batches = query.size(0)
+        num_nodes_q = query.size(1)
+        num_nodes_k = key.size(1)
+
+        left_k, right_k, left_v, right_v = [l(x) for l, x in zip(self.linears, (query, key, value, value))]
+        left_k = left_k.view(num_batches, num_nodes_q, num_nodes_q, self.num_heads, self.d_k)
+        right_k = right_k.view(num_batches, num_nodes_k, num_nodes_k, self.num_heads, self.d_k)
+        left_v = left_v.view_as(right_k)
+        right_v = right_v.view_as(right_k)
+
+        scores = torch.einsum("bxahd,bayhd->bxayh", left_k, right_k) / math.sqrt(self.d_k)
+        if mask is not None:
+            scores_dtype = scores.dtype
+            scores = scores.to(torch.float32).masked_fill(mask.unsqueeze(4), -1e9).to(scores_dtype)
+
+        att = F.softmax(scores, dim=2)
+        att = self.dropout(att)
+        val = torch.einsum("bxahd,bayhd->bxayhd", left_v, right_v)
+        x = torch.einsum("bxayh,bxayhd->bxyhd", att, val)
+        x = x.view(num_batches, num_nodes_q, num_nodes_k, self.embed_dim)
+        return self.linears[-1](x)
+
+
+class _GTSEdgeTransformerLayer(nn.Module):
+    def __init__(
+        self,
+        embed_dim: int,
+        num_heads: int,
+        dropout: float,
+        attention_dropout: float,
+        activation: str = "relu",
+        norm: str = "layer",
+        norm_first: bool = True,
+    ):
+        super().__init__()
+        self.norm_first = norm_first
+        self.attention = _GTSEdgeAttention(embed_dim, num_heads, attention_dropout)
+        if norm_first:
+            self.norm = nn.LayerNorm(embed_dim)
+        self.ffn = _GTSFFN(embed_dim, dropout, activation, norm)
+
+    def forward(self, x_in, mask=None):
+        x = self.norm(x_in) if self.norm_first else x_in
+        x_upd = self.attention(x, x, x, ~mask if mask is not None else None)
+        return self.ffn(x_in, x_upd)
+
+
+class _GTSDecomposer(nn.Module):
+    def __init__(self, embed_dim: int, reduce_fn: str = "sum"):
+        super().__init__()
+        self.node_dim = embed_dim
+        self.reduce_fn = reduce_fn
+        self.out_proj = _GTSMLP(embed_dim, 2 * embed_dim)
+        self.node_mlp = _GTSMLP(embed_dim, embed_dim)
+
+    def forward(self, x, node_features, node_batch, token_index):
+        x = self.out_proj(x)
+        dim_size = node_batch.size(0)
+        node_features = torch.zeros_like(node_features)
+        for i in range(2):
+            features_i = x[:, i * self.node_dim : (i + 1) * self.node_dim]
+            features_i = scatter(features_i, token_index[i], 0, dim_size=dim_size, reduce=self.reduce_fn)
+            node_features = node_features + features_i
+        return self.node_mlp(node_features)
+
+
+def _gts_apply_mask_2d(node_features, node_batch):
+    _, mask = to_dense_batch(node_features, node_batch)
+    unbatch = mask.unsqueeze(2) * mask.unsqueeze(1)
+    tri_mask = unbatch.unsqueeze(3) * mask.unsqueeze(1).unsqueeze(2)
+    return unbatch, tri_mask
+
+
+class _GTSHead(nn.Module):
+    def __init__(self, embed_dim: int, output_dim: int, activation: str = "relu"):
+        super().__init__()
+        if activation == "relu":
+            act_fn = nn.ReLU
+        elif activation == "gelu":
+            act_fn = nn.GELU
+        else:
+            raise ValueError("Original GTS supports only relu/gelu activations.")
+        self.mlp = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim // 2),
+            act_fn(),
+            nn.Dropout(0.0),
+            nn.Linear(embed_dim // 2, embed_dim // 4),
+            act_fn(),
+            nn.Dropout(0.0),
+            nn.Linear(embed_dim // 4, output_dim),
+        )
+
+    def forward(self, x):
+        return self.mlp(x)
+
+
+class _GTSEdgeTransformerNodeModel(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        edge_dim: int,
+        hidden_dim: int,
+        num_layers: int,
+        out_dim: int,
+        num_heads: int,
+        dropout: float,
+        activation: str,
+    ):
+        super().__init__()
+        if activation not in {"relu", "gelu"}:
+            raise ValueError("Original GTS uses relu or gelu activation.")
+        self.feature_encoder = _GTSFeatureEncoder(hidden_dim, in_dim, edge_dim)
+        self.composer = _GTSComposer(hidden_dim)
+        self.layers = nn.ModuleList(
+            [
+                _GTSEdgeTransformerLayer(
+                    hidden_dim,
+                    num_heads,
+                    dropout,
+                    dropout,
+                    activation=activation,
+                    norm="layer",
+                    norm_first=True,
+                )
+                for _ in range(num_layers)
+            ]
+        )
+        self.decomposer = _GTSDecomposer(hidden_dim)
+        self.head = _GTSHead(hidden_dim, out_dim, activation=activation)
+
+    def forward(self, data):
+        data = self.feature_encoder(data)
+        token_index = data.token_index
+        x = self.composer(data.x, data.edge_index, data.edge_attr, data.batch, token_index, None)
+        unbatch, mask = _gts_apply_mask_2d(data.x, data.batch)
+        for layer in self.layers:
+            x = layer(x, mask)
+        x = x[unbatch]
+        x = self.decomposer(x, data.x, data.batch, token_index)
+        return self.head(x)
 
 
 class TriangularTransformerNodeRegressor(nn.Module):
-    """Wrapper around principled GTS edge transformer for node-level prediction."""
+    """Self-contained original GTS triangular-attention transformer."""
 
     def __init__(
         self,
@@ -505,30 +721,15 @@ class TriangularTransformerNodeRegressor(nn.Module):
         activation: str = "relu",
     ) -> None:
         super().__init__()
-        gts = _load_principled_gts_module()
-        gts_activation = activation.lower()
-        if gts_activation not in {"relu", "gelu"}:
-            gts_activation = "relu"
-
-        feature_encoder = gts.FeatureEncoder(
-            embed_dim=hidden_dim,
-            node_encoder="linear",
-            edge_encoder="linear",
-            node_dim=in_dim,
+        self.model = _GTSEdgeTransformerNodeModel(
+            in_dim=in_dim,
             edge_dim=edge_dim,
-        )
-        self.model = gts.EdgeTransformer(
-            feature_encoder=feature_encoder,
+            hidden_dim=hidden_dim,
             num_layers=num_layers,
-            embed_dim=hidden_dim,
             out_dim=out_dim,
             num_heads=num_heads,
-            activation=gts_activation,
-            pooling=None,  # node-level output
-            attention_dropout=dropout,
-            ffn_dropout=dropout,
-            has_edge_attr=True,
-            compiled=False,
+            dropout=dropout,
+            activation=activation,
         )
 
     @staticmethod
@@ -539,11 +740,11 @@ class TriangularTransformerNodeRegressor(nn.Module):
         parts = []
         for graph_idx in range(num_graphs):
             node_idx = (batch == graph_idx).nonzero(as_tuple=False).view(-1)
-            n = int(node_idx.numel())
-            if n == 0:
+            n_nodes = int(node_idx.numel())
+            if n_nodes == 0:
                 continue
-            src = node_idx.repeat_interleave(n)
-            dst = node_idx.repeat(n)
+            src = node_idx.repeat_interleave(n_nodes)
+            dst = node_idx.repeat(n_nodes)
             parts.append(torch.stack([src, dst], dim=0))
         if not parts:
             return torch.zeros((2, 0), dtype=torch.long, device=batch.device)
@@ -552,7 +753,9 @@ class TriangularTransformerNodeRegressor(nn.Module):
     def forward(self, data) -> torch.Tensor:
         if getattr(data, "batch", None) is None:
             data.batch = data.x.new_zeros(data.x.size(0), dtype=torch.long)
-        data.token_index = self._build_token_index(data.batch)
+        token_index = getattr(data, "token_index", None)
+        if token_index is None or token_index.numel() == 0:
+            data.token_index = self._build_token_index(data.batch)
         return self.model(data)
 
 

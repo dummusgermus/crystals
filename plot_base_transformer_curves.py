@@ -13,8 +13,8 @@ def main() -> None:
     parser.add_argument(
         "--input",
         type=str,
-        default="base_transformer_test_curves.json",
-        help="Path to JSON file produced by train_base_transformer_json.py",
+        default="base_best_vs_pe_transformer_300.json",
+        help="Path to JSON file produced by training script.",
     )
     parser.add_argument(
         "--output",
@@ -27,8 +27,11 @@ def main() -> None:
     with open(args.input, "r", encoding="utf-8") as f:
         payload = json.load(f)
 
-    base_curve = payload.get("base_test_curve", [])
-    transformer_curve = payload.get("transformer_test_curve", [])
+    # Support both legacy and new JSON schemas.
+    base_curve = payload.get("base_test_curve", payload.get("base_best_test_curve", []))
+    transformer_curve = payload.get(
+        "transformer_test_curve", payload.get("pe_transformer_test_curve", [])
+    )
     metric = str(payload.get("metric", "mae")).upper()
 
     if not base_curve and not transformer_curve:
@@ -36,7 +39,7 @@ def main() -> None:
 
     plt.figure(figsize=(8, 5))
     if transformer_curve:
-        plt.plot(transformer_curve, label=f"Transformer test {metric}")
+        plt.plot(transformer_curve, label=f"PE Transformer test {metric}")
     if base_curve:
         plt.plot(base_curve, label=f"Base test {metric}")
 

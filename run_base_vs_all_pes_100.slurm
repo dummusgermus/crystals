@@ -20,6 +20,12 @@ fi
 source .venv/bin/activate
 export PYTHONUNBUFFERED=1
 
+# torch.compile / Triton cache must be writable on compute nodes.
+CACHE_ROOT="${SLURM_TMPDIR:-/tmp}/${USER}/torch-cache"
+export TRITON_CACHE_DIR="${CACHE_ROOT}/triton"
+export TORCHINDUCTOR_CACHE_DIR="${CACHE_ROOT}/inductor"
+mkdir -p "${TRITON_CACHE_DIR}" "${TORCHINDUCTOR_CACHE_DIR}"
+
 # One-time setup if needed:
 #   source .venv/bin/activate
 #   python -m pip install --upgrade pip

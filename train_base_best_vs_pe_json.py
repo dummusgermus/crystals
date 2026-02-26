@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import math
 import time
+from pathlib import Path
 from typing import Dict, List
 
 import torch
+import torch.nn as nn
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 
-from gnn_models import build_model_from_dataset, build_transformer_model_from_dataset
+from gnn_models import build_model_from_dataset
 from train_single import (
     evaluate,
     grouped_split_indices,
@@ -56,6 +59,148 @@ class CosineWithWarmupLR:
         return self.min_lr + coeff * (self.lr - self.min_lr)
 
 
+def _load_module_from_file(module_name: str, file_path: Path):
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load module spec from {file_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_supplementary_transformer_modules():
+    base_dir = (
+        Path(__file__).resolve().parent
+        / "pe_transformers"
+        / "4787_Generalizable_Insights_fo_Supplementary Material"
+    )
+    model_module = _load_module_from_file("supp_transformer_model", base_dir / "model.py")
+    pe_module = _load_module_from_file("supp_transformer_pe", base_dir / "pe.py")
+    return model_module, pe_module
+
+
+class _SafeLinearEncoder(nn.Module):
+    """Linear encoder that is robust to incoming bf16 casts in supplementary code."""
+
+    def __init__(self, in_dim: int, out_dim: int) -> None:
+        super().__init__()
+        self.proj = nn.Linear(in_dim, out_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.proj(x.to(torch.float32))
+
+
+class SupplementaryPETransformerNodeRegressor(nn.Module):
+    def __init__(
+        self,
+        dataset,
+        device: torch.device,
+        *,
+        hidden_dim: int,
+        num_layers: int,
+        num_heads: int,
+        dropout: float,
+        bias: bool,
+        pe_name: str,
+        edge_enc: str,
+        attention_dropout: float,
+    ) -> None:
+        super().__init__()
+        model_module, pe_module = _load_supplementary_transformer_modules()
+
+        sample = dataset[0]
+        in_dim = sample.x.size(-1)
+        edge_dim = sample.edge_attr.size(-1) if getattr(sample, "edge_attr", None) is not None else 1
+        task_name = "algo_reas_edge"
+        self.task_name = task_name
+
+        task_modules = {
+            task_name: nn.ModuleDict(
+                {
+                    "node": _SafeLinearEncoder(in_dim, hidden_dim),
+                    "edge": _SafeLinearEncoder(edge_dim, hidden_dim),
+                    # We use return_node_embeddings=True and apply our own node head.
+                    "decoder": nn.Identity(),
+                }
+            )
+        }
+        funcs = {task_name: {"prepare": lambda data: data}}
+
+        pe_args = {
+            "max_rw_steps": 32,
+            "max_eigvals": 32,
+            "rwse_steps": 16,
+            "rrwp_steps": 16,
+            "spe_num_eigvals": 8,
+            "spe_hidden_dim": hidden_dim,
+            "spe_inner_dim": hidden_dim,
+            "spe_phi_dim": hidden_dim,
+            "spe_num_layers_phi": 2,
+            "spe_num_layers_rho": 2,
+            "lower_rank": True,
+            "normalized": True,
+            "large_graph": True,
+            "lpe_num_eigvals": 32,
+            "lpe_inner_dim": 16,
+            "lpe_position_aware": True,
+            "lpe_bias": True,
+            "ogb_max_seq_len": 5,
+            "ogb_max_vocab": 5000,
+        }
+        pe_encoder = pe_module.load_pe(
+            pe_name,
+            pe_args,
+            embed_dim=hidden_dim,
+            device=str(device),
+            num_heads=num_heads,
+        )
+
+        self.transformer = model_module.Transformer(
+            task_modules=task_modules,
+            funcs=funcs,
+            num_layers=num_layers,
+            embed_dim=hidden_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            bias=bias,
+            pe_encoder=pe_encoder,
+            transform=None,
+            embedding_edge=None,
+            edge_enc=edge_enc,
+            device=str(device),
+            fast_inference=False,
+        )
+        self.node_head = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, 1),
+        )
+        self.attention_dropout = attention_dropout
+        if hasattr(self.transformer, "reset_parameters"):
+            self.transformer.reset_parameters()
+
+    def forward(self, data) -> torch.Tensor:
+        if getattr(data, "edge_attr", None) is None:
+            data.edge_attr = torch.ones(
+                (data.edge_index.size(1), 1),
+                dtype=data.x.dtype,
+                device=data.x.device,
+            )
+        node_embeddings = self.transformer(
+            data,
+            self.task_name,
+            device=None,
+            return_node_embeddings=True,
+        )
+        if self.attention_dropout > 0:
+            node_embeddings = nn.functional.dropout(
+                node_embeddings,
+                p=self.attention_dropout,
+                training=self.training,
+            )
+        return self.node_head(node_embeddings)
+
+
 def _token_index_for_graph(num_nodes: int, device: torch.device) -> torch.Tensor:
     if num_nodes <= 0:
         return torch.zeros((2, 0), dtype=torch.long, device=device)
@@ -87,7 +232,11 @@ def _induced_subgraph_by_nodes(data: Data, keep_idx: torch.Tensor) -> Data:
     return new_data
 
 
-def _prepare_transformer_dataset(dataset: List[Data], max_nodes: int) -> List[Data]:
+def _prepare_transformer_dataset(
+    dataset: List[Data],
+    max_nodes: int,
+    pe_transform=None,
+) -> List[Data]:
     processed: List[Data] = []
     use_cap = max_nodes > 0
 
@@ -100,6 +249,8 @@ def _prepare_transformer_dataset(dataset: List[Data], max_nodes: int) -> List[Da
             d = _induced_subgraph_by_nodes(d, keep_idx)
         else:
             d.token_index = _token_index_for_graph(d.num_nodes, d.x.device)
+        if pe_transform is not None:
+            d = pe_transform(d)
         processed.append(d)
     return processed
 
@@ -225,6 +376,15 @@ def main() -> None:
     parser.add_argument("--transformer-attention-dropout", type=float, default=0.2)
     parser.add_argument("--transformer-ffn-dropout", type=float, default=0.0)
     parser.add_argument("--transformer-activation", type=str, default="gelu")
+    parser.add_argument(
+        "--pe",
+        type=str,
+        default="rwse",
+        choices=["rwse", "rrwp", "lpe", "spe", "none", "1wl", "rrwp_pretrans"],
+        help="PE type from supplementary transformer code.",
+    )
+    parser.add_argument("--transformer-bias", action="store_true")
+    parser.add_argument("--transformer-edge-enc", type=str, default="MLP")
     parser.add_argument("--transformer-lr", type=float, default=1e-3)
     parser.add_argument("--transformer-weight-decay", type=float, default=1e-5)
     parser.add_argument("--transformer-batch-size", type=int, default=32)
@@ -256,14 +416,30 @@ def main() -> None:
     val_loader_base = DataLoader(val_set, batch_size=args.base_batch_size, shuffle=False)
     test_loader_base = DataLoader(test_set, batch_size=args.base_batch_size, shuffle=False)
 
+    _, pe_module = _load_supplementary_transformer_modules()
+    pe_transform = pe_module.load_transform(
+        {
+            "max_rw_steps": 32,
+            "max_eigvals": 32,
+            "normalized": True,
+            "large_graph": True,
+        }
+    )
+
     train_set_transformer = _prepare_transformer_dataset(
-        train_set, max_nodes=args.transformer_max_nodes
+        train_set,
+        max_nodes=args.transformer_max_nodes,
+        pe_transform=pe_transform,
     )
     val_set_transformer = _prepare_transformer_dataset(
-        val_set, max_nodes=args.transformer_max_nodes
+        val_set,
+        max_nodes=args.transformer_max_nodes,
+        pe_transform=pe_transform,
     )
     test_set_transformer = _prepare_transformer_dataset(
-        test_set, max_nodes=args.transformer_max_nodes
+        test_set,
+        max_nodes=args.transformer_max_nodes,
+        pe_transform=pe_transform,
     )
     train_loader_transformer = DataLoader(
         train_set_transformer, batch_size=args.transformer_batch_size, shuffle=True
@@ -287,14 +463,17 @@ def main() -> None:
         use_batch_norm=args.base_use_batch_norm,
         activation=args.base_activation,
     ).to(device)
-    transformer_model = build_transformer_model_from_dataset(
+    transformer_model = SupplementaryPETransformerNodeRegressor(
         dataset,
+        device=device,
         hidden_dim=args.transformer_hidden_dim,
         num_layers=args.transformer_num_layers,
         num_heads=args.transformer_num_heads,
+        dropout=args.transformer_ffn_dropout,
+        bias=args.transformer_bias,
+        pe_name=args.pe,
+        edge_enc=args.transformer_edge_enc,
         attention_dropout=args.transformer_attention_dropout,
-        ffn_dropout=args.transformer_ffn_dropout,
-        activation=args.transformer_activation,
     ).to(device)
 
     curves: Dict[str, List[float]] = {}
@@ -356,6 +535,9 @@ def main() -> None:
             "attention_dropout": args.transformer_attention_dropout,
             "ffn_dropout": args.transformer_ffn_dropout,
             "activation": args.transformer_activation,
+            "pe": args.pe,
+            "bias": args.transformer_bias,
+            "edge_enc": args.transformer_edge_enc,
             "lr": args.transformer_lr,
             "weight_decay": args.transformer_weight_decay,
             "batch_size": args.transformer_batch_size,

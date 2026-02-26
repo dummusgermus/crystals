@@ -41,6 +41,8 @@ SEED="${SEED:-42}"
 # Keep this conservative by default for the PE transformer memory footprint.
 TRANSFORMER_BATCH_SIZE="${TRANSFORMER_BATCH_SIZE:-1}"
 TRANSFORMER_MAX_NODES="${TRANSFORMER_MAX_NODES:-0}"
+PE="${PE:-rwse}"
+TRANSFORMER_WARMUP_ITERS="${TRANSFORMER_WARMUP_ITERS:-50}"
 
 python -u train_base_best_vs_pe_json.py \
   --dataset "${DATASET}" \
@@ -48,5 +50,7 @@ python -u train_base_best_vs_pe_json.py \
   --epochs "${EPOCHS}" \
   --metric "${METRIC}" \
   --seed "${SEED}" \
+  --pe "${PE}" \
+  --transformer-warmup-iters "${TRANSFORMER_WARMUP_ITERS}" \
   --transformer-batch-size "${TRANSFORMER_BATCH_SIZE}" \
   --transformer-max-nodes "${TRANSFORMER_MAX_NODES}"

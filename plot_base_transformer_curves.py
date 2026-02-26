@@ -13,13 +13,13 @@ def main() -> None:
     parser.add_argument(
         "--input",
         type=str,
-        default="base_best_vs_pe_transformer_300.json",
+        default="base_best_vs_pe_600.json",
         help="Path to JSON file produced by training script.",
     )
     parser.add_argument(
         "--output",
         type=str,
-        default="base_transformer_test_curves_300.png",
+        default="base_best_vs_pe_600.png",
         help="Output plot path.",
     )
     args = parser.parse_args()
@@ -33,6 +33,7 @@ def main() -> None:
         "transformer_test_curve", payload.get("pe_transformer_test_curve", [])
     )
     metric = str(payload.get("metric", "mae")).upper()
+    epochs = payload.get("epochs", None)
 
     if not base_curve and not transformer_curve:
         raise SystemExit("No curves found in input JSON.")
@@ -45,7 +46,10 @@ def main() -> None:
 
     plt.xlabel("Epoch")
     plt.ylabel(metric)
-    plt.title(f"Test {metric} per Epoch")
+    if epochs is None:
+        plt.title(f"Test {metric} per Epoch")
+    else:
+        plt.title(f"Test {metric} per Epoch ({epochs} epochs)")
     plt.legend()
     plt.grid(alpha=0.3)
     plt.tight_layout()

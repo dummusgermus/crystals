@@ -10,7 +10,11 @@ import numpy as np
 import torch
 from torch_geometric.loader import DataLoader
 
-from gnn_models import build_model_from_dataset
+from gnn_models import (
+    build_hadamard_model_from_dataset,
+    build_model_from_dataset,
+    build_transformer_model_from_dataset,
+)
 
 
 @dataclass
@@ -207,7 +211,12 @@ def main() -> None:
         )
     )
     parser.add_argument("--dataset", type=str, default="pyg_dataset.pt")
-    # Only the base GNN model is supported here.
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="base",
+        choices=["base", "hadamard", "transformer", "both", "all"],
+    )
     # Default hyperparameters chosen as the best base-model config
     # from the previous sweeps / comparison script.
     parser.add_argument("--epochs", type=int, default=200)
@@ -217,6 +226,7 @@ def main() -> None:
     parser.add_argument("--hidden-dim", type=int, default=256)
     parser.add_argument("--num-layers", type=int, default=2)
     parser.add_argument("--dropout", type=float, default=0.0)
+    parser.add_argument("--num-heads", type=int, default=4)
     parser.add_argument("--use-batch-norm", action="store_true")
     parser.add_argument("--activation", type=str, default="silu")
     parser.add_argument("--metric", type=str, default="mae", choices=["mae", "rmse", "mse"])
@@ -248,8 +258,27 @@ def main() -> None:
     target_mean = target_mean.to(device)
     target_std = target_std.to(device)
 
-    def build_model():
-        return build_model_from_dataset(
+    def build_model(model_name: str):
+        if model_name == "base":
+            return build_model_from_dataset(
+                dataset,
+                hidden_dim=args.hidden_dim,
+                num_layers=args.num_layers,
+                dropout=args.dropout,
+                use_batch_norm=args.use_batch_norm,
+                activation=args.activation,
+            )
+        if model_name == "transformer":
+            return build_transformer_model_from_dataset(
+                dataset,
+                hidden_dim=args.hidden_dim,
+                num_layers=args.num_layers,
+                num_heads=args.num_heads,
+                attention_dropout=args.dropout,
+                ffn_dropout=args.dropout,
+                activation=args.activation,
+            )
+        return build_hadamard_model_from_dataset(
             dataset,
             hidden_dim=args.hidden_dim,
             num_layers=args.num_layers,
@@ -258,8 +287,8 @@ def main() -> None:
             activation=args.activation,
         )
 
-    def train_model() -> List[float]:
-        model = build_model().to(device)
+    def train_model(model_name: str) -> List[float]:
+        model = build_model(model_name).to(device)
         optimizer = torch.optim.Adam(
             model.parameters(),
             lr=args.lr,
@@ -315,7 +344,7 @@ def main() -> None:
             dt = time.time() - t0
             current_lr = optimizer.param_groups[0]["lr"]
             print(
-                f"[base] Epoch {epoch:03d} | "
+                f"[{model_name}] Epoch {epoch:03d} | "
                 f"train {args.metric.upper()} {metric_value(train_metrics, args.metric):.4f} | "
                 f"val {args.metric.upper()} {metric_value(val_metrics, args.metric):.4f} | "
                 f"test {args.metric.upper()} {metric_value(test_metrics, args.metric):.4f} | "
@@ -328,7 +357,12 @@ def main() -> None:
         return test_curve
 
     test_curves: Dict[str, List[float]] = {}
-    test_curves["base"] = train_model()
+    if args.model in {"base", "both", "all"}:
+        test_curves["base"] = train_model("base")
+    if args.model in {"hadamard", "both", "all"}:
+        test_curves["hadamard"] = train_model("hadamard")
+    if args.model in {"transformer", "all"}:
+        test_curves["transformer"] = train_model("transformer")
 
     try:
         import matplotlib.pyplot as plt
@@ -337,7 +371,12 @@ def main() -> None:
 
     plt.figure(figsize=(8, 5))
     for name, curve in test_curves.items():
-        label = f"Base {args.metric.upper()}"
+        if name == "base":
+            label = f"Base {args.metric.upper()}"
+        elif name == "hadamard":
+            label = f"Hadamard {args.metric.upper()}"
+        else:
+            label = f"Transformer {args.metric.upper()}"
         plt.plot(curve, label=label)
     plt.xlabel("Epoch")
     plt.ylabel(args.metric.upper())

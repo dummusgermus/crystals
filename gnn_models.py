@@ -527,6 +527,144 @@ def build_tower_model_from_dataset(
     return inner
 
 
+class GatedConv(MessagePassing):
+    """Gated graph convolution from Xie & Grossman (2018), CGCNN Eq. 5.
+
+    z_{(i,j)} = v_i || v_j || u_{(i,j)}
+    v_i^{t+1} = v_i^t + sum_j  sigma(z W_f + b_f) * g(z W_s + b_s)
+
+    The sigmoid gate learns per-neighbor importance weights while the
+    residual connection preserves gradient flow through deeper stacks.
+    """
+
+    def __init__(
+        self,
+        hidden_dim: int,
+        edge_dim: int,
+        dropout: float = 0.0,
+        use_batch_norm: bool = False,
+        activation: str = "silu",
+    ) -> None:
+        super().__init__(aggr="add")
+        z_dim = hidden_dim * 2 + edge_dim
+        self.lin_f = nn.Linear(z_dim, hidden_dim)
+        self.lin_s = nn.Linear(z_dim, hidden_dim)
+        self.act = _get_activation(activation)
+
+        self.bn = nn.BatchNorm1d(hidden_dim) if use_batch_norm else None
+        self.drop = nn.Dropout(dropout) if dropout > 0 else None
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: torch.Tensor,
+    ) -> torch.Tensor:
+        out = self.propagate(edge_index, x=x, edge_attr=edge_attr)
+        out = x + out
+        if self.bn is not None:
+            out = self.bn(out)
+        if self.drop is not None:
+            out = self.drop(out)
+        return out
+
+    def message(
+        self,
+        x_i: torch.Tensor,
+        x_j: torch.Tensor,
+        edge_attr: torch.Tensor,
+    ) -> torch.Tensor:
+        z = torch.cat([x_i, x_j, edge_attr], dim=-1)
+        gate = torch.sigmoid(self.lin_f(z))
+        content = self.act(self.lin_s(z))
+        return gate * content
+
+
+class GatedGNNNodeRegressor(nn.Module):
+    """Node-level regressor using CGCNN-style gated convolutions."""
+
+    def __init__(
+        self,
+        in_dim: int,
+        edge_dim: int,
+        hidden_dim: int = 256,
+        num_layers: int = 2,
+        out_dim: int = 1,
+        dropout: float = 0.0,
+        use_batch_norm: bool = False,
+        activation: str = "silu",
+    ) -> None:
+        super().__init__()
+        if num_layers < 1:
+            raise ValueError("num_layers must be >= 1")
+
+        self.input_mlp = MLP(
+            in_dim,
+            hidden_dim,
+            hidden_dim,
+            dropout=dropout,
+            use_batch_norm=use_batch_norm,
+            activation=activation,
+        )
+
+        self.convs = nn.ModuleList(
+            GatedConv(
+                hidden_dim=hidden_dim,
+                edge_dim=edge_dim,
+                dropout=dropout,
+                use_batch_norm=use_batch_norm,
+                activation=activation,
+            )
+            for _ in range(num_layers)
+        )
+
+        self.output_mlp = MLP(
+            hidden_dim,
+            hidden_dim,
+            out_dim,
+            dropout=dropout,
+            use_batch_norm=use_batch_norm,
+            num_layers=2,
+            activation=activation,
+        )
+
+    def forward(self, data) -> torch.Tensor:
+        x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
+        x = self.input_mlp(x)
+        for conv in self.convs:
+            x = conv(x, edge_index, edge_attr)
+        return self.output_mlp(x)
+
+
+def build_gated_model_from_dataset(
+    dataset,
+    hidden_dim: int = 256,
+    num_layers: int = 2,
+    out_dim: int = 1,
+    dropout: float = 0.0,
+    use_batch_norm: bool = False,
+    activation: str = "silu",
+    bidirectional: bool = False,
+) -> nn.Module:
+    """Build a :class:`GatedGNNNodeRegressor`, optionally bidirectional."""
+    sample = dataset[0]
+    in_dim = sample.x.size(-1)
+    edge_dim = sample.edge_attr.size(-1)
+    inner = GatedGNNNodeRegressor(
+        in_dim=in_dim,
+        edge_dim=edge_dim,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        out_dim=out_dim,
+        dropout=dropout,
+        use_batch_norm=use_batch_norm,
+        activation=activation,
+    )
+    if bidirectional:
+        return BidirectionalGNNNodeRegressor(inner)
+    return inner
+
+
 def _get_activation(name: str) -> nn.Module:
     name = name.lower()
     if name == "relu":

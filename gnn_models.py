@@ -636,6 +636,132 @@ class GatedGNNNodeRegressor(nn.Module):
         return self.output_mlp(x)
 
 
+class GaussianExpansion(nn.Module):
+    """Expand a scalar distance into a fixed set of Gaussian basis functions.
+
+    Given a distance *d*, produces a vector
+    ``[exp(-gamma*(d - mu_0)^2), ..., exp(-gamma*(d - mu_{K-1})^2)]``
+    where the centres ``mu_k`` are evenly spaced on ``[start, stop]``.
+    """
+
+    def __init__(
+        self, start: float = 0.0, stop: float = 5.0, num_gaussians: int = 20
+    ) -> None:
+        super().__init__()
+        offsets = torch.linspace(start, stop, num_gaussians)
+        self.register_buffer("offsets", offsets)
+        self.gamma = 1.0 / ((stop - start) / max(num_gaussians - 1, 1)) ** 2
+
+    def forward(self, dist: torch.Tensor) -> torch.Tensor:
+        """dist: ``(E,)`` or ``(E, 1)`` -> ``(E, num_gaussians)``."""
+        dist = dist.view(-1, 1)
+        return torch.exp(-self.gamma * (dist - self.offsets) ** 2)
+
+
+class GatedGaussianGNNNodeRegressor(nn.Module):
+    """GatedConv regressor with Gaussian distance expansion on edge features.
+
+    Assumes the first column of ``edge_attr`` is the raw distance.  At runtime
+    it replaces that column with ``num_gaussians`` Gaussian basis values, then
+    feeds the expanded edge features to :class:`GatedConv` layers.
+    """
+
+    def __init__(
+        self,
+        in_dim: int,
+        edge_dim: int,
+        hidden_dim: int = 256,
+        num_layers: int = 2,
+        out_dim: int = 1,
+        dropout: float = 0.0,
+        use_batch_norm: bool = False,
+        activation: str = "silu",
+        num_gaussians: int = 20,
+        gauss_start: float = 0.0,
+        gauss_stop: float = 5.0,
+    ) -> None:
+        super().__init__()
+        if num_layers < 1:
+            raise ValueError("num_layers must be >= 1")
+
+        self.gauss = GaussianExpansion(gauss_start, gauss_stop, num_gaussians)
+        expanded_edge_dim = num_gaussians + (edge_dim - 1)
+
+        self.input_mlp = MLP(
+            in_dim,
+            hidden_dim,
+            hidden_dim,
+            dropout=dropout,
+            use_batch_norm=use_batch_norm,
+            activation=activation,
+        )
+
+        self.convs = nn.ModuleList(
+            GatedConv(
+                hidden_dim=hidden_dim,
+                edge_dim=expanded_edge_dim,
+                dropout=dropout,
+                use_batch_norm=use_batch_norm,
+                activation=activation,
+            )
+            for _ in range(num_layers)
+        )
+
+        self.output_mlp = MLP(
+            hidden_dim,
+            hidden_dim,
+            out_dim,
+            dropout=dropout,
+            use_batch_norm=use_batch_norm,
+            num_layers=2,
+            activation=activation,
+        )
+
+    def forward(self, data) -> torch.Tensor:
+        x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
+        gauss_dist = self.gauss(edge_attr[:, 0])
+        edge_attr = torch.cat([gauss_dist, edge_attr[:, 1:]], dim=-1)
+        x = self.input_mlp(x)
+        for conv in self.convs:
+            x = conv(x, edge_index, edge_attr)
+        return self.output_mlp(x)
+
+
+def build_gated_gaussian_model_from_dataset(
+    dataset,
+    hidden_dim: int = 256,
+    num_layers: int = 2,
+    out_dim: int = 1,
+    dropout: float = 0.0,
+    use_batch_norm: bool = False,
+    activation: str = "silu",
+    bidirectional: bool = False,
+    num_gaussians: int = 20,
+    gauss_start: float = 0.0,
+    gauss_stop: float = 5.0,
+) -> nn.Module:
+    """Build a :class:`GatedGaussianGNNNodeRegressor`, optionally bidirectional."""
+    sample = dataset[0]
+    in_dim = sample.x.size(-1)
+    edge_dim = sample.edge_attr.size(-1)
+    inner = GatedGaussianGNNNodeRegressor(
+        in_dim=in_dim,
+        edge_dim=edge_dim,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        out_dim=out_dim,
+        dropout=dropout,
+        use_batch_norm=use_batch_norm,
+        activation=activation,
+        num_gaussians=num_gaussians,
+        gauss_start=gauss_start,
+        gauss_stop=gauss_stop,
+    )
+    if bidirectional:
+        return BidirectionalGNNNodeRegressor(inner)
+    return inner
+
+
 def build_gated_model_from_dataset(
     dataset,
     hidden_dim: int = 256,

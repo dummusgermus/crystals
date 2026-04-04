@@ -1,4 +1,4 @@
-"""Plot test MAE curves and per-epoch runtime from bidir_vs_gated_cycle34.json."""
+"""Plot test MAE curves and per-epoch runtime from gated_vs_gaussian_cycle34.json."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Plot curves from train_bidir_vs_gated_cycle34.py output JSON."
+        description="Plot curves from train_gated_vs_gaussian_cycle34.py output JSON."
     )
-    parser.add_argument("--input", type=str, default="bidir_vs_gated_cycle34.json")
-    parser.add_argument("--output", type=str, default="bidir_vs_gated_cycle34_plot.png")
+    parser.add_argument("--input", type=str, default="gated_vs_gaussian_cycle34.json")
+    parser.add_argument("--output", type=str, default="gated_vs_gaussian_cycle34_plot.png")
     parser.add_argument(
         "--curve",
         type=str,
@@ -29,12 +29,15 @@ def main() -> None:
     metric = str(payload.get("metric", "mae")).upper()
     models: Dict[str, Dict[str, List[float]]] = payload["models"]
 
+    gauss_info = payload.get("gaussian_expansion", {})
+    n_gauss = gauss_info.get("num_gaussians", "?")
+
     labels = {
-        "bidirectional_base": "Base",
-        "bidirectional_gated": "CGCNN",
+        "gated_raw": "GatedConv (raw distance)",
+        "gated_gaussian": f"GatedConv + Gaussian ({n_gauss} centres)",
     }
-    colors = {"bidirectional_base": "C0", "bidirectional_gated": "C1"}
-    order = ["bidirectional_base", "bidirectional_gated"]
+    colors = {"gated_raw": "C0", "gated_gaussian": "C1"}
+    order = ["gated_raw", "gated_gaussian"]
 
     def plot_mae(ax, curve_name: str, title: str | None = None) -> None:
         for key in order:
@@ -45,7 +48,6 @@ def main() -> None:
             ax.plot(xs, series, label=labels[key], color=colors[key], linewidth=1.2)
         ax.set_xlabel("Epoch")
         ax.set_ylabel(f"{curve_name.capitalize()} {metric}")
-        ax.set_ylim(0.01, 0.02)
         if title:
             ax.set_title(title)
         ax.legend(fontsize=8)
@@ -72,7 +74,7 @@ def main() -> None:
             total_t = m.get("total_train_time", 0)
             n_params = m.get("num_parameters", "?")
             lines.append(
-                f"{labels[key]:42s}  test {metric} = {final_test:.4f}  |  "
+                f"{labels[key]:45s}  test {metric} = {final_test:.4f}  |  "
                 f"time = {total_t:.0f}s  |  params = {n_params:,}"
             )
         return lines
@@ -90,7 +92,7 @@ def main() -> None:
             0.5, 0.01, "\n".join(lines),
             ha="center", va="bottom", fontsize=7, family="monospace",
         )
-        fig.suptitle("Base vs GatedConv", fontsize=13)
+        fig.suptitle("GatedConv: raw distance vs Gaussian expansion (cycle34)", fontsize=13)
         fig.tight_layout(rect=[0, bottom_frac, 1, 0.96])
     else:
         fig, axes = plt.subplots(1, 2, figsize=(13, 5))
@@ -100,7 +102,7 @@ def main() -> None:
             0.5, 0.01, "\n".join(lines),
             ha="center", va="bottom", fontsize=8, family="monospace",
         )
-        fig.suptitle("Base vs GatedConv", fontsize=13)
+        fig.suptitle("GatedConv: raw distance vs Gaussian expansion (cycle34)", fontsize=13)
         fig.tight_layout(rect=[0, bottom_frac, 1, 0.94])
 
     fig.savefig(args.output, dpi=150)

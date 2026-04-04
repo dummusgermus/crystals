@@ -101,12 +101,14 @@ class EdgeFNNConv(MessagePassing):
         return self.message_mlp(msg_input)
 
 
-class MultiTowerConv(nn.Module):
+class MultiTowerConv(MessagePassing):
     """Multiple tower message passing (Gilmer et al., 2017, Section 5.4).
 
-    Splits node embeddings into *k* towers of dimension d/k, runs independent
-    EdgeFNNConv on each tower, then mixes via a shared MLP *g*.  Computational
-    cost per layer drops from O(n^2 d^2) to O(n^2 d^2/k) plus mixing overhead.
+    Splits node embeddings into *k* towers of dimension d/k.  Each tower has
+    its own message MLP, node projection, and update MLP, but all towers share
+    a single ``propagate()`` call so the expensive scatter/gather kernel is
+    dispatched only once regardless of *k*.  Tower outputs are concatenated and
+    mixed through a shared MLP *g*.
     """
 
     def __init__(
@@ -118,7 +120,7 @@ class MultiTowerConv(nn.Module):
         use_batch_norm: bool = False,
         activation: str = "silu",
     ) -> None:
-        super().__init__()
+        super().__init__(aggr="add")
         if hidden_dim % num_towers != 0:
             raise ValueError(
                 f"hidden_dim ({hidden_dim}) must be divisible by num_towers ({num_towers})"
@@ -126,27 +128,33 @@ class MultiTowerConv(nn.Module):
 
         self.num_towers = num_towers
         self.tower_dim = hidden_dim // num_towers
+        td = self.tower_dim
 
-        self.towers = nn.ModuleList(
-            EdgeFNNConv(
-                in_dim=self.tower_dim,
-                edge_dim=edge_dim,
-                hidden_dim=self.tower_dim,
-                dropout=dropout,
-                use_batch_norm=use_batch_norm,
-                activation=activation,
+        self.node_projs = nn.ModuleList(
+            nn.Linear(td, td) for _ in range(num_towers)
+        )
+        self.message_mlps = nn.ModuleList(
+            MLP(
+                td * 2 + edge_dim, td, td,
+                dropout=dropout, num_layers=2,
+                use_batch_norm=use_batch_norm, activation=activation,
             )
             for _ in range(num_towers)
         )
+        self.update_mlps = nn.ModuleList(
+            MLP(
+                td, td, td,
+                dropout=dropout, num_layers=2,
+                use_batch_norm=use_batch_norm, activation=activation,
+            )
+            for _ in range(num_towers)
+        )
+        self.act = _get_activation(activation)
 
         self.mix = MLP(
-            hidden_dim,
-            hidden_dim,
-            hidden_dim,
-            dropout=dropout,
-            num_layers=2,
-            use_batch_norm=use_batch_norm,
-            activation=activation,
+            hidden_dim, hidden_dim, hidden_dim,
+            dropout=dropout, num_layers=2,
+            use_batch_norm=use_batch_norm, activation=activation,
         )
 
     def forward(
@@ -156,11 +164,37 @@ class MultiTowerConv(nn.Module):
         edge_attr: torch.Tensor,
     ) -> torch.Tensor:
         chunks = x.chunk(self.num_towers, dim=-1)
-        tower_outs = [
-            tower(chunk, edge_index, edge_attr)
-            for tower, chunk in zip(self.towers, chunks)
+        x_proj = torch.cat(
+            [self.node_projs[i](chunks[i]) for i in range(self.num_towers)],
+            dim=-1,
+        )
+
+        agg = self.propagate(edge_index, x=x, edge_attr=edge_attr)
+
+        out = self.act(x_proj + agg)
+
+        out_chunks = out.chunk(self.num_towers, dim=-1)
+        updated = torch.cat(
+            [self.update_mlps[i](out_chunks[i]) for i in range(self.num_towers)],
+            dim=-1,
+        )
+        return self.mix(updated)
+
+    def message(
+        self,
+        x_i: torch.Tensor,
+        x_j: torch.Tensor,
+        edge_attr: torch.Tensor,
+    ) -> torch.Tensor:
+        xi_chunks = x_i.chunk(self.num_towers, dim=-1)
+        xj_chunks = x_j.chunk(self.num_towers, dim=-1)
+        msgs = [
+            self.message_mlps[i](
+                torch.cat([xi_chunks[i], xj_chunks[i], edge_attr], dim=-1)
+            )
+            for i in range(self.num_towers)
         ]
-        return self.mix(torch.cat(tower_outs, dim=-1))
+        return torch.cat(msgs, dim=-1)
 
 
 class MultiTowerGNNNodeRegressor(nn.Module):

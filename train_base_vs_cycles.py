@@ -52,6 +52,7 @@ def _train_one(
     activation: str,
     metric: str,
     seed: int,
+    bidirectional: bool,
 ) -> Dict[str, List[float]]:
     """Train a single model and return per-epoch train / val / test curves."""
 
@@ -81,6 +82,7 @@ def _train_one(
         dropout=dropout,
         use_batch_norm=use_batch_norm,
         activation=activation,
+        bidirectional=bidirectional,
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -147,6 +149,11 @@ def main() -> None:
     parser.add_argument("--metric", type=str, default="mae", choices=["mae", "rmse", "mse"])
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", type=str, default="base_vs_cycles_curves.json")
+    parser.add_argument(
+        "--bidirectional",
+        action="store_true",
+        help="Two directed edges per undirected edge (same .pt datasets).",
+    )
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -179,6 +186,7 @@ def main() -> None:
             activation=args.activation,
             metric=args.metric,
             seed=args.seed,
+            bidirectional=args.bidirectional,
         )
         results[name] = curves
 
@@ -186,6 +194,7 @@ def main() -> None:
         "metric": args.metric,
         "epochs": args.epochs,
         "seed": args.seed,
+        "bidirectional": args.bidirectional,
         "curves": results,
     }
     with open(args.output, "w") as f:

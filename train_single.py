@@ -222,6 +222,14 @@ def main() -> None:
     parser.add_argument("--metric", type=str, default="mae", choices=["mae", "rmse", "mse"])
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--plot", type=str, default="train_test_curve.png")
+    parser.add_argument(
+        "--bidirectional",
+        action="store_true",
+        help=(
+            "Use two directed edges per undirected edge (duplicate reverse in forward). "
+            "Same saved datasets; no need to regenerate .pt files."
+        ),
+    )
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -256,6 +264,7 @@ def main() -> None:
             dropout=args.dropout,
             use_batch_norm=args.use_batch_norm,
             activation=args.activation,
+            bidirectional=args.bidirectional,
         )
 
     def train_model() -> List[float]:
@@ -314,8 +323,9 @@ def main() -> None:
 
             dt = time.time() - t0
             current_lr = optimizer.param_groups[0]["lr"]
+            tag = "base-bidir" if args.bidirectional else "base"
             print(
-                f"[base] Epoch {epoch:03d} | "
+                f"[{tag}] Epoch {epoch:03d} | "
                 f"train {args.metric.upper()} {metric_value(train_metrics, args.metric):.4f} | "
                 f"val {args.metric.upper()} {metric_value(val_metrics, args.metric):.4f} | "
                 f"test {args.metric.upper()} {metric_value(test_metrics, args.metric):.4f} | "
@@ -337,7 +347,8 @@ def main() -> None:
 
     plt.figure(figsize=(8, 5))
     for name, curve in test_curves.items():
-        label = f"Base {args.metric.upper()}"
+        suffix = " (bidirectional edges)" if args.bidirectional else ""
+        label = f"Base {args.metric.upper()}{suffix}"
         plt.plot(curve, label=label)
     plt.xlabel("Epoch")
     plt.ylabel(args.metric.upper())

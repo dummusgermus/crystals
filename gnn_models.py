@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional, Tuple, Union
+
 import torch
 from torch import nn
 from torch_geometric.nn import (
@@ -97,6 +99,42 @@ class EdgeFNNConv(MessagePassing):
     ) -> torch.Tensor:
         msg_input = torch.cat([x_i, x_j, edge_attr], dim=-1)
         return self.message_mlp(msg_input)
+
+
+def bidirectional_edge_pairs(
+    edge_index: torch.Tensor,
+    edge_attr: Optional[torch.Tensor],
+) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    """For each edge (i, j), append the reverse (j, i) with the same edge attributes.
+
+    Use this when graphs were stored with one orientation per undirected pair but
+    message passing should see both directions (standard PyG undirected practice).
+    """
+    if edge_index.numel() == 0:
+        return edge_index, edge_attr
+    rev = edge_index.flip(0)
+    out_index = torch.cat([edge_index, rev], dim=1)
+    if edge_attr is None:
+        return out_index, None
+    out_attr = torch.cat([edge_attr, edge_attr], dim=0)
+    return out_index, out_attr
+
+
+class BidirectionalGNNNodeRegressor(nn.Module):
+    """Same architecture as :class:`GNNNodeRegressor`; doubles each edge in the forward pass."""
+
+    def __init__(self, model: "GNNNodeRegressor") -> None:
+        super().__init__()
+        self.model = model
+
+    def forward(self, data) -> torch.Tensor:
+        ei, ea = bidirectional_edge_pairs(data.edge_index, data.edge_attr)
+        saved_i, saved_a = data.edge_index, data.edge_attr
+        data.edge_index, data.edge_attr = ei, ea
+        try:
+            return self.model(data)
+        finally:
+            data.edge_index, data.edge_attr = saved_i, saved_a
 
 
 def _build_pool(
@@ -203,6 +241,23 @@ class GNNGraphRegressor(nn.Module):
         return self.output_mlp(graph_repr)
 
 
+class BidirectionalGNNGraphRegressor(nn.Module):
+    """Same architecture as :class:`GNNGraphRegressor`; doubles each edge in the forward pass."""
+
+    def __init__(self, model: GNNGraphRegressor) -> None:
+        super().__init__()
+        self.model = model
+
+    def forward(self, data) -> torch.Tensor:
+        ei, ea = bidirectional_edge_pairs(data.edge_index, data.edge_attr)
+        saved_i, saved_a = data.edge_index, data.edge_attr
+        data.edge_index, data.edge_attr = ei, ea
+        try:
+            return self.model(data)
+        finally:
+            data.edge_index, data.edge_attr = saved_i, saved_a
+
+
 class GNNNodeRegressor(nn.Module):
     def __init__(
         self,
@@ -267,11 +322,12 @@ def build_model_from_dataset(
     dropout: float = 0.0,
     use_batch_norm: bool = False,
     activation: str = "silu",
-) -> GNNNodeRegressor:
+    bidirectional: bool = False,
+) -> Union[GNNNodeRegressor, BidirectionalGNNNodeRegressor]:
     sample = dataset[0]
     in_dim = sample.x.size(-1)
     edge_dim = sample.edge_attr.size(-1)
-    return GNNNodeRegressor(
+    inner = GNNNodeRegressor(
         in_dim=in_dim,
         edge_dim=edge_dim,
         hidden_dim=hidden_dim,
@@ -281,6 +337,9 @@ def build_model_from_dataset(
         use_batch_norm=use_batch_norm,
         activation=activation,
     )
+    if bidirectional:
+        return BidirectionalGNNNodeRegressor(inner)
+    return inner
 
 
 def _get_activation(name: str) -> nn.Module:

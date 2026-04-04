@@ -33,8 +33,8 @@ def main() -> None:
     n_gauss = gauss_info.get("num_gaussians", "?")
 
     labels = {
-        "gated_raw": "GatedConv (raw distance)",
-        "gated_gaussian": f"GatedConv + Gaussian ({n_gauss} centres)",
+        "gated_raw": "CGCNN",
+        "gated_gaussian": f"CGCNN + Gaussian",
     }
     colors = {"gated_raw": "C0", "gated_gaussian": "C1"}
     order = ["gated_raw", "gated_gaussian"]
@@ -48,6 +48,7 @@ def main() -> None:
             ax.plot(xs, series, label=labels[key], color=colors[key], linewidth=1.2)
         ax.set_xlabel("Epoch")
         ax.set_ylabel(f"{curve_name.capitalize()} {metric}")
+        ax.set_ylim(0.01, 0.02)
         if title:
             ax.set_title(title)
         ax.legend(fontsize=8)
@@ -83,26 +84,24 @@ def main() -> None:
     bottom_frac = 0.05 + 0.022 * max(len(lines), 1)
 
     if args.curve == "all":
-        fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-        plot_mae(axes[0][0], "train", title=f"Train {metric}")
-        plot_mae(axes[0][1], "val", title=f"Val {metric}")
-        plot_mae(axes[1][0], "test", title=f"Test {metric}")
-        plot_epoch_times(axes[1][1])
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        plot_mae(axes[0], "train", title=f"Train {metric}")
+        plot_mae(axes[1], "val", title=f"Val {metric}")
+        plot_mae(axes[2], "test", title=f"Test {metric}")
         fig.text(
             0.5, 0.01, "\n".join(lines),
             ha="center", va="bottom", fontsize=7, family="monospace",
         )
-        fig.suptitle("GatedConv: raw distance vs Gaussian expansion (cycle34)", fontsize=13)
+        fig.suptitle("Raw distance vs Gaussian expansion", fontsize=13)
         fig.tight_layout(rect=[0, bottom_frac, 1, 0.96])
     else:
-        fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-        plot_mae(axes[0], args.curve, title=f"{args.curve.capitalize()} {metric}")
-        plot_epoch_times(axes[1])
+        fig, ax = plt.subplots(1, 1, figsize=(8, 5))
+        plot_mae(ax, args.curve, title=f"{args.curve.capitalize()} {metric}")
         fig.text(
             0.5, 0.01, "\n".join(lines),
             ha="center", va="bottom", fontsize=8, family="monospace",
         )
-        fig.suptitle("GatedConv: raw distance vs Gaussian expansion (cycle34)", fontsize=13)
+        fig.suptitle("Raw distance vs Gaussian expansion", fontsize=13)
         fig.tight_layout(rect=[0, bottom_frac, 1, 0.94])
 
     fig.savefig(args.output, dpi=150)

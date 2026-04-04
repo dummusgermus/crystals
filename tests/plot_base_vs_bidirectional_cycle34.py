@@ -1,10 +1,14 @@
-"""Plot train/val/test curves from base_vs_bidirectional_cycle34.json."""
+"""Plot train/val/test curves from base_vs_bidirectional_cycle34.json.
+
+Optionally overlays curves from masternode_cycle34.json (train_masternode_cycle34.py).
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
-from typing import Dict, List
+import os
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 
@@ -18,6 +22,15 @@ def main() -> None:
         type=str,
         default="base_vs_bidirectional_cycle34.json",
         help="JSON file from train_base_vs_bidirectional_cycle34.py",
+    )
+    parser.add_argument(
+        "--masternode",
+        type=str,
+        default="masternode_cycle34.json",
+        help=(
+            "Optional JSON from train_masternode_cycle34.py; if the file exists, "
+            "its curves are drawn on the same axes."
+        ),
     )
     parser.add_argument(
         "--output",
@@ -40,6 +53,17 @@ def main() -> None:
     metric = str(payload.get("metric", "mae")).upper()
     models: Dict[str, Dict[str, List[float]]] = payload["models"]
 
+    masternode_curves: Optional[Dict[str, List[float]]] = None
+    if args.masternode and os.path.isfile(args.masternode):
+        with open(args.masternode, "r", encoding="utf-8") as f:
+            mn = json.load(f)
+        masternode_curves = mn.get("curves")
+        if masternode_curves is None:
+            print(f"Warning: {args.masternode} has no 'curves' key; skipping overlay.")
+            masternode_curves = None
+    elif args.masternode:
+        print(f"Note: {args.masternode} not found; plotting base vs bidirectional only.")
+
     labels = {
         "base": "Undirected",
         "bidirectional": "Directed",
@@ -60,6 +84,16 @@ def main() -> None:
                 label=labels.get(key, key),
                 color=colors.get(key),
             )
+        if masternode_curves is not None:
+            series = masternode_curves.get(curve_name, [])
+            if series:
+                xs = range(1, len(series) + 1)
+                ax.plot(
+                    xs,
+                    series,
+                    label="Directed + master node",
+                    color="C2",
+                )
         ax.set_xlabel("Epoch")
         ax.set_ylabel(f"{curve_name.capitalize()} {metric}")
         if title:

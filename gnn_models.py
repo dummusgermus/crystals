@@ -101,6 +101,126 @@ class EdgeFNNConv(MessagePassing):
         return self.message_mlp(msg_input)
 
 
+class MultiTowerConv(nn.Module):
+    """Multiple tower message passing (Gilmer et al., 2017, Section 5.4).
+
+    Splits node embeddings into *k* towers of dimension d/k, runs independent
+    EdgeFNNConv on each tower, then mixes via a shared MLP *g*.  Computational
+    cost per layer drops from O(n^2 d^2) to O(n^2 d^2/k) plus mixing overhead.
+    """
+
+    def __init__(
+        self,
+        hidden_dim: int,
+        edge_dim: int,
+        num_towers: int = 8,
+        dropout: float = 0.0,
+        use_batch_norm: bool = False,
+        activation: str = "silu",
+    ) -> None:
+        super().__init__()
+        if hidden_dim % num_towers != 0:
+            raise ValueError(
+                f"hidden_dim ({hidden_dim}) must be divisible by num_towers ({num_towers})"
+            )
+
+        self.num_towers = num_towers
+        self.tower_dim = hidden_dim // num_towers
+
+        self.towers = nn.ModuleList(
+            EdgeFNNConv(
+                in_dim=self.tower_dim,
+                edge_dim=edge_dim,
+                hidden_dim=self.tower_dim,
+                dropout=dropout,
+                use_batch_norm=use_batch_norm,
+                activation=activation,
+            )
+            for _ in range(num_towers)
+        )
+
+        self.mix = MLP(
+            hidden_dim,
+            hidden_dim,
+            hidden_dim,
+            dropout=dropout,
+            num_layers=2,
+            use_batch_norm=use_batch_norm,
+            activation=activation,
+        )
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: torch.Tensor,
+    ) -> torch.Tensor:
+        chunks = x.chunk(self.num_towers, dim=-1)
+        tower_outs = [
+            tower(chunk, edge_index, edge_attr)
+            for tower, chunk in zip(self.towers, chunks)
+        ]
+        return self.mix(torch.cat(tower_outs, dim=-1))
+
+
+class MultiTowerGNNNodeRegressor(nn.Module):
+    """Node-level regressor using multiple-tower message passing."""
+
+    def __init__(
+        self,
+        in_dim: int,
+        edge_dim: int,
+        hidden_dim: int = 256,
+        num_layers: int = 2,
+        num_towers: int = 8,
+        out_dim: int = 1,
+        dropout: float = 0.0,
+        use_batch_norm: bool = False,
+        activation: str = "silu",
+    ) -> None:
+        super().__init__()
+        if num_layers < 1:
+            raise ValueError("num_layers must be >= 1")
+
+        self.input_mlp = MLP(
+            in_dim,
+            hidden_dim,
+            hidden_dim,
+            dropout=dropout,
+            use_batch_norm=use_batch_norm,
+            activation=activation,
+        )
+
+        self.convs = nn.ModuleList(
+            MultiTowerConv(
+                hidden_dim=hidden_dim,
+                edge_dim=edge_dim,
+                num_towers=num_towers,
+                dropout=dropout,
+                use_batch_norm=use_batch_norm,
+                activation=activation,
+            )
+            for _ in range(num_layers)
+        )
+
+        self.output_mlp = MLP(
+            hidden_dim,
+            hidden_dim,
+            out_dim,
+            dropout=dropout,
+            use_batch_norm=use_batch_norm,
+            num_layers=2,
+            activation=activation,
+        )
+
+    def forward(self, data) -> torch.Tensor:
+        x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
+        x = self.input_mlp(x)
+        for conv in self.convs:
+            x = conv(x, edge_index, edge_attr)
+        return self.output_mlp(x)
+
+
 def bidirectional_edge_pairs(
     edge_index: torch.Tensor,
     edge_attr: Optional[torch.Tensor],
@@ -332,6 +452,37 @@ def build_model_from_dataset(
         edge_dim=edge_dim,
         hidden_dim=hidden_dim,
         num_layers=num_layers,
+        out_dim=out_dim,
+        dropout=dropout,
+        use_batch_norm=use_batch_norm,
+        activation=activation,
+    )
+    if bidirectional:
+        return BidirectionalGNNNodeRegressor(inner)
+    return inner
+
+
+def build_tower_model_from_dataset(
+    dataset,
+    hidden_dim: int = 256,
+    num_layers: int = 2,
+    num_towers: int = 8,
+    out_dim: int = 1,
+    dropout: float = 0.0,
+    use_batch_norm: bool = False,
+    activation: str = "silu",
+    bidirectional: bool = False,
+) -> nn.Module:
+    """Build a :class:`MultiTowerGNNNodeRegressor`, optionally bidirectional."""
+    sample = dataset[0]
+    in_dim = sample.x.size(-1)
+    edge_dim = sample.edge_attr.size(-1)
+    inner = MultiTowerGNNNodeRegressor(
+        in_dim=in_dim,
+        edge_dim=edge_dim,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        num_towers=num_towers,
         out_dim=out_dim,
         dropout=dropout,
         use_batch_norm=use_batch_norm,

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=jara-masternode-c34
+#SBATCH --job-name=jara-bidir-vs-towers-c34
 #SBATCH --output=logs/%x-%j.out
 #SBATCH --error=logs/%x-%j.err
 #SBATCH --time=48:00:00
@@ -29,19 +29,14 @@ mkdir -p "${TRITON_CACHE_DIR}" "${TORCHINDUCTOR_CACHE_DIR}"
 EPOCHS="${EPOCHS:-300}"
 METRIC="${METRIC:-mae}"
 SEED="${SEED:-42}"
-DATASET="${DATASET:-adv_datasets/masternode_cycle34_dataset.pt}"
-OUTPUT="${OUTPUT:-masternode_cycle34.json}"
+DATASET="${DATASET:-adv_datasets/cycle34_dataset.pt}"
+OUTPUT="${OUTPUT:-bidir_vs_towers_cycle34.json}"
+NUM_TOWERS="${NUM_TOWERS:-8}"
 
-# Step 1: build the master-node dataset if it does not exist yet
-if [ ! -f "${DATASET}" ]; then
-  echo ">>> Creating master-node dataset …"
-  python -u masternode_graph_maker.py
-fi
-
-# Step 2: train
-python -u train_masternode_cycle34.py \
+python -u train_bidir_vs_towers_cycle34.py \
   --dataset "${DATASET}" \
   --output "${OUTPUT}" \
   --epochs "${EPOCHS}" \
   --metric "${METRIC}" \
-  --seed "${SEED}"
+  --seed "${SEED}" \
+  --num-towers "${NUM_TOWERS}"

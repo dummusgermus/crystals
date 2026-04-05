@@ -1,7 +1,6 @@
-"""Analyse and plot results from the GatedConv hyperparameter sweep.
+"""Analyse and plot results from the GatedConv hyperparameter sweep (v2).
 
-Produces a summary table of the top-N configs (by validation MAE) and a
-scatter plot of val MAE vs test MAE coloured by a chosen hyperparameter.
+Only lr and weight_decay are swept; all other hyperparameters are fixed.
 """
 
 from __future__ import annotations
@@ -17,113 +16,98 @@ import numpy as np
 def _load(path: str) -> List[Dict[str, Any]]:
     with open(path, "r", encoding="utf-8") as f:
         payload = json.load(f)
-    return [r for r in payload["results"] if "mean_val_mae" in r]
+    return [r for r in payload["results"] if "mean_val_mae" in r], payload
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot GatedConv sweep results.")
-    parser.add_argument("--input", type=str, default="sweep_gated_cycle34.json")
-    parser.add_argument("--output", type=str, default="sweep_gated_cycle34_plot.png")
-    parser.add_argument("--top-n", type=int, default=20)
+    parser.add_argument("--input", type=str, default="sweep_gated_cycle34_v2.json")
+    parser.add_argument("--output", type=str, default="sweep_gated_cycle34_v2_plot.png")
+    parser.add_argument("--top-n", type=int, default=24)
     args = parser.parse_args()
 
-    results = _load(args.input)
+    results, payload = _load(args.input)
     if not results:
         raise SystemExit("No valid results found.")
 
     results.sort(key=lambda r: r["mean_val_mae"])
     print(f"Loaded {len(results)} valid runs\n")
 
-    print(f"{'Rank':>4}  {'Val MAE':>9}  {'Test MAE':>9}  {'Params':>9}  "
-          f"{'Time':>6}  {'hd':>4}  {'nl':>2}  {'dr':>5}  {'lr':>7}  "
-          f"{'wd':>7}  {'bs':>3}  {'act':>5}  {'bn':>5}")
-    print("-" * 110)
+    fixed = payload.get("fixed", {})
+    fixed_str = ", ".join(f"{k}={v}" for k, v in fixed.items())
+    print(f"Fixed: {fixed_str}\n")
+
+    print(f"{'Rank':>4}  {'Val MAE':>9}  {'Test MAE':>9}  "
+          f"{'lr':>9}  {'wd':>9}  {'Time':>6}")
+    print("-" * 55)
     for rank, r in enumerate(results[: args.top_n], 1):
         c = r["config"]
         print(
             f"{rank:4d}  {r['mean_val_mae']:9.5f}  {r['mean_test_mae']:9.5f}  "
-            f"{r['num_parameters']:9,}  {r['total_train_time']:5.0f}s  "
-            f"{c['hidden_dim']:4d}  {c['num_layers']:2d}  {c['dropout']:5.2f}  "
-            f"{c['lr']:7.1e}  {c['weight_decay']:7.1e}  {c['batch_size']:3d}  "
-            f"{c['activation']:>5}  {str(c['use_batch_norm']):>5}"
+            f"{c['lr']:9.1e}  {c['weight_decay']:9.1e}  {r['total_train_time']:5.0f}s"
         )
 
+    lrs = np.array([r["config"]["lr"] for r in results])
+    wds = np.array([r["config"]["weight_decay"] for r in results])
     val_maes = np.array([r["mean_val_mae"] for r in results])
     test_maes = np.array([r["mean_test_mae"] for r in results])
-    hidden_dims = np.array([r["config"]["hidden_dim"] for r in results])
-    num_layers = np.array([r["config"]["num_layers"] for r in results])
-    times = np.array([r["total_train_time"] for r in results])
 
-    fig, axes = plt.subplots(2, 2, figsize=(13, 10))
+    unique_lrs = sorted(set(lrs))
+    unique_wds = sorted(set(wds))
 
-    # 1. Val vs Test MAE scatter, coloured by hidden_dim
-    ax = axes[0][0]
-    sc = ax.scatter(val_maes, test_maes, c=hidden_dims, cmap="viridis",
-                    s=15, alpha=0.6, edgecolors="none")
-    fig.colorbar(sc, ax=ax, label="hidden_dim")
-    ax.set_xlabel("Mean val MAE (last 10 epochs)")
-    ax.set_ylabel("Mean test MAE (last 10 epochs)")
-    ax.set_title("Val vs Test MAE")
-    ax.plot([val_maes.min(), val_maes.max()],
-            [val_maes.min(), val_maes.max()],
-            "k--", alpha=0.3, linewidth=0.8)
-    ax.grid(True, alpha=0.3)
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
-    # 2. Test MAE vs num_layers, coloured by hidden_dim
-    ax = axes[0][1]
-    sc = ax.scatter(num_layers + np.random.default_rng(0).uniform(-0.15, 0.15, len(num_layers)),
-                    test_maes, c=hidden_dims, cmap="viridis",
-                    s=15, alpha=0.6, edgecolors="none")
-    fig.colorbar(sc, ax=ax, label="hidden_dim")
-    ax.set_xlabel("num_layers (jittered)")
-    ax.set_ylabel("Mean test MAE")
-    ax.set_title("Test MAE vs depth")
-    ax.grid(True, alpha=0.3)
+    # 1. Heatmap: test MAE by lr x weight_decay
+    ax = axes[0]
+    grid = np.full((len(unique_wds), len(unique_lrs)), np.nan)
+    for r in results:
+        lr_idx = unique_lrs.index(r["config"]["lr"])
+        wd_idx = unique_wds.index(r["config"]["weight_decay"])
+        grid[wd_idx, lr_idx] = r["mean_test_mae"]
 
-    # 3. Test MAE vs training time
-    ax = axes[1][0]
-    sc = ax.scatter(times, test_maes, c=hidden_dims, cmap="viridis",
-                    s=15, alpha=0.6, edgecolors="none")
-    fig.colorbar(sc, ax=ax, label="hidden_dim")
-    ax.set_xlabel("Total training time (s)")
-    ax.set_ylabel("Mean test MAE")
-    ax.set_title("Accuracy vs runtime")
-    ax.grid(True, alpha=0.3)
+    im = ax.imshow(grid, cmap="RdYlGn_r", aspect="auto")
+    fig.colorbar(im, ax=ax, label="Mean test MAE")
+    ax.set_xticks(range(len(unique_lrs)))
+    ax.set_xticklabels([f"{x:.0e}" for x in unique_lrs], rotation=45, fontsize=8)
+    ax.set_yticks(range(len(unique_wds)))
+    ax.set_yticklabels([f"{x:.0e}" for x in unique_wds], fontsize=8)
+    ax.set_xlabel("Learning rate")
+    ax.set_ylabel("Weight decay")
+    ax.set_title("Test MAE heatmap")
 
-    # 4. Top 10 configs bar chart
-    ax = axes[1][1]
-    top10 = results[:10]
-    labels = [
-        f"hd={r['config']['hidden_dim']} nl={r['config']['num_layers']}\n"
-        f"lr={r['config']['lr']:.0e} bs={r['config']['batch_size']}"
-        for r in top10
-    ]
-    y_pos = np.arange(len(top10))
-    bars = ax.barh(y_pos, [r["mean_test_mae"] for r in top10], color="C1", alpha=0.8)
+    for i in range(len(unique_wds)):
+        for j in range(len(unique_lrs)):
+            if not np.isnan(grid[i, j]):
+                ax.text(j, i, f"{grid[i, j]:.4f}", ha="center", va="center",
+                        fontsize=7, color="white" if grid[i, j] > np.nanmedian(grid) else "black")
+
+    # 2. Bar chart of all configs sorted by test MAE
+    ax = axes[1]
+    sorted_by_test = sorted(results, key=lambda r: r["mean_test_mae"])
+    bar_labels = [f"lr={r['config']['lr']:.0e}\nwd={r['config']['weight_decay']:.0e}"
+                  for r in sorted_by_test]
+    y_pos = np.arange(len(sorted_by_test))
+    colors = ["C1" if r == results[0] else "C0" for r in sorted_by_test]
+    ax.barh(y_pos, [r["mean_test_mae"] for r in sorted_by_test],
+            color=colors, alpha=0.8)
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(labels, fontsize=7)
+    ax.set_yticklabels(bar_labels, fontsize=6)
     ax.set_xlabel("Mean test MAE (last 10 epochs)")
-    ax.set_title("Top 10 configs by val MAE")
+    ax.set_title("All configs ranked by test MAE")
     ax.invert_yaxis()
     ax.grid(True, alpha=0.3, axis="x")
 
     best = results[0]
     bc = best["config"]
     footer = (
-        f"Best config (by val MAE): "
-        f"hidden_dim={bc['hidden_dim']}  num_layers={bc['num_layers']}  "
-        f"dropout={bc['dropout']}  lr={bc['lr']}  weight_decay={bc['weight_decay']}  "
-        f"batch_size={bc['batch_size']}  activation={bc['activation']}  "
-        f"batch_norm={bc['use_batch_norm']}\n"
-        f"val MAE = {best['mean_val_mae']:.5f}  |  "
-        f"test MAE = {best['mean_test_mae']:.5f}  |  "
-        f"params = {best['num_parameters']:,}  |  "
-        f"time = {best['total_train_time']:.0f}s"
+        f"Best (by val MAE): lr={bc['lr']}  weight_decay={bc['weight_decay']}  |  "
+        f"val MAE = {best['mean_val_mae']:.5f}  |  test MAE = {best['mean_test_mae']:.5f}  |  "
+        f"time = {best['total_train_time']:.0f}s\n"
+        f"Fixed: {fixed_str}"
     )
-
     fig.text(0.5, 0.01, footer, ha="center", va="bottom", fontsize=8, family="monospace")
-    fig.suptitle(f"GatedConv hyperparameter sweep ({len(results)} configs)", fontsize=14)
-    fig.tight_layout(rect=[0, 0.06, 1, 0.96])
+    fig.suptitle(f"GatedConv lr x weight_decay sweep ({len(results)} configs)", fontsize=13)
+    fig.tight_layout(rect=[0, 0.08, 1, 0.95])
 
     fig.savefig(args.output, dpi=150)
     plt.close(fig)

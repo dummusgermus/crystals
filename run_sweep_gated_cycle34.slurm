@@ -28,7 +28,7 @@ mkdir -p "${TRITON_CACHE_DIR}" "${TORCHINDUCTOR_CACHE_DIR}"
 EPOCHS="${EPOCHS:-300}"
 SEED="${SEED:-42}"
 DATASET="${DATASET:-adv_datasets/cycle34_dataset.pt}"
-OUTPUT="${OUTPUT:-sweep_gated_cycle34.json}"
+OUTPUT="${OUTPUT:-sweep_gated_cycle34_v2.json}"
 
 python -u sweep_gated_cycle34.py \
   --dataset "${DATASET}" \

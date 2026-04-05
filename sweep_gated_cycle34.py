@@ -28,19 +28,19 @@ from train_single import (
 )
 
 DEFAULT_DATASET = os.path.join("adv_datasets", "cycle34_dataset.pt")
-DEFAULT_OUTPUT = "sweep_gated_cycle34.json"
+DEFAULT_OUTPUT = "sweep_gated_cycle34_v2.json"
 
 SWEEP_SPACE: Dict[str, list] = {
-    "hidden_dim": [128, 256, 512],
-    "num_layers": [2, 3, 4],
-    "dropout": [0.0, 0.05, 0.1],
-    "lr": [5e-4, 1e-3, 2e-3],
-    "weight_decay": [0.0, 1e-4],
-    "batch_size": [8, 16, 32],
+    "lr": [1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3],
+    "weight_decay": [0.0, 1e-5, 1e-4, 1e-3],
 }
 
+FIXED_HIDDEN_DIM = 128
+FIXED_NUM_LAYERS = 2
+FIXED_DROPOUT = 0.0
+FIXED_BATCH_SIZE = 32
 FIXED_ACTIVATION = "silu"
-FIXED_BATCH_NORM = True
+FIXED_BATCH_NORM = False
 LAST_N = 10
 
 
@@ -67,10 +67,9 @@ def _train_config(
     val_set = [dataset[i] for i in val_idx]
     test_set = [dataset[i] for i in test_idx]
 
-    bs = cfg["batch_size"]
-    train_loader = DataLoader(train_set, batch_size=bs, shuffle=True)
-    val_loader = DataLoader(val_set, batch_size=bs, shuffle=False)
-    test_loader = DataLoader(test_set, batch_size=bs, shuffle=False)
+    train_loader = DataLoader(train_set, batch_size=FIXED_BATCH_SIZE, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=FIXED_BATCH_SIZE, shuffle=False)
+    test_loader = DataLoader(test_set, batch_size=FIXED_BATCH_SIZE, shuffle=False)
 
     train_targets = torch.cat([d.y for d in train_set], dim=0).view(-1)
     target_mean = train_targets.mean().to(device)
@@ -79,9 +78,9 @@ def _train_config(
     set_seed(train_seed)
     model = build_gated_model_from_dataset(
         dataset,
-        hidden_dim=cfg["hidden_dim"],
-        num_layers=cfg["num_layers"],
-        dropout=cfg["dropout"],
+        hidden_dim=FIXED_HIDDEN_DIM,
+        num_layers=FIXED_NUM_LAYERS,
+        dropout=FIXED_DROPOUT,
         use_batch_norm=FIXED_BATCH_NORM,
         activation=FIXED_ACTIVATION,
         bidirectional=True,
@@ -155,7 +154,8 @@ def main() -> None:
     print(f"Device: {device}")
     print(f"Dataset: {args.dataset}")
     print(f"Epochs: {args.epochs}")
-    print(f"Fixed: activation={FIXED_ACTIVATION}, batch_norm={FIXED_BATCH_NORM}")
+    print(f"Fixed: hd={FIXED_HIDDEN_DIM}, nl={FIXED_NUM_LAYERS}, dr={FIXED_DROPOUT}, "
+          f"bs={FIXED_BATCH_SIZE}, act={FIXED_ACTIVATION}, bn={FIXED_BATCH_NORM}")
 
     dataset = torch.load(args.dataset, weights_only=False)
 
@@ -174,8 +174,14 @@ def main() -> None:
         "seed": args.seed,
         "n_configs": len(configs),
         "sweep_space": {k: [str(x) for x in v] for k, v in SWEEP_SPACE.items()},
-        "fixed_activation": FIXED_ACTIVATION,
-        "fixed_batch_norm": FIXED_BATCH_NORM,
+        "fixed": {
+            "hidden_dim": FIXED_HIDDEN_DIM,
+            "num_layers": FIXED_NUM_LAYERS,
+            "dropout": FIXED_DROPOUT,
+            "batch_size": FIXED_BATCH_SIZE,
+            "activation": FIXED_ACTIVATION,
+            "batch_norm": FIXED_BATCH_NORM,
+        },
         "last_n_epochs": LAST_N,
     }
 
@@ -231,9 +237,7 @@ def main() -> None:
         c = r["config"]
         print(
             f"  #{rank:2d}  val={r['mean_val_mae']:.4f}  test={r['mean_test_mae']:.4f}  "
-            f"hd={c['hidden_dim']}  nl={c['num_layers']}  "
-            f"dr={c['dropout']}  lr={c['lr']}  wd={c['weight_decay']}  "
-            f"bs={c['batch_size']}  "
+            f"lr={c['lr']}  wd={c['weight_decay']}  "
             f"params={r['num_parameters']:,}  time={r['total_train_time']:.0f}s"
         )
 

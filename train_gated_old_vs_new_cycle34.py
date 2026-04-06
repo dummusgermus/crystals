@@ -25,21 +25,21 @@ from train_single import (
 )
 
 DATASET_PATH = os.path.join("adv_datasets", "cycle34_dataset.pt")
-OUTPUT_JSON = "gated_old_vs_new_cycle34.json"
-OUTPUT_PLOT = "gated_old_vs_new_cycle34_plot.png"
+OUTPUT_JSON = "gated_old_vs_new_cycle34_v2.json"
+OUTPUT_PLOT = "gated_old_vs_new_cycle34_v2_plot.png"
 EPOCHS = 300
 SEED = 42
 
 CONFIGS = {
-    "old (hd=256, bs=16, wd=0)": dict(
+    "old (hd=256, lr=1e-3, bs=16)": dict(
         hidden_dim=256, num_layers=2, dropout=0.0,
         use_batch_norm=False, activation="silu",
         lr=1e-3, weight_decay=0.0, batch_size=16,
     ),
-    "new (hd=128, bs=32, wd=1e-5)": dict(
+    "new (hd=128, lr=2e-3, bs=8)": dict(
         hidden_dim=128, num_layers=2, dropout=0.0,
         use_batch_norm=False, activation="silu",
-        lr=1e-3, weight_decay=1e-5, batch_size=32,
+        lr=2e-3, weight_decay=0.0, batch_size=8,
     ),
 }
 
@@ -174,21 +174,37 @@ def main() -> None:
     print(f"\nSaved results to {OUTPUT_JSON}")
 
     # Plot
-    fig, ax = plt.subplots(1, 1, figsize=(9, 5))
-    colors = {"old (hd=256, bs=16, wd=0)": "C0", "new (hd=128, bs=32, wd=1e-5)": "C1"}
-    for name, res in all_results.items():
+    order = list(CONFIGS.keys())
+    colors = {order[0]: "C0", order[1]: "C1"}
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+
+    ax = axes[0]
+    for name in order:
+        res = all_results[name]
         xs = range(1, len(res["test"]) + 1)
         ax.plot(xs, res["test"], label=name, color=colors[name], linewidth=1.2)
-
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Test MAE")
     ax.set_ylim(0.01, 0.02)
-    ax.set_title("CGCNN GatedConv: old vs sweep-optimised hyperparameters")
-    ax.legend(fontsize=9)
+    ax.set_title("Test MAE")
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    ax = axes[1]
+    for name in order:
+        res = all_results[name]
+        xs = range(1, len(res["epoch_times"]) + 1)
+        ax.plot(xs, res["epoch_times"], label=name, color=colors[name], alpha=0.7)
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Epoch time (s)")
+    ax.set_title("Per-epoch wall-clock time")
+    ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
     footer_parts = []
-    for name, res in all_results.items():
+    for name in order:
+        res = all_results[name]
         final = res["test"][-1]
         footer_parts.append(
             f"{name}:  test MAE = {final:.4f}  |  "
@@ -197,7 +213,8 @@ def main() -> None:
         )
     fig.text(0.5, 0.01, "\n".join(footer_parts),
              ha="center", va="bottom", fontsize=8, family="monospace")
-    fig.tight_layout(rect=[0, 0.08, 1, 1.0])
+    fig.suptitle("CGCNN GatedConv: old vs sweep-optimised hyperparameters", fontsize=13)
+    fig.tight_layout(rect=[0, 0.07, 1, 0.95])
 
     fig.savefig(OUTPUT_PLOT, dpi=150)
     plt.close(fig)

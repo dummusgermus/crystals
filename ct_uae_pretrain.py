@@ -653,7 +653,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--cutoff-k", type=int, default=DEFECT_CUTOFF_K)
     p.add_argument("--edge-k", type=int, default=EDGE_K)
     p.add_argument("--cutoff-mode", choices=["shell", "radius"], default="shell")
-    p.add_argument("--feature-size", type=int, default=256,
+    p.add_argument("--feature-size", type=int, default=16,
                    help="Transformer d_model; atom_embed dim = feature_size // 2.")
     p.add_argument("--num-layers", type=int, default=4)
     p.add_argument("--num-heads", type=int, default=8)

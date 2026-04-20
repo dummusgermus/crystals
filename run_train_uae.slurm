@@ -72,6 +72,8 @@ SEED="${SEED:-42}"
 EMB_DIM="${EMB_DIM:-128}"
 BIDIR_FLAG="${BIDIR_FLAG:---bidirectional}"   # set to "" to disable
 FREEZE_FLAG="${FREEZE_FLAG:-}"                # set to "--freeze-uae" to freeze
+NO_PRETRAINED_FLAG="${NO_PRETRAINED_FLAG:-}"  # set to "--no-pretrained" for fresh UAE
+KEEP_TYPE_SCALAR_FLAG="${KEEP_TYPE_SCALAR_FLAG:-}"  # set to "--keep-type-scalar" to concat
 OUTPUT_JSON="${OUTPUT_JSON:-uae_${INNER}_${CYCLE_VARIANT}.json}"
 
 # Whether to (re)build the cycle-augmented dataset before training.
@@ -148,4 +150,6 @@ python -u train_uae_single.py \
   --seed "${SEED}" \
   --output "${OUTPUT_JSON}" \
   ${BIDIR_FLAG} \
-  ${FREEZE_FLAG}
+  ${FREEZE_FLAG} \
+  ${NO_PRETRAINED_FLAG} \
+  ${KEEP_TYPE_SCALAR_FLAG}

@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from ovito.data import NearestNeighborFinder
 from ovito.io import import_file
 from torch_geometric.data import Data
 

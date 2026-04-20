@@ -39,8 +39,8 @@ UAE_EPOCHS="${UAE_EPOCHS:-80}"
 UAE_FEATURE_SIZE="${UAE_FEATURE_SIZE:-256}"
 UAE_LAYERS="${UAE_LAYERS:-4}"
 
-INNER="${INNER:-gated}"                # gated | tower | base
-EPOCHS="${EPOCHS:-200}"
+INNER="${INNER:-gated}"                       # gated | base
+EPOCHS="${EPOCHS:-300}"
 HIDDEN_DIM="${HIDDEN_DIM:-256}"
 NUM_LAYERS="${NUM_LAYERS:-2}"
 BATCH_SIZE="${BATCH_SIZE:-16}"
@@ -50,7 +50,7 @@ SEED="${SEED:-42}"
 EMB_DIM="${EMB_DIM:-128}"
 BIDIR_FLAG="${BIDIR_FLAG:---bidirectional}"   # set to "" to disable
 FREEZE_FLAG="${FREEZE_FLAG:-}"                # set to "--freeze-uae" to freeze
-PLOT="${PLOT:-train_uae_${CYCLE_VARIANT}_curve.png}"
+OUTPUT_JSON="${OUTPUT_JSON:-uae_${INNER}_${CYCLE_VARIANT}.json}"
 
 # Whether to (re)build the cycle-augmented dataset before training.
 BUILD_DATASET="${BUILD_DATASET:-0}"
@@ -84,9 +84,9 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 3: train the UAE-fronted GNN
+# Step 3: train the UAE-fronted GNN and dump per-epoch MAE curves to JSON
 # ---------------------------------------------------------------------------
-echo "[step 3] Training UAE-fronted ${INNER} GNN"
+echo "[step 3] Training UAE-fronted ${INNER} GNN -> ${OUTPUT_JSON}"
 python -u train_uae_single.py \
   --dataset "${DATASET}" \
   --uae-ckpt "${UAE_CKPT}" \
@@ -99,6 +99,6 @@ python -u train_uae_single.py \
   --epochs "${EPOCHS}" \
   --metric "${METRIC}" \
   --seed "${SEED}" \
-  --plot "${PLOT}" \
+  --output "${OUTPUT_JSON}" \
   ${BIDIR_FLAG} \
   ${FREEZE_FLAG}

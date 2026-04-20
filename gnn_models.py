@@ -766,56 +766,6 @@ def build_uae_gated_model_from_dataset(
     return wrapped
 
 
-def build_uae_tower_model_from_dataset(
-    dataset,
-    uae_ckpt_path: Optional[str] = None,
-    uae_emb_dim: int = 128,
-    uae_vocab_size: int = 100,
-    freeze_uae: bool = False,
-    drop_type_scalar: bool = True,
-    hidden_dim: int = 256,
-    num_layers: int = 2,
-    num_towers: int = 8,
-    out_dim: int = 1,
-    dropout: float = 0.0,
-    use_batch_norm: bool = False,
-    activation: str = "silu",
-    bidirectional: bool = False,
-) -> nn.Module:
-    """Build a :class:`MultiTowerGNNNodeRegressor` fronted by a UAE encoder."""
-    from ct_uae_pretrain import UAEAtomEncoder
-
-    sample = dataset[0]
-    if not hasattr(sample, "z") or sample.z is None:
-        raise RuntimeError(
-            "Dataset is missing per-node atomic numbers (Data.z). "
-            "Rebuild with the updated graph_maker.py."
-        )
-    in_dim = _uae_feature_dim(dataset, uae_emb_dim, drop_type_scalar)
-    edge_dim = sample.edge_attr.size(-1)
-    inner = MultiTowerGNNNodeRegressor(
-        in_dim=in_dim,
-        edge_dim=edge_dim,
-        hidden_dim=hidden_dim,
-        num_layers=num_layers,
-        num_towers=num_towers,
-        out_dim=out_dim,
-        dropout=dropout,
-        use_batch_norm=use_batch_norm,
-        activation=activation,
-    )
-    encoder = UAEAtomEncoder(
-        ckpt_path=uae_ckpt_path,
-        vocab_size=uae_vocab_size,
-        emb_dim=uae_emb_dim,
-        freeze=freeze_uae,
-    )
-    wrapped: nn.Module = UAEGNNWrapper(inner, encoder, drop_type_scalar)
-    if bidirectional:
-        wrapped = BidirectionalGNNNodeRegressor(wrapped)
-    return wrapped
-
-
 def build_uae_base_model_from_dataset(
     dataset,
     uae_ckpt_path: Optional[str] = None,

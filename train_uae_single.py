@@ -1,8 +1,10 @@
 """Single training run for a ct-UAE-fronted node PE regressor.
 
 Mirrors :mod:`train_single.py` (same split logic, loss, metrics, LR
-schedule, plotting) but swaps the per-atom ``type`` scalar for a learned
-ct-UAE-style atom embedding produced by :mod:`ct_uae_pretrain`.
+schedule) but swaps the per-atom ``type`` scalar for a learned ct-UAE-style
+atom embedding produced by :mod:`ct_uae_pretrain`.  No model checkpoints
+or plots are ever written: only a JSON file with per-epoch train/val/test
+curves so the run can be compared against prior baselines.
 
 Expected dataset format
 -----------------------
@@ -23,7 +25,7 @@ First pretrain the UAE once (see :mod:`ct_uae_pretrain`)::
 Then train a UAE-fronted gated GNN::
 
     python train_uae_single.py --uae-ckpt uae_embeddings/uae_emb128.pt \
-        --inner gated --hidden-dim 256 --num-layers 2 --epochs 200
+        --inner gated --hidden-dim 256 --num-layers 2 --epochs 300
 
 Or train a freshly-initialised UAE alongside the main task (no
 pretraining, UAE layer learned end-to-end)::
@@ -34,19 +36,17 @@ pretraining, UAE layer learned end-to-end)::
 from __future__ import annotations
 
 import argparse
-import math
+import json
 import os
 import time
-from typing import Dict, List
+from typing import Any, Dict, List
 
-import numpy as np
 import torch
 from torch_geometric.loader import DataLoader
 
 from gnn_models import (
     build_uae_base_model_from_dataset,
     build_uae_gated_model_from_dataset,
-    build_uae_tower_model_from_dataset,
 )
 from train_single import (
     Metrics,
@@ -77,10 +77,6 @@ def _build_model(args, dataset):
     )
     if args.inner == "gated":
         return build_uae_gated_model_from_dataset(dataset, **kwargs)
-    if args.inner == "tower":
-        return build_uae_tower_model_from_dataset(
-            dataset, num_towers=args.num_towers, **kwargs
-        )
     if args.inner == "base":
         return build_uae_base_model_from_dataset(dataset, **kwargs)
     raise ValueError(f"Unknown --inner: {args.inner}")
@@ -123,13 +119,12 @@ def main() -> None:
     # GNN backbone
     parser.add_argument(
         "--inner",
-        choices=["gated", "tower", "base"],
+        choices=["gated", "base"],
         default="gated",
         help="Inner node-regressor architecture to wrap in the UAE encoder.",
     )
     parser.add_argument("--hidden-dim", type=int, default=256)
     parser.add_argument("--num-layers", type=int, default=2)
-    parser.add_argument("--num-towers", type=int, default=8)
     parser.add_argument("--dropout", type=float, default=0.0)
     parser.add_argument("--use-batch-norm", action="store_true")
     parser.add_argument("--activation", type=str, default="silu")
@@ -142,7 +137,15 @@ def main() -> None:
     parser.add_argument("--metric", type=str, default="mae",
                         choices=["mae", "rmse", "mse"])
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--plot", type=str, default="train_uae_curve.png")
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="train_uae_curve.json",
+        help=(
+            "Path to a JSON file with per-epoch train/val/test curves. "
+            "No models or plots are ever written."
+        ),
+    )
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -252,23 +255,49 @@ def main() -> None:
         f"(test @ best-val = {best_test:.4f})"
     )
 
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError as exc:
-        raise SystemExit("matplotlib is required for plotting.") from exc
+    output: Dict[str, Any] = {
+        "tag": tag,
+        "dataset_path": args.dataset,
+        "uae_ckpt_path": None if args.no_pretrained else args.uae_ckpt,
+        "uae_pretrained": not args.no_pretrained,
+        "uae_frozen": bool(args.freeze_uae),
+        "uae_emb_dim": args.uae_emb_dim,
+        "uae_vocab_size": args.uae_vocab_size,
+        "kept_type_scalar": bool(args.keep_type_scalar),
+        "inner": args.inner,
+        "bidirectional": bool(args.bidirectional),
+        "epochs": args.epochs,
+        "metric": args.metric,
+        "seed": args.seed,
+        "hyperparameters": {
+            "batch_size": args.batch_size,
+            "lr": args.lr,
+            "weight_decay": args.weight_decay,
+            "hidden_dim": args.hidden_dim,
+            "num_layers": args.num_layers,
+            "dropout": args.dropout,
+            "use_batch_norm": args.use_batch_norm,
+            "activation": args.activation,
+        },
+        "num_parameters_trainable": int(n_trainable),
+        "num_parameters_total": int(n_total),
+        "curves": {
+            "train": train_curve,
+            "val": val_curve,
+            "test": test_curve,
+        },
+        "best_val": float(best_val),
+        "best_epoch": int(best_epoch),
+        "test_at_best_val": float(best_test),
+        "final_train": float(train_curve[-1]) if train_curve else float("nan"),
+        "final_val": float(val_curve[-1]) if val_curve else float("nan"),
+        "final_test": float(test_curve[-1]) if test_curve else float("nan"),
+    }
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(train_curve, label=f"train {args.metric.upper()}")
-    plt.plot(val_curve, label=f"val {args.metric.upper()}")
-    plt.plot(test_curve, label=f"test {args.metric.upper()}")
-    plt.axvline(best_epoch - 1, color="grey", linestyle=":", label=f"best val (ep {best_epoch})")
-    plt.xlabel("Epoch")
-    plt.ylabel(args.metric.upper())
-    plt.title(f"{tag}: {args.metric.upper()} over epochs")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(args.plot, dpi=150)
-    print(f"Saved plot to {args.plot}")
+    os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
+    with open(args.output, "w", encoding="utf-8") as f:
+        json.dump(output, f, indent=2)
+    print(f"Saved per-epoch curves to {args.output}")
 
 
 if __name__ == "__main__":

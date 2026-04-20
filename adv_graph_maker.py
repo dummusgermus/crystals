@@ -252,9 +252,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--variants",
         nargs="+",
-        default=list(DATASET_VARIANTS.keys()),
+        default=["cycle34"],
         choices=list(DATASET_VARIANTS.keys()),
-        help="Which cycle variants to write (default: all).",
+        help=(
+            "Which cycle variants to write. Defaults to just 'cycle34', "
+            "which is the variant consumed by run_train_uae.slurm. Pass "
+            "space-separated names (e.g. --variants cycle3 cycle34 cycle345) "
+            "to regenerate more than one."
+        ),
     )
     args = parser.parse_args()
 

@@ -75,34 +75,59 @@ FREEZE_FLAG="${FREEZE_FLAG:-}"                # set to "--freeze-uae" to freeze
 OUTPUT_JSON="${OUTPUT_JSON:-uae_${INNER}_${CYCLE_VARIANT}.json}"
 
 # Whether to (re)build the cycle-augmented dataset before training.
+# Only set to 1 if the SIMULATIONS/ folder is present on this machine.
 BUILD_DATASET="${BUILD_DATASET:-0}"
 # Whether to (re)run UAE pretraining before training.
+# Only set to 1 if the SIMULATIONS/ folder is present on this machine.
 PRETRAIN_UAE="${PRETRAIN_UAE:-0}"
 
 # ---------------------------------------------------------------------------
 # Step 1: cycle-augmented dataset with Data.z / Data.folder
+#
+# The cluster does not host the raw LAMMPS simulations. Build this file
+# locally with `python adv_graph_maker.py --variants ${CYCLE_VARIANT}` and
+# upload `${ADV_DIR}/${CYCLE_VARIANT}_dataset.pt` before submitting.
 # ---------------------------------------------------------------------------
-if [ "${BUILD_DATASET}" = "1" ] || [ ! -f "${DATASET}" ]; then
+if [ "${BUILD_DATASET}" = "1" ]; then
   echo "[step 1] Building cycle-augmented dataset -> ${DATASET}"
   python -u adv_graph_maker.py \
     --output-dir "${ADV_DIR}" \
     --variants "${CYCLE_VARIANT}"
-else
+elif [ -f "${DATASET}" ]; then
   echo "[step 1] Reusing existing ${DATASET}"
+else
+  echo "[step 1] ERROR: dataset not found: ${DATASET}" >&2
+  echo "         Build it locally and upload it, e.g.:" >&2
+  echo "           python adv_graph_maker.py --variants ${CYCLE_VARIANT}" >&2
+  echo "           scp -r ${ADV_DIR} cluster:${SLURM_SUBMIT_DIR}/" >&2
+  echo "         Or re-submit with --export=ALL,BUILD_DATASET=1 if the" >&2
+  echo "         raw SIMULATIONS/ tree is present on this machine." >&2
+  exit 1
 fi
 
 # ---------------------------------------------------------------------------
 # Step 2: pretrain UAE on our data
+#
+# Also needs the raw SIMULATIONS/ folder. Run locally and upload the
+# resulting checkpoint before submitting.
 # ---------------------------------------------------------------------------
-if [ "${PRETRAIN_UAE}" = "1" ] || [ ! -f "${UAE_CKPT}" ]; then
+if [ "${PRETRAIN_UAE}" = "1" ]; then
   echo "[step 2] Pretraining UAE -> ${UAE_CKPT}"
   python -u ct_uae_pretrain.py \
     --epochs "${UAE_EPOCHS}" \
     --feature-size "${UAE_FEATURE_SIZE}" \
     --num-layers "${UAE_LAYERS}" \
     --seed "${SEED}"
-else
+elif [ -f "${UAE_CKPT}" ]; then
   echo "[step 2] Reusing existing ${UAE_CKPT}"
+else
+  echo "[step 2] ERROR: UAE checkpoint not found: ${UAE_CKPT}" >&2
+  echo "         Pretrain it locally and upload it, e.g.:" >&2
+  echo "           python ct_uae_pretrain.py --epochs ${UAE_EPOCHS}" >&2
+  echo "           scp -r uae_embeddings cluster:${SLURM_SUBMIT_DIR}/" >&2
+  echo "         Or re-submit with --export=ALL,PRETRAIN_UAE=1 if the" >&2
+  echo "         raw SIMULATIONS/ tree is present on this machine." >&2
+  exit 1
 fi
 
 # ---------------------------------------------------------------------------

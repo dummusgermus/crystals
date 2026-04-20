@@ -659,7 +659,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--num-heads", type=int, default=8)
     p.add_argument("--dim-feedforward", type=int, default=512)
     p.add_argument("--dropout", type=float, default=0.1)
-    p.add_argument("--epochs", type=int, default=50)
+    p.add_argument("--epochs", type=int, default=80)
     p.add_argument("--batch-size", type=int, default=32)
     p.add_argument("--lr", type=float, default=3e-4)
     p.add_argument("--weight-decay", type=float, default=1e-5)

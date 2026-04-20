@@ -665,6 +665,205 @@ def build_gated_model_from_dataset(
     return inner
 
 
+class UAEGNNWrapper(nn.Module):
+    """Replace the raw LAMMPS-type scalar with a ct-UAE-style atom embedding.
+
+    The wrapper expects each PyG ``Data`` object to carry a ``z`` long tensor
+    (set by :func:`graph_maker.build_pyg_dataset`; ``0`` = vacancy,
+    otherwise the atomic number).  It calls
+    :class:`ct_uae_pretrain.UAEAtomEncoder` on ``data.z`` and substitutes
+    the result for the first column of ``data.x`` (if
+    ``drop_type_scalar=True``, the default) or concatenates it in front
+    of the full feature vector (otherwise).  The inner regressor sees a
+    fresh ``data.x`` and is called unchanged.
+    """
+
+    def __init__(
+        self,
+        inner: nn.Module,
+        uae_encoder: nn.Module,
+        drop_type_scalar: bool = True,
+    ) -> None:
+        super().__init__()
+        self.inner = inner
+        self.uae = uae_encoder
+        self.drop_type_scalar = drop_type_scalar
+
+    def forward(self, data) -> torch.Tensor:
+        if not hasattr(data, "z") or data.z is None:
+            raise RuntimeError(
+                "UAEGNNWrapper requires Data.z (per-node atomic number). "
+                "Rebuild the dataset with the current graph_maker.py."
+            )
+        z_emb = self.uae(data.z)
+        if self.drop_type_scalar:
+            rest = data.x[:, 1:]
+        else:
+            rest = data.x
+        new_x = torch.cat([z_emb, rest], dim=-1)
+        saved_x = data.x
+        data.x = new_x
+        try:
+            return self.inner(data)
+        finally:
+            data.x = saved_x
+
+
+def _uae_feature_dim(
+    dataset,
+    uae_emb_dim: int,
+    drop_type_scalar: bool,
+) -> int:
+    base = dataset[0].x.size(-1)
+    return uae_emb_dim + (base - 1 if drop_type_scalar else base)
+
+
+def build_uae_gated_model_from_dataset(
+    dataset,
+    uae_ckpt_path: Optional[str] = None,
+    uae_emb_dim: int = 128,
+    uae_vocab_size: int = 100,
+    freeze_uae: bool = False,
+    drop_type_scalar: bool = True,
+    hidden_dim: int = 128,
+    num_layers: int = 2,
+    out_dim: int = 1,
+    dropout: float = 0.0,
+    use_batch_norm: bool = False,
+    activation: str = "silu",
+    bidirectional: bool = False,
+) -> nn.Module:
+    """Build a :class:`GatedGNNNodeRegressor` fronted by a UAE encoder."""
+    from ct_uae_pretrain import UAEAtomEncoder  # deferred to avoid circularity
+
+    sample = dataset[0]
+    if not hasattr(sample, "z") or sample.z is None:
+        raise RuntimeError(
+            "Dataset is missing per-node atomic numbers (Data.z). "
+            "Rebuild with the updated graph_maker.py."
+        )
+    in_dim = _uae_feature_dim(dataset, uae_emb_dim, drop_type_scalar)
+    edge_dim = sample.edge_attr.size(-1)
+    inner = GatedGNNNodeRegressor(
+        in_dim=in_dim,
+        edge_dim=edge_dim,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        out_dim=out_dim,
+        dropout=dropout,
+        use_batch_norm=use_batch_norm,
+        activation=activation,
+    )
+    encoder = UAEAtomEncoder(
+        ckpt_path=uae_ckpt_path,
+        vocab_size=uae_vocab_size,
+        emb_dim=uae_emb_dim,
+        freeze=freeze_uae,
+    )
+    wrapped: nn.Module = UAEGNNWrapper(inner, encoder, drop_type_scalar)
+    if bidirectional:
+        wrapped = BidirectionalGNNNodeRegressor(wrapped)
+    return wrapped
+
+
+def build_uae_tower_model_from_dataset(
+    dataset,
+    uae_ckpt_path: Optional[str] = None,
+    uae_emb_dim: int = 128,
+    uae_vocab_size: int = 100,
+    freeze_uae: bool = False,
+    drop_type_scalar: bool = True,
+    hidden_dim: int = 256,
+    num_layers: int = 2,
+    num_towers: int = 8,
+    out_dim: int = 1,
+    dropout: float = 0.0,
+    use_batch_norm: bool = False,
+    activation: str = "silu",
+    bidirectional: bool = False,
+) -> nn.Module:
+    """Build a :class:`MultiTowerGNNNodeRegressor` fronted by a UAE encoder."""
+    from ct_uae_pretrain import UAEAtomEncoder
+
+    sample = dataset[0]
+    if not hasattr(sample, "z") or sample.z is None:
+        raise RuntimeError(
+            "Dataset is missing per-node atomic numbers (Data.z). "
+            "Rebuild with the updated graph_maker.py."
+        )
+    in_dim = _uae_feature_dim(dataset, uae_emb_dim, drop_type_scalar)
+    edge_dim = sample.edge_attr.size(-1)
+    inner = MultiTowerGNNNodeRegressor(
+        in_dim=in_dim,
+        edge_dim=edge_dim,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        num_towers=num_towers,
+        out_dim=out_dim,
+        dropout=dropout,
+        use_batch_norm=use_batch_norm,
+        activation=activation,
+    )
+    encoder = UAEAtomEncoder(
+        ckpt_path=uae_ckpt_path,
+        vocab_size=uae_vocab_size,
+        emb_dim=uae_emb_dim,
+        freeze=freeze_uae,
+    )
+    wrapped: nn.Module = UAEGNNWrapper(inner, encoder, drop_type_scalar)
+    if bidirectional:
+        wrapped = BidirectionalGNNNodeRegressor(wrapped)
+    return wrapped
+
+
+def build_uae_base_model_from_dataset(
+    dataset,
+    uae_ckpt_path: Optional[str] = None,
+    uae_emb_dim: int = 128,
+    uae_vocab_size: int = 100,
+    freeze_uae: bool = False,
+    drop_type_scalar: bool = True,
+    hidden_dim: int = 128,
+    num_layers: int = 3,
+    out_dim: int = 1,
+    dropout: float = 0.0,
+    use_batch_norm: bool = False,
+    activation: str = "silu",
+    bidirectional: bool = False,
+) -> nn.Module:
+    """Build a :class:`GNNNodeRegressor` (EdgeFNN) fronted by a UAE encoder."""
+    from ct_uae_pretrain import UAEAtomEncoder
+
+    sample = dataset[0]
+    if not hasattr(sample, "z") or sample.z is None:
+        raise RuntimeError(
+            "Dataset is missing per-node atomic numbers (Data.z). "
+            "Rebuild with the updated graph_maker.py."
+        )
+    in_dim = _uae_feature_dim(dataset, uae_emb_dim, drop_type_scalar)
+    edge_dim = sample.edge_attr.size(-1)
+    inner = GNNNodeRegressor(
+        in_dim=in_dim,
+        edge_dim=edge_dim,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        out_dim=out_dim,
+        dropout=dropout,
+        use_batch_norm=use_batch_norm,
+        activation=activation,
+    )
+    encoder = UAEAtomEncoder(
+        ckpt_path=uae_ckpt_path,
+        vocab_size=uae_vocab_size,
+        emb_dim=uae_emb_dim,
+        freeze=freeze_uae,
+    )
+    wrapped: nn.Module = UAEGNNWrapper(inner, encoder, drop_type_scalar)
+    if bidirectional:
+        wrapped = BidirectionalGNNNodeRegressor(wrapped)
+    return wrapped
+
+
 def _get_activation(name: str) -> nn.Module:
     name = name.lower()
     if name == "relu":

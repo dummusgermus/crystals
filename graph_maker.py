@@ -18,6 +18,50 @@ FILENAME_RE = re.compile(
     r"^(relaxed|unrelaxed)_(\d+)-(\d+)-(\d+)-([^.]+)\.(data|dump)$"
 )
 
+# Element lookup used for ct-UAE-style atom embeddings.
+# Covers Z=1..100 (H..Fm), matching the ct-UAE vocabulary.
+ELEMENTS: Tuple[str, ...] = (
+    "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
+    "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca",
+    "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+    "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y", "Zr",
+    "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn",
+    "Sb", "Te", "I", "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
+    "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb",
+    "Lu", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg",
+    "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
+    "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm",
+)
+SYMBOL_TO_Z: Dict[str, int] = {sym: i + 1 for i, sym in enumerate(ELEMENTS)}
+VOCAB_SIZE = 100
+VACANCY_INDEX = 0  # Value used in ``data.z`` for vacancy sites.
+
+FOLDER_RE = re.compile(r"^C15_([A-Z][a-z]?)-([A-Z][a-z]?)$")
+
+
+def parse_folder_elements(folder: str) -> Tuple[str, str]:
+    """Parse ``C15_A-B`` style folder names into an (A, B) element pair."""
+    m = FOLDER_RE.match(folder)
+    if not m:
+        raise ValueError(f"Could not parse C15_A-B element pair from folder: {folder!r}")
+    a, b = m.group(1), m.group(2)
+    if a not in SYMBOL_TO_Z or b not in SYMBOL_TO_Z:
+        raise ValueError(
+            f"Folder {folder!r} references an element outside the H..Fm vocab "
+            f"({a}, {b})."
+        )
+    return a, b
+
+
+def build_type_to_z_map(folder: str) -> Dict[int, int]:
+    """Map LAMMPS particle type -> atomic number for a given simulation folder.
+
+    Type ``-1`` (vacancy) is intentionally absent; callers map it to
+    :data:`VACANCY_INDEX` explicitly.
+    """
+    a, b = parse_folder_elements(folder)
+    return {1: SYMBOL_TO_Z[a], 2: SYMBOL_TO_Z[b]}
+
 
 def _parse_defect_filename(filename: str) -> Optional[Dict[str, str]]:
     match = FILENAME_RE.match(filename)
@@ -294,6 +338,12 @@ def build_pyg_dataset(
         if file_count != 52:
             continue
 
+        try:
+            type_to_z = build_type_to_z_map(folder)
+        except ValueError as err:
+            print(f"  [skip] {folder}: {err}")
+            continue
+
         data_files = []
         for filename in os.listdir(folder_path):
             if not filename.endswith(".data"):
@@ -336,12 +386,21 @@ def build_pyg_dataset(
                 cutoff_mode=cutoff_mode,
             )
 
+            # Per-node atomic numbers (0 = vacancy) for ct-UAE embeddings.
+            lammps_types = x[:, 0].long().tolist()
+            z_list = [
+                VACANCY_INDEX if t == -1 else type_to_z.get(int(t), VACANCY_INDEX)
+                for t in lammps_types
+            ]
+            z_tensor = torch.tensor(z_list, dtype=torch.long)
+
             data = Data(
                 x=x,
                 edge_index=edge_index,
                 edge_attr=edge_attr,
                 pos=pos,
                 y=y_node,
+                z=z_tensor,
             )
             data.relax_state = parsed["relax_state"]
             data.defect_id = parsed["defect_id"]
@@ -353,6 +412,7 @@ def build_pyg_dataset(
             data.cutoff_radius = cutoff_radius
             data.edge_radius = edge_radius
             data.cutoff_mode = cutoff_mode
+            data.folder = folder
             data.meta = meta
             dataset.append(data)
 
@@ -365,15 +425,42 @@ def save_dataset(dataset: List[Data], output_path: str) -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    simulations = os.path.join(root_dir, "SIMULATIONS")
-    output_file = os.path.join(root_dir, "pyg_dataset.pt")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Build a PyG dataset of defect subgraphs with per-node atomic "
+            "numbers (Data.z) and folder tags (Data.folder). Output defaults "
+            "to a new file name so existing pyg_dataset.pt is not overwritten."
+        )
+    )
+    parser.add_argument(
+        "--simulations-dir",
+        type=str,
+        default=os.path.join(root_dir, "SIMULATIONS"),
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=os.path.join(root_dir, "pyg_dataset_uae.pt"),
+        help="Output .pt path (default: pyg_dataset_uae.pt).",
+    )
+    parser.add_argument("--cutoff-k", type=int, default=DEFECT_CUTOFF_K)
+    parser.add_argument("--edge-k", type=int, default=EDGE_K)
+    parser.add_argument("--cutoff-radius", type=float, default=DEFECT_CUTOFF_RADIUS)
+    parser.add_argument("--edge-radius", type=float, default=EDGE_CUTOFF_RADIUS)
+    parser.add_argument("--cutoff-mode", choices=["shell", "radius"], default="shell")
+    args = parser.parse_args()
 
     pyg_dataset = build_pyg_dataset(
-        simulations_dir=simulations,
-        cutoff_k=DEFECT_CUTOFF_K,
-        edge_k=EDGE_K,
+        simulations_dir=args.simulations_dir,
+        cutoff_k=args.cutoff_k,
+        edge_k=args.edge_k,
+        cutoff_radius=args.cutoff_radius,
+        edge_radius=args.edge_radius,
+        cutoff_mode=args.cutoff_mode,
     )
-    save_dataset(pyg_dataset, output_file)
+    save_dataset(pyg_dataset, args.output)
 
-    print(f"Saved {len(pyg_dataset)} graphs to {output_file}")
+    print(f"Saved {len(pyg_dataset)} graphs to {args.output}")

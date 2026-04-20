@@ -10,12 +10,17 @@ normalised features.  Produces three dataset variants:
 
 Normalisation statistics (mean, std) are persisted as JSON next to each
 dataset so they can be applied identically at inference time.
+
+Each :class:`~torch_geometric.data.Data` inherits the per-node atomic
+number (``data.z``) and folder tag (``data.folder``) stamped by
+:func:`graph_maker.build_pyg_dataset`, so cycle-augmented datasets are
+directly usable for the ct-UAE workflow.
 """
 
 import json
 import os
 import time
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import networkx as nx
 import numpy as np
@@ -116,11 +121,28 @@ def build_adv_datasets(
     cutoff_radius: float = DEFECT_CUTOFF_RADIUS,
     edge_radius: float = EDGE_CUTOFF_RADIUS,
     cutoff_mode: str = "shell",
+    variants: Optional[List[str]] = None,
 ) -> Dict[str, str]:
-    """Build the base dataset, compute cycle features, and save three variants.
+    """Build the base dataset, compute cycle features, and save variants.
 
-    Returns a mapping *variant_name → dataset_file_path*.
+    Parameters
+    ----------
+    variants:
+        Subset of :data:`DATASET_VARIANTS` keys to produce; defaults to
+        all three (``cycle3``, ``cycle34``, ``cycle345``).
+
+    Returns
+    -------
+    dict
+        Mapping *variant_name → dataset_file_path* for every variant that
+        was actually written to disk.
     """
+    selected = variants or list(DATASET_VARIANTS.keys())
+    unknown = [v for v in selected if v not in DATASET_VARIANTS]
+    if unknown:
+        raise ValueError(
+            f"Unknown variant(s): {unknown}; choose from {list(DATASET_VARIANTS)}"
+        )
     # -- base dataset ----------------------------------------------------------
     print("Building base dataset from simulations …")
     t0 = time.time()
@@ -160,7 +182,8 @@ def build_adv_datasets(
     os.makedirs(output_dir, exist_ok=True)
     saved: Dict[str, str] = {}
 
-    for variant, cols in DATASET_VARIANTS.items():
+    for variant in selected:
+        cols = DATASET_VARIANTS[variant]
         v_mean = mean_all[cols]
         v_std = std_all[cols]
 
@@ -199,9 +222,50 @@ def build_adv_datasets(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    root_dir = os.path.dirname(os.path.abspath(__file__))
-    simulations = os.path.join(root_dir, "SIMULATIONS")
-    output = os.path.join(root_dir, "adv_datasets")
+    import argparse
 
-    build_adv_datasets(simulations_dir=simulations, output_dir=output)
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    parser = argparse.ArgumentParser(
+        description=(
+            "Build cycle-augmented PyG datasets. Defaults write to "
+            "'adv_datasets_uae/' so the original 'adv_datasets/' files are "
+            "preserved; the cycle features are identical, only the per-node "
+            "Data.z / Data.folder tags are new."
+        )
+    )
+    parser.add_argument(
+        "--simulations-dir",
+        type=str,
+        default=os.path.join(root_dir, "SIMULATIONS"),
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=os.path.join(root_dir, "adv_datasets_uae"),
+        help="Directory for the cycle-augmented datasets and stats JSONs.",
+    )
+    parser.add_argument("--cutoff-k", type=int, default=DEFECT_CUTOFF_K)
+    parser.add_argument("--edge-k", type=int, default=EDGE_K)
+    parser.add_argument("--cutoff-radius", type=float, default=DEFECT_CUTOFF_RADIUS)
+    parser.add_argument("--edge-radius", type=float, default=EDGE_CUTOFF_RADIUS)
+    parser.add_argument("--cutoff-mode", choices=["shell", "radius"], default="shell")
+    parser.add_argument(
+        "--variants",
+        nargs="+",
+        default=list(DATASET_VARIANTS.keys()),
+        choices=list(DATASET_VARIANTS.keys()),
+        help="Which cycle variants to write (default: all).",
+    )
+    args = parser.parse_args()
+
+    build_adv_datasets(
+        simulations_dir=args.simulations_dir,
+        output_dir=args.output_dir,
+        cutoff_k=args.cutoff_k,
+        edge_k=args.edge_k,
+        cutoff_radius=args.cutoff_radius,
+        edge_radius=args.edge_radius,
+        cutoff_mode=args.cutoff_mode,
+        variants=args.variants,
+    )
     print("All done.")

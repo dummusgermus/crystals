@@ -26,6 +26,28 @@ export TORCHINDUCTOR_CACHE_DIR="${CACHE_ROOT}/inductor"
 mkdir -p "${TRITON_CACHE_DIR}" "${TORCHINDUCTOR_CACHE_DIR}"
 
 # ---------------------------------------------------------------------------
+# OVITO's pip wheel needs libOpenGL.so.0 (libglvnd). Some compute nodes only
+# ship the pre-libglvnd monolithic libGL.so.1, which still exports all the
+# symbols OVITO touches in scripting mode. Symlink it into a local shim
+# directory and prepend to LD_LIBRARY_PATH so dlopen() succeeds.
+# ---------------------------------------------------------------------------
+SHIM_DIR="${SLURM_SUBMIT_DIR}/.lib_shim"
+mkdir -p "${SHIM_DIR}"
+if [ ! -e "${SHIM_DIR}/libOpenGL.so.0" ]; then
+  SYS_LIBGL="$(ldconfig -p | awk '/libGL\.so\.1\b/ {print $NF; exit}')"
+  if [ -z "${SYS_LIBGL}" ] || [ ! -e "${SYS_LIBGL}" ]; then
+    SYS_LIBGL="/lib/x86_64-linux-gnu/libGL.so.1"
+  fi
+  if [ -e "${SYS_LIBGL}" ]; then
+    ln -sf "${SYS_LIBGL}" "${SHIM_DIR}/libOpenGL.so.0"
+    echo "[env] libOpenGL.so.0 -> ${SYS_LIBGL}"
+  else
+    echo "[env] WARNING: no libGL.so.1 found; OVITO import will likely fail." >&2
+  fi
+fi
+export LD_LIBRARY_PATH="${SHIM_DIR}:${LD_LIBRARY_PATH:-}"
+
+# ---------------------------------------------------------------------------
 # Configuration (override via `sbatch --export=ALL,VAR=value run_train_uae.slurm`)
 # ---------------------------------------------------------------------------
 # Training dataset. Defaults to the cycle34 variant + bidirectional edges,

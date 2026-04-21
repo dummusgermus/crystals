@@ -2,11 +2,23 @@
 #SBATCH --job-name=jara-uae-train
 #SBATCH --output=logs/%x-%j.out
 #SBATCH --error=logs/%x-%j.err
-#SBATCH --time=24:00:00
+#SBATCH --time=02:00:00
 #SBATCH --partition=log_gpu_24gb
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
+
+# Train the ct-UAE-fronted gated GNN with the winning configuration on the
+# cluster.  The cycle-augmented dataset and the UAE checkpoint must already
+# exist in the working directory; both depend on the raw SIMULATIONS/ tree
+# and are therefore built locally with:
+#
+#   python adv_graph_maker.py        # -> adv_datasets_uae/cycle34_dataset.pt
+#   python ct_uae_pretrain.py        # -> uae_embeddings/uae_emb8.pt
+#
+# Then upload both before submitting:
+#
+#   scp -r adv_datasets_uae uae_embeddings <user>@<host>:<repo>/
 
 set -euo pipefail
 
@@ -48,108 +60,28 @@ fi
 export LD_LIBRARY_PATH="${SHIM_DIR}:${LD_LIBRARY_PATH:-}"
 
 # ---------------------------------------------------------------------------
-# Configuration (override via `sbatch --export=ALL,VAR=value run_train_uae.slurm`)
+# Configuration
 # ---------------------------------------------------------------------------
-# Training dataset. Defaults to the cycle34 variant + bidirectional edges,
-# which is the current best-known configuration for the downstream GNN.
-CYCLE_VARIANT="${CYCLE_VARIANT:-cycle34}"            # cycle3 | cycle34 | cycle345
-ADV_DIR="${ADV_DIR:-adv_datasets_uae}"
-DATASET="${DATASET:-${ADV_DIR}/${CYCLE_VARIANT}_dataset.pt}"
+DATASET="adv_datasets_uae/cycle34_dataset.pt"
+UAE_CKPT="uae_embeddings/uae_emb8.pt"
+OUTPUT_JSON="uae_gated_result.json"
 
-UAE_CKPT="${UAE_CKPT:-uae_embeddings/uae_emb128.pt}"
-UAE_EPOCHS="${UAE_EPOCHS:-80}"
-UAE_FEATURE_SIZE="${UAE_FEATURE_SIZE:-256}"
-UAE_LAYERS="${UAE_LAYERS:-4}"
-
-INNER="${INNER:-gated}"                       # gated | base
-EPOCHS="${EPOCHS:-300}"
-HIDDEN_DIM="${HIDDEN_DIM:-256}"
-NUM_LAYERS="${NUM_LAYERS:-2}"
-BATCH_SIZE="${BATCH_SIZE:-16}"
-LR="${LR:-1e-3}"
-METRIC="${METRIC:-mae}"
-SEED="${SEED:-42}"
-EMB_DIM="${EMB_DIM:-128}"
-BIDIR_FLAG="${BIDIR_FLAG:---bidirectional}"   # set to "" to disable
-FREEZE_FLAG="${FREEZE_FLAG:-}"                # set to "--freeze-uae" to freeze
-NO_PRETRAINED_FLAG="${NO_PRETRAINED_FLAG:-}"  # set to "--no-pretrained" for fresh UAE
-KEEP_TYPE_SCALAR_FLAG="${KEEP_TYPE_SCALAR_FLAG:-}"  # set to "--keep-type-scalar" to concat
-OUTPUT_JSON="${OUTPUT_JSON:-uae_${INNER}_${CYCLE_VARIANT}.json}"
-
-# Whether to (re)build the cycle-augmented dataset before training.
-# Only set to 1 if the SIMULATIONS/ folder is present on this machine.
-BUILD_DATASET="${BUILD_DATASET:-0}"
-# Whether to (re)run UAE pretraining before training.
-# Only set to 1 if the SIMULATIONS/ folder is present on this machine.
-PRETRAIN_UAE="${PRETRAIN_UAE:-0}"
-
-# ---------------------------------------------------------------------------
-# Step 1: cycle-augmented dataset with Data.z / Data.folder
-#
-# The cluster does not host the raw LAMMPS simulations. Build this file
-# locally with `python adv_graph_maker.py --variants ${CYCLE_VARIANT}` and
-# upload `${ADV_DIR}/${CYCLE_VARIANT}_dataset.pt` before submitting.
-# ---------------------------------------------------------------------------
-if [ "${BUILD_DATASET}" = "1" ]; then
-  echo "[step 1] Building cycle-augmented dataset -> ${DATASET}"
-  python -u adv_graph_maker.py \
-    --output-dir "${ADV_DIR}" \
-    --variants "${CYCLE_VARIANT}"
-elif [ -f "${DATASET}" ]; then
-  echo "[step 1] Reusing existing ${DATASET}"
-else
-  echo "[step 1] ERROR: dataset not found: ${DATASET}" >&2
-  echo "         Build it locally and upload it, e.g.:" >&2
-  echo "           python adv_graph_maker.py --variants ${CYCLE_VARIANT}" >&2
-  echo "           scp -r ${ADV_DIR} cluster:${SLURM_SUBMIT_DIR}/" >&2
-  echo "         Or re-submit with --export=ALL,BUILD_DATASET=1 if the" >&2
-  echo "         raw SIMULATIONS/ tree is present on this machine." >&2
+if [ ! -f "${DATASET}" ]; then
+  echo "[error] dataset not found: ${DATASET}" >&2
+  echo "        Build it locally with: python adv_graph_maker.py" >&2
+  echo "        then upload adv_datasets_uae/ to this machine." >&2
   exit 1
 fi
 
-# ---------------------------------------------------------------------------
-# Step 2: pretrain UAE on our data
-#
-# Also needs the raw SIMULATIONS/ folder. Run locally and upload the
-# resulting checkpoint before submitting.
-# ---------------------------------------------------------------------------
-if [ "${PRETRAIN_UAE}" = "1" ]; then
-  echo "[step 2] Pretraining UAE -> ${UAE_CKPT}"
-  python -u ct_uae_pretrain.py \
-    --epochs "${UAE_EPOCHS}" \
-    --feature-size "${UAE_FEATURE_SIZE}" \
-    --num-layers "${UAE_LAYERS}" \
-    --seed "${SEED}"
-elif [ -f "${UAE_CKPT}" ]; then
-  echo "[step 2] Reusing existing ${UAE_CKPT}"
-else
-  echo "[step 2] ERROR: UAE checkpoint not found: ${UAE_CKPT}" >&2
-  echo "         Pretrain it locally and upload it, e.g.:" >&2
-  echo "           python ct_uae_pretrain.py --epochs ${UAE_EPOCHS}" >&2
-  echo "           scp -r uae_embeddings cluster:${SLURM_SUBMIT_DIR}/" >&2
-  echo "         Or re-submit with --export=ALL,PRETRAIN_UAE=1 if the" >&2
-  echo "         raw SIMULATIONS/ tree is present on this machine." >&2
+if [ ! -f "${UAE_CKPT}" ]; then
+  echo "[error] UAE checkpoint not found: ${UAE_CKPT}" >&2
+  echo "        Pretrain it locally with: python ct_uae_pretrain.py" >&2
+  echo "        then upload uae_embeddings/ to this machine." >&2
   exit 1
 fi
 
-# ---------------------------------------------------------------------------
-# Step 3: train the UAE-fronted GNN and dump per-epoch MAE curves to JSON
-# ---------------------------------------------------------------------------
-echo "[step 3] Training UAE-fronted ${INNER} GNN -> ${OUTPUT_JSON}"
+echo "[train] UAE-fronted gated GNN -> ${OUTPUT_JSON}"
 python -u train_uae_single.py \
   --dataset "${DATASET}" \
   --uae-ckpt "${UAE_CKPT}" \
-  --uae-emb-dim "${EMB_DIM}" \
-  --inner "${INNER}" \
-  --hidden-dim "${HIDDEN_DIM}" \
-  --num-layers "${NUM_LAYERS}" \
-  --batch-size "${BATCH_SIZE}" \
-  --lr "${LR}" \
-  --epochs "${EPOCHS}" \
-  --metric "${METRIC}" \
-  --seed "${SEED}" \
-  --output "${OUTPUT_JSON}" \
-  ${BIDIR_FLAG} \
-  ${FREEZE_FLAG} \
-  ${NO_PRETRAINED_FLAG} \
-  ${KEEP_TYPE_SCALAR_FLAG}
+  --output "${OUTPUT_JSON}"

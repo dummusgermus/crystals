@@ -27,10 +27,10 @@ Key choices (and where they differ from ``ct-UAE-main``):
 Typical use::
 
     python ct_uae_pretrain.py                   # train + save embedding
-    # -> writes uae_embeddings/uae_emb128.pt
+    # -> writes uae_embeddings/uae_emb8.pt
 
     from ct_uae_pretrain import UAEAtomEncoder
-    enc = UAEAtomEncoder(ckpt_path="uae_embeddings/uae_emb128.pt")
+    enc = UAEAtomEncoder(ckpt_path="uae_embeddings/uae_emb8.pt")
     feats = enc(data.z)                         # (N, emb_dim)
 """
 
@@ -305,7 +305,7 @@ class CrystalTransformer(nn.Module):
 
     def __init__(
         self,
-        feature_size: int = 256,
+        feature_size: int = 16,
         num_layers: int = 4,
         num_heads: int = 8,
         dim_feedforward: int = 512,
@@ -448,7 +448,7 @@ class UAEAtomEncoder(nn.Module):
 
 @dataclass
 class TrainConfig:
-    feature_size: int = 256
+    feature_size: int = 16
     num_layers: int = 4
     num_heads: int = 8
     dim_feedforward: int = 512
@@ -458,7 +458,7 @@ class TrainConfig:
     batch_size: int = 32
     lr: float = 3e-4
     weight_decay: float = 1e-5
-    epochs: int = 50
+    epochs: int = 80
     warmup_epochs: int = 3
     augment: bool = True
     max_translation: float = 5.0

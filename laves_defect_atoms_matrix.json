@@ -1,0 +1,16 @@
+{
+  "_comment": "Null planar-fault labels: every stack sequence has an empty defect set. Hypothesis: the planar fault does not deviate strongly from the matrix, so explicit defect markers are hard to define and is_defect/dist_to_defect should stay zero. Under that view, MAE/MSE should be comparatively low if the labels were previously adding noise. Composition-independent keys match A-B_<stack> folder suffixes.",
+  "_rationale": "Assumes the planar defect is not deviating too much from the matrix, therefore defect labels are left empty for all stacks.",
+  "defect_atoms": {
+    "XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'": [],
+    "XYZ'Y'X'Z'Y'X'Z'": [],
+    "XYZ'Y'X'Z'": [],
+    "XYZ'Y'X'": [],
+    "XYZ'Y'": [],
+    "XY'XYZXYZXYZX": [],
+    "XY'XYZXY": [],
+    "XY'XY": [],
+    "XY'X": [],
+    "XY'": []
+  }
+}

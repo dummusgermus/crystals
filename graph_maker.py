@@ -37,6 +37,8 @@ VACANCY_INDEX = 0  # Value used in ``data.z`` for vacancy sites.
 
 FOLDER_RE = re.compile(r"^C15_([A-Z][a-z]?)-([A-Z][a-z]?)$")
 
+TARGET_MODES = ("absolute", "residual")
+
 
 def parse_folder_elements(folder: str) -> Tuple[str, str]:
     """Parse ``C15_A-B`` style folder names into an (A, B) element pair."""
@@ -111,6 +113,7 @@ def _build_subgraph(
     cutoff_radius: float,
     edge_radius: float,
     cutoff_mode: str,
+    target_mode: str = "absolute",
 ) -> Tuple[
     torch.Tensor,
     torch.Tensor,
@@ -248,7 +251,11 @@ def _build_subgraph(
         pid = int(particle_ids[orig])
         if pid not in relaxed_pe_by_id:
             raise ValueError(f"Missing relaxed per-atom PE for particle id {pid}")
-        relaxed_targets.append([relaxed_pe_by_id[pid]])
+        pe_relaxed = relaxed_pe_by_id[pid]
+        if target_mode == "residual":
+            relaxed_targets.append([pe_relaxed - float(per_atom_pe[orig])])
+        else:
+            relaxed_targets.append([pe_relaxed])
     y_node = torch.tensor(relaxed_targets, dtype=torch.float)
 
     subset_count = len(subset_indices)
@@ -311,6 +318,7 @@ def _build_subgraph(
         "subset_size": len(subset_indices),
         "cutoff_distance": float(cutoff_dist),
         "cutoff_mode": cutoff_mode,
+        "target_mode": target_mode,
     }
     return x, pos, edge_index_tensor, edge_attr_tensor, y_node, sub_index, meta
 
@@ -322,7 +330,12 @@ def build_pyg_dataset(
     cutoff_radius: float = DEFECT_CUTOFF_RADIUS,
     edge_radius: float = EDGE_CUTOFF_RADIUS,
     cutoff_mode: str = "shell",
+    target_mode: str = "absolute",
 ) -> List[Data]:
+    if target_mode not in TARGET_MODES:
+        raise ValueError(
+            f"Unsupported target_mode {target_mode!r}; expected one of {TARGET_MODES}"
+        )
     dataset: List[Data] = []
 
     for folder in sorted(os.listdir(simulations_dir)):
@@ -383,6 +396,7 @@ def build_pyg_dataset(
                 cutoff_radius=cutoff_radius,
                 edge_radius=edge_radius,
                 cutoff_mode=cutoff_mode,
+                target_mode=target_mode,
             )
 
             # Per-node atomic numbers (0 = vacancy) for ct-UAE embeddings.

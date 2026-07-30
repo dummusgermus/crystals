@@ -12,7 +12,6 @@ __pycache__/
 .venv/
 venv/
 env/
-ct-UAE-main/embeddings/
 
 # -----------------------------
 # OS / editor
@@ -21,6 +20,7 @@ ct-UAE-main/embeddings/
 Thumbs.db
 .idea/
 .vscode/
+.lib_shim/
 
 # -----------------------------
 # Runtime outputs
@@ -33,16 +33,70 @@ plots/
 
 # -----------------------------
 # Large raw simulation data
-# (keep generated datasets/models, skip raw atomistic files)
 # -----------------------------
 SIMULATIONS/
+Laves_Screen/
+Laves_Screen_new/
+Laves_Planar_Defects/
+planar_SIMULATIONS/
 towards-principled-gts-main/
 *.dump
 *.data
 
-# Keep datasets and model checkpoints tracked
-!datasets/
-!datasets/**/*
-!*.pt
-!*.pth
-!*.ckpt
+# -----------------------------
+# Heavy vendored non-code / data
+# -----------------------------
+ct-UAE-main/examples/
+ct-UAE-main/embeddings/
+pe_transformers/**/__MACOSX/
+pe_transformers/**/*.pdf
+
+# -----------------------------
+# Alternate / unused dataset variants
+# -----------------------------
+adv_datasets_scaled/
+adv_datasets_uae/
+datasets/
+uae_embeddings/
+
+# -----------------------------
+# Binary weights / checkpoints
+# (re-enable only the datasets needed for training)
+# -----------------------------
+*.pt
+*.pth
+*.ckpt
+*.pkl
+*.pickle
+
+# Needed datasets for CGCNN / transformer benchmarks
+!adv_datasets/cycle34_dataset.pt
+!adv_datasets/cycle34_residual_dataset.pt
+!planar_pyg_dataset_c14c15.pt
+!planar_pyg_dataset_residual_c14c15.pt
+
+# -----------------------------
+# Media / papers / plots
+# -----------------------------
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+*.svg
+*.mp4
+*.webm
+
+# -----------------------------
+# Regenerated experiment dumps
+# -----------------------------
+*_curves.json
+*_result.json
+*_results.json
+transformer_hparam_sweep*.json
+transformer_best_*.json
+uae_gated_result.json
+cgcnn_inference_benchmark.json
+planar_dataset_stats.json
+*_stats.json
+pyg_dataset.pt.graphview.json

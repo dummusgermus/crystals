@@ -1,0 +1,835 @@
+\documentclass[tikz,border=6pt]{standalone}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,shadings,decorations.pathreplacing}
+
+
+
+% ---------- colours ----------
+\definecolor{stagezero}{HTML}{1555B6}
+\definecolor{stageone}{HTML}{3F772E}
+\definecolor{stagetwo}{HTML}{57358F}
+\definecolor{stagethree}{HTML}{007B8B}
+\definecolor{planarred}{HTML}{B33A3A}
+
+% ---------- common styles ----------
+% box draw colour is used as-is (pass stagezero!45, black!40, \ldots)
+\tikzset{
+  font=\sffamily\footnotesize,
+  >={Latex[length=2.2mm]},
+  colframe/.style={draw=#1!50, rounded corners=4pt, very thick, fill=#1!4},
+  stage title/.style={
+    fill=#1, text=white, font=\sffamily\bfseries\small,
+    align=center, minimum height=10mm, rounded corners=3pt,
+    inner sep=1.5mm
+  },
+  box/.style={
+    draw={#1}, rounded corners=2.5pt, thick, fill=white,
+    align=center, inner sep=2mm
+  },
+  boxtitle/.style={font=\sffamily\bfseries\scriptsize, text=#1, align=center},
+  body/.style={font=\sffamily\tiny, align=left},
+  bodyc/.style={font=\sffamily\tiny, align=center},
+  ph/.style={
+    draw=black!30, dashed, rounded corners=2pt,
+    fill=black!3, align=center, text=black!45,
+    font=\sffamily\tiny, inner sep=1.5mm
+  },
+  flow/.style={-Latex, thick, draw=black!80},
+  modelflow/.style={-Latex, thick, draw=stagetwo},
+  postflow/.style={-Latex, thick, draw=stagethree},
+  trainflow/.style={-Latex, thick, dashed, draw=orange!85!black},
+  % --- atom balls ---
+  atom grey/.style={circle, ball color=black!55, minimum size=#1, inner sep=0pt},
+  atom red/.style={circle, ball color=red!85!black, minimum size=#1, inner sep=0pt},
+  atom blue/.style={circle, ball color=blue!70!cyan, minimum size=#1, inner sep=0pt},
+  atom vacancy/.style={circle, draw=black!70, thick, fill=white,
+                       minimum size=#1, inner sep=0pt},
+  atom defect/.style={circle, draw=orange!80!black, thick, fill=white,
+                      minimum size=#1, inner sep=0pt},
+}
+% ============================================================
+% Local atomic environment (2D isometric unit cell)
+% ============================================================
+% depth ≈ x+y+z (higher = closer). Draw back → red → front.
+\tikzset{
+  pics/localAtomicEnv/.style={
+    code={
+      \begin{scope}[scale=1.05]
+        % corners
+        \coordinate (c000) at (0.000, 0.000);
+        \coordinate (c100) at (0.620,-0.310);
+        \coordinate (c010) at (0.000, 0.580);
+        \coordinate (c001) at (-0.480,-0.310);
+        \coordinate (c110) at (0.620, 0.270);
+        \coordinate (c101) at (0.140,-0.620);
+        \coordinate (c011) at (-0.480, 0.270);
+        \coordinate (c111) at (0.140,-0.040);
+        % face centres
+        \coordinate (fXp) at (0.380,-0.175);
+        \coordinate (fXm) at (-0.240, 0.135);
+        \coordinate (fYp) at (0.070, 0.270);
+        \coordinate (fYm) at (0.070,-0.310);
+        \coordinate (fZp) at (-0.170,-0.175);
+        \coordinate (fZm) at (0.310, 0.135);
+        \coordinate (ctr) at (0.070,-0.020);
+
+        % cube edges
+        \draw[black!45, very thin]
+          (c001)--(c101)--(c111)--(c011)--cycle
+          (c001)--(c000) (c101)--(c100) (c011)--(c010);
+        \draw[black!65, thin]
+          (c000)--(c100)--(c110)--(c010)--cycle
+          (c100)--(c101) (c110)--(c111) (c010)--(c011) (c000)--(c001);
+
+        % bonds to face neighbours
+        \foreach \F in {fXm,fYm,fZm,fXp,fYp,fZp} {
+          \draw[-{Latex[length=1.2mm]}, black!50, very thin] (ctr) -- (\F);
+        }
+
+        % back atoms (depth ≤ 1)
+        \foreach \P in {c000,c100,c010,c001,fXm,fYm,fZm} {
+          \node[atom grey=2.4pt] at (\P) {};
+        }
+
+        % defect (depth 1.5) — behind front atoms
+        \node[atom defect=4.2pt] at (ctr) {};
+        \fill[orange!80!black] (ctr) circle (0.7pt);
+
+        % front atoms (depth ≥ 2)
+        \foreach \P in {c110,c101,c011,fXp,fYp,fZp,c111} {
+          \node[atom grey=2.7pt] at (\P) {};
+        }
+      \end{scope}
+    }
+  },
+  % ----------------------------------------------------------
+  % Planar stacking side-view (layers along z)
+  % ----------------------------------------------------------
+  pics/planarStackSideView/.style={
+    code={
+      \begin{scope}[shift={(-0.42,-0.52)}]
+        \def\ax{0.28}
+        \def\ay{0.26}
+        % layer lines + atoms: bottom 3 red, top 2 blue
+        \foreach \row in {0,1,2,3,4} {
+          \draw[black!30, very thin]
+            (0,{\row*\ay}) -- ({3*\ax},{\row*\ay});
+        }
+        \foreach \row in {0,1,2} {
+          \foreach \col in {0,1,2,3} {
+            \node[atom red=3.6pt] at ({\col*\ax},{\row*\ay}) {};
+          }
+        }
+        \foreach \row in {3,4} {
+          \foreach \col in {0,1,2,3} {
+            \node[atom blue=3.6pt] at ({\col*\ax},{\row*\ay}) {};
+          }
+        }
+        % z arrow
+        \draw[-{Latex[length=1.6mm]}, thick]
+          (-0.22,-0.02) -- (-0.22,{4*\ay+0.08});
+        \node[font=\tiny\itshape, anchor=north east, inner sep=1pt]
+          at (-0.18,-0.02) {$z$};
+      \end{scope}
+    }
+  },
+  % ----------------------------------------------------------
+  % 1) k-shell local environment
+  % ----------------------------------------------------------
+  pics/kshellGraph/.style={
+    code={
+      \begin{scope}[scale=0.73, shift={(0,0.0)}]
+        \foreach \r in {0.36,0.58,0.80} {
+          \draw[black!40, densely dashed, very thin] (0,0) circle (\r);
+        }
+        \foreach \a in {40,110,180,250,320} {
+          \draw[-{Latex[length=1.0mm]}, black!55, very thin]
+            (\a:0.36) -- (\a:0.14);
+          \node[atom grey=2.4pt] at (\a:0.36) {};
+        }
+        \foreach \a in {10,80,150,220,290} {
+          \draw[-{Latex[length=1.0mm]}, black!50, very thin]
+            (\a:0.58) -- (\a:0.40);
+          \node[atom grey=2.2pt] at (\a:0.58) {};
+        }
+        \foreach \a in {60,130,200,270} {
+          \draw[-{Latex[length=1.0mm]}, black!45, very thin]
+            (\a:0.80) -- (\a:0.62);
+          \node[atom grey=2.1pt] at (\a:0.80) {};
+        }
+        \node[atom defect=3.6pt] at (0,0) {};
+        \fill[orange!80!black] (0,0) circle (0.6pt);
+      \end{scope}
+    }
+  },
+  % ----------------------------------------------------------
+  % 2) 3- and 4-cycle motifs (undirected)
+  % ----------------------------------------------------------
+  pics/cycleMotifs/.style={
+    code={
+      \begin{scope}[scale=0.85]
+        % 3-cycle (left)
+        \begin{scope}[shift={(-0.62,0.16)}]
+          \coordinate (t0) at (90:0.32);
+          \coordinate (t1) at (210:0.32);
+          \coordinate (t2) at (330:0.32);
+          \draw[black!60, thin] (t0) -- (t1) -- (t2) -- cycle;
+          \foreach \P in {t0,t1,t2} { \node[atom grey=2.6pt] at (\P) {}; }
+          \node[font=\tiny, anchor=north] at (0,-0.48) {3-cycles};
+        \end{scope}
+        % 4-cycle (right) — well separated so labels do not collide
+        \begin{scope}[shift={(0.62,0.16)}]
+          \coordinate (q0) at (45:0.34);
+          \coordinate (q1) at (135:0.34);
+          \coordinate (q2) at (225:0.34);
+          \coordinate (q3) at (315:0.34);
+          \draw[black!60, thin] (q0) -- (q1) -- (q2) -- (q3) -- cycle;
+          \foreach \P in {q0,q1,q2,q3} { \node[atom grey=2.6pt] at (\P) {}; }
+          \node[font=\tiny, anchor=north] at (0,-0.48) {4-cycles};
+        \end{scope}
+      \end{scope}
+    }
+  },
+  % ----------------------------------------------------------
+  % 3) edge wiring (undirected k-shell)
+  % ----------------------------------------------------------
+  pics/edgeWiring/.style={
+    code={
+      \begin{scope}[scale=0.78,shift={(0,0.25)}]
+        \coordinate (e0) at (0.00, 0.32);
+        \coordinate (e1) at (0.42, 0.20);
+        \coordinate (e2) at (0.38,-0.18);
+        \coordinate (e3) at (0.00,-0.32);
+        \coordinate (e4) at (-0.38,-0.16);
+        \coordinate (e5) at (-0.40, 0.18);
+        \coordinate (e6) at (0.18, 0.02);
+        \coordinate (e7) at (-0.14, 0.04);
+        \foreach \a/\b in {e0/e1,e1/e2,e2/e3,e3/e4,e4/e5,e5/e0,
+                           e0/e6,e1/e6,e2/e6,e3/e7,e4/e7,e5/e7,e6/e7} {
+          \draw[black!45, thin] (\a) -- (\b);
+        }
+        \foreach \P in {e0,e1,e2,e3,e4,e5,e6,e7} {
+          \node[atom grey=2.5pt] at (\P) {};
+        }
+        \node[font=\tiny, align=center, anchor=north]
+          at (0,-0.52) {EDGE\_K $=3$\\[-0.3mm]undirected};
+      \end{scope}
+    }
+  },
+  % ----------------------------------------------------------
+  % PyG centre: example graph visualisation
+  % ----------------------------------------------------------
+  pics/pygGraphVis/.style={
+    code={
+      \begin{scope}[scale=1.05]
+        % node positions (tall narrow layout)
+        \coordinate (n0) at (0.00, 1.55);   % grey
+        \coordinate (n1) at (0.55, 1.15);   % grey
+        \coordinate (n2) at (-0.50, 1.05);  % blue
+        \coordinate (n3) at (0.10, 0.70);   % defect (orange ring)
+        \coordinate (n4) at (0.65, 0.45);   % grey
+        \coordinate (n5) at (-0.45, 0.35);  % red
+        \coordinate (n6) at (0.20, 0.05);   % grey
+        \coordinate (n7) at (-0.55,-0.25);  % grey
+        \coordinate (n8) at (0.55,-0.35);   % grey
+        \coordinate (n9) at (0.00,-0.75);   % grey
+        \coordinate (nA) at (-0.40,-0.95);  % grey
+        \coordinate (nB) at (0.45,-1.05);   % grey
+        \coordinate (n10) at (0.05,-1.45);  % grey (avoid trailing-space foreach bug on nC)
+
+        % faint structural links
+        \foreach \a/\b in {n0/n2,n1/n4,n7/nA,n8/nB,nA/n10,nB/n10} {
+          \draw[black!20, very thin] (\a) -- (\b);
+        }
+        % directed edges (message-passing view; list must not end with spaces before })
+        \foreach \a/\b in {n0/n1,n0/n3,n1/n3,n2/n3,n2/n5,n3/n4,n3/n5,n3/n6,n4/n6,n4/n8,n5/n6,n5/n7,n6/n8,n6/n9,n7/n9,n8/n9,n7/nA,n9/nA,n9/nB,nA/n10,nB/n10} {
+          \draw[-{[length=1.15mm]}, black!65, thin] (\a) -- (\b);
+        }
+
+        % atoms
+        \foreach \P in {n0,n1,n4,n6,n7,n8,n9,nA,nB,n10} {
+          \node[atom grey=3.0pt] at (\P) {};
+        }
+        \node[atom blue=3.2pt] at (n2) {};
+        \node[atom red=3.2pt] at (n5) {};
+        \node[atom defect=3.6pt] at (n3) {};
+        \fill[orange!80!black] (n3) circle (0.65pt);
+      \end{scope}
+    }
+  },
+  % ----------------------------------------------------------
+  % Mini bar charts for Stage 3
+  % ----------------------------------------------------------
+  pics/miniHistSigned/.style={
+    code={
+      \begin{scope}[scale=1]
+        \draw[black!35, densely dashed, thin] (-1.35,0) -- (1.35,0);
+        \foreach \x/\h in {
+          -1.20/0.42, -0.90/-0.28, -0.60/0.55, -0.30/-0.18,
+          0.00/0.32, 0.30/0.48, 0.60/-0.35, 0.90/0.22, 1.15/-0.12
+        } {
+          \fill[stagethree!65] (\x,0) rectangle ++(0.22,\h);
+        }
+        \node[font=\tiny, text=black!45] at (0,-0.42) {$i \rightarrow$};
+      \end{scope}
+    }
+  },
+  pics/miniHistAbs/.style={
+    code={
+      \begin{scope}[scale=1]
+        \draw[black!30, thin] (-1.35,0) -- (1.35,0);
+        \foreach \x/\h in {
+          -1.20/0.55, -0.90/0.38, -0.60/0.70, -0.30/0.45,
+          0.00/0.62, 0.30/0.50, 0.60/0.78, 0.90/0.40, 1.15/0.58
+        } {
+          \fill[stagethree!75] (\x,0) rectangle ++(0.22,\h);
+        }
+        \node[font=\tiny, text=black!45] at (0,-0.28) {$i \rightarrow$};
+      \end{scope}
+    }
+  }
+}
+
+\begin{document}
+\begin{tikzpicture}[
+  every node/.style={outer sep=0pt},
+]
+
+% ============================================================
+% GEOMETRY
+% ============================================================
+\newcommand{\colWzero}{5.0}
+\newcommand{\colWone}{8.2}
+\newcommand{\colWtwo}{7.6}
+\newcommand{\colWthree}{5.0}
+\newcommand{\colGap}{1.05}   % room for inter-stage arrows
+\newcommand{\nestGap}{0.18}  % gap between stage frames and nested panels
+
+\pgfmathsetmacro{\colXzero}{0}
+\pgfmathsetmacro{\colXone}{\colWzero+\colGap}
+\pgfmathsetmacro{\colXtwo}{\colWzero+\colWone+2*\colGap}
+\pgfmathsetmacro{\colXthree}{\colWzero+\colWone+\colWtwo+3*\colGap}
+\pgfmathsetmacro{\colYbase}{0}
+\pgfmathsetmacro{\totalW}{\colWzero+\colWone+\colWtwo+\colWthree+3*\colGap}
+
+% Stage 2 is the tallest column; others sit under a shared top
+\newcommand{\colH}{16.0}
+
+\coordinate (C0) at (\colXzero, \colYbase);
+\coordinate (C1) at (\colXone,  \colYbase);
+\coordinate (C2) at (\colXtwo,  \colYbase);
+\coordinate (C3) at (\colXthree,\colYbase);
+
+% ============================================================
+% STAGE 0 — DATA  (tight pack; column height fits content)
+% ============================================================
+\pgfmathsetmacro{\colTop}{\colYbase+\colH}
+
+\node[stage title=stagezero, minimum width=\colWzero cm, anchor=north]
+  (T0) at ({\colXzero+0.5*\colWzero}, \colTop)
+  {STAGE 0 --- DATA\\[-0.6mm]{\normalfont\scriptsize (Defect types)}};
+
+% A) Point defects
+\node[box=stagezero!45, minimum width=4.70cm, minimum height=3.55cm,
+      anchor=north] (A) at ([yshift=-0.14cm]T0.south) {};
+\node[boxtitle=stagezero, anchor=north] at ([yshift=-0.06cm]A.north)
+  {A) POINT DEFECTS\\[-0.8mm]{\normalfont\tiny (bulk C15 substitutions)}};
+\node[minimum width=1.85cm, minimum height=2cm, anchor=north west,
+      inner sep=0pt]
+  (Afig) at ([xshift=0.12cm,yshift=-0.48cm]A.north west) {};
+\pic[shift={(Afig.center)}, scale=0.95] {localAtomicEnv};
+\node[body, text width=2.35cm, anchor=north west]
+  at ([xshift=0.08cm,yshift=-0.42cm]Afig.north east) {%
+  $\bullet$ defect-centred subgraph\\[0.25mm]
+  $\bullet$ cutoff $K=8$ shells\\[0.25mm]
+  $\bullet$ $\sim$90--106 atoms/graph\\[0.25mm]
+  $\bullet$ $\sim$3000-atom supercell\\[0.25mm]
+  $\bullet$ 633 graphs\\[0.25mm]
+  $\bullet$ relaxed target PE};
+\node[box=stagezero!45, font=\sffamily\tiny, align=left, text width=4.30cm,
+      anchor=south, inner sep=1.2mm]
+  at ([yshift=0.12cm]A.south) {%
+  \textbf{SUBGRAPH CUTOFF:} 8 shells\\
+  \textbf{EDGES:} $k$-shell, $K=3$};
+
+% B) Planar defects
+\node[box=planarred!45, minimum width=4.70cm, minimum height=3.05cm,
+      anchor=north] (B) at ([yshift=-0.28cm]A.south) {};
+\node[boxtitle=planarred, anchor=north] at ([yshift=-0.08cm]B.north)
+  {B) PLANAR DEFECTS\\[-0.8mm]{\normalfont\tiny (stacking sequences)}};
+\node[minimum width=1.85cm, minimum height=1.85cm, anchor=north west,
+      inner sep=0pt]
+  (Bfig) at ([xshift=0.14cm,yshift=-0.72cm]B.north west) {};
+\pic[shift={(Bfig.center)}, scale=0.92] {planarStackSideView};
+\node[body, text width=2.35cm, anchor=north west]
+  at ([xshift=0.08cm,yshift=-0.32cm]Bfig.north east) {%
+  $\bullet$ full cell (12--84 atoms)\\[0.45mm]
+  $\bullet$ 1978 usable graphs\\[0.45mm]
+  $\bullet$ initial vs.\ relaxed PE\\[0.45mm]
+  $\bullet$ labelled defect atoms};
+
+% Same task
+\node[box=stagezero!45, minimum width=4.70cm, minimum height=1.70cm,
+      anchor=north] (task) at ([yshift=-0.28cm]B.south) {};
+\node[boxtitle=stagezero, anchor=north] at ([yshift=-0.08cm]task.north)
+  {SAME TASK \& MODEL};
+\node[bodyc, text width=4.35cm, anchor=center]
+  at ([yshift=-0.12cm]task.center) {%
+  Predict per-atom residual potential-energy change\\[1.0mm]
+  $\displaystyle y_i = \mathrm{PE}^{\mathrm{relaxed}}_i - \mathrm{PE}^{\mathrm{initial}}_i$};
+
+% S0 frame drawn after Stage 1 so bottoms can match
+
+
+% ============================================================
+% STAGE 1 — GRAPH CONSTRUCTION  (tight pack; frame hugs content)
+% ============================================================
+\node[stage title=stageone, minimum width=\colWone cm, anchor=north]
+  (T1) at ({\colXone+0.5*\colWone}, \colTop)
+  {STAGE 1 --- GRAPH CONSTRUCTION\\[-0.6mm]{\normalfont\scriptsize (PyG Data)}};
+
+% top trio
+\node[box=stageone!45, minimum width=2.50cm, minimum height=2.15cm,
+      anchor=north west] (L1)
+  at ([xshift=0.12cm,yshift=-0.10cm]T1.south west) {};
+\node[boxtitle=stageone, anchor=north, text width=2.30cm]
+  at ([yshift=-0.04cm]L1.north)
+  {1) LOCAL ENVIRONMENT\\};
+\pic at ($(L1.north)!0.62!(L1.south)$) {kshellGraph};
+
+\node[box=stageone!45, minimum width=2.50cm, minimum height=2.15cm,
+      anchor=north] (L2) at ([yshift=-0.10cm]T1.south) {};
+\node[boxtitle=stageone, anchor=north, text width=2.30cm]
+  at ([yshift=-0.04cm]L2.north)
+  {2) CYCLES\\[-0.5mm]{\normalfont\tiny motifs}};
+\pic at ($(L2.north)!0.62!(L2.south)$) {cycleMotifs};
+
+\node[box=stageone!45, minimum width=2.50cm, minimum height=2.15cm,
+      anchor=north east] (L3)
+  at ([xshift=-0.12cm,yshift=-0.10cm]T1.south east) {};
+\node[boxtitle=stageone, anchor=north, text width=2.30cm]
+  at ([yshift=-0.04cm]L3.north)
+  {3) EDGE WIRING\\[-0.5mm]{\normalfont\tiny $k$-shell neighbours}};
+\pic at ($(L3.north)!0.60!(L3.south)$) {edgeWiring};
+
+% PyG GRAPH DATA (height driven by content, not empty padding)
+\node[box=stageone!45, minimum width=7.95cm, minimum height=4.45cm,
+      anchor=north] (pyg) at ([yshift=-0.14cm]L2.south) {};
+\draw[flow, draw=stageone] (L2.south) -- (pyg.north);
+\node[boxtitle=stageone, anchor=north] at ([yshift=-0.05cm]pyg.north)
+  {PyG GRAPH DATA};
+
+\node[box=stageone!45, minimum width=2.40cm, minimum height=3.70cm,
+      anchor=north west] (nodes)
+  at ([xshift=0.12cm,yshift=-0.32cm]pyg.north west) {};
+\node[boxtitle=stageone, anchor=north, text width=2.15cm]
+  at ([yshift=-0.08cm]nodes.north)
+  {NODE FEATURES\\[0.5mm]$x\in\mathbb{R}^{N\times 6}$};
+\node[body, text width=2.05cm, anchor=north west]
+  at ([xshift=0.12cm,yshift=-1cm]nodes.north west) {%
+  \textbf{\textcolor{stageone}{0}}\quad type\\[0.75mm]
+   \textbf{\textcolor{stageone}{1}}\quad per-atom PE\\[0.75mm]
+   \textbf{\textcolor{stageone}{2}}\quad is\_defect\\[0.75mm]
+   \textbf{\textcolor{stageone}{3}}\quad dist\_to\_defect\\[0.75mm]
+   \textbf{\textcolor{stageone}{4}}\quad cycle3\_norm\\[0.75mm]
+   \textbf{\textcolor{stageone}{5}}\quad cycle4\_norm};
+
+% centre graph visualisation
+\node[minimum width=2.55cm, minimum height=3.55cm, anchor=north,
+      inner sep=0pt]
+  (gvis) at ([yshift=-0.32cm]pyg.north) {};
+\pic[scale=0.88] at (gvis.center) {pygGraphVis};
+
+\node[box=stageone!45, minimum width=2.35cm, minimum height=3.70cm,
+      anchor=north east] (edges)
+  at ([xshift=-0.12cm,yshift=-0.32cm]pyg.north east) {};
+\node[boxtitle=stageone, anchor=north, text width=2.10cm]
+  at ([yshift=-0.08cm]edges.north)
+  {EDGE FEATURES\\[0.4mm]$e\in\mathbb{R}^{E\times 3}$};
+\node[body, text width=2.00cm, anchor=north west]
+  at ([xshift=0.12cm,yshift=-1cm]edges.north west) {%
+   \textbf{\textcolor{stageone}{0}}\quad distance\\[1.4mm]
+   \textbf{\textcolor{stageone}{1}}\quad same\_type\\[1.4mm]
+   \textbf{\textcolor{stageone}{2}}\quad incident\_defect};
+
+\node[bodyc, text width=2.40cm, anchor=south]
+  at ([yshift=0.12cm]pyg.south)
+  {undirected edges stored once};
+
+% bottom trio
+\node[box=stageone!45, minimum width=2.50cm, minimum height=2.15cm,
+      anchor=north west] (tgt)
+  at ([xshift=0.12cm,yshift=-0.16cm]pyg.south west) {};
+\node[boxtitle=stageone, anchor=north] at ([yshift=-0.08cm]tgt.north)
+  {TARGET (residual)};
+\node[bodyc, text width=2.20cm, anchor=center]
+  at ([yshift=-0.10cm]tgt.center) {%
+  $y\in\mathbb{R}^{N\times 1}$\\[0.8mm]
+  $y_i=\mathrm{PE}^{\mathrm{relaxed}}_i$\\
+  $-\,\mathrm{PE}^{\mathrm{initial}}_i$};
+
+\node[box=stageone!45, minimum width=2.50cm, minimum height=2.15cm,
+      anchor=north] (aux) at ([yshift=-0.16cm]pyg.south) {};
+\node[boxtitle=stageone, anchor=north] at ([yshift=-0.08cm]aux.north)
+  {\scalebox{0.9}{AUXILIARY FIELDS}};
+\node[bodyc, text width=2.20cm, anchor=center]
+  at ([yshift=-0.10cm]aux.center) {%
+  positions, cell,\\[0.35mm]
+  metadata, fold/tags,\\[0.35mm]
+  cutoff info, masks};
+
+\node[box=stageone!45, minimum width=2.50cm, minimum height=2.15cm,
+      anchor=north east] (stats)
+  at ([xshift=-0.12cm,yshift=-0.16cm]pyg.south east) {};
+\node[boxtitle=stageone, anchor=north] at ([yshift=-0.08cm]stats.north)
+  {\scalebox{0.9}{GRAPH STATISTICS}};
+\node[body, text width=2.20cm, anchor=center]
+  at ([yshift=-0.08cm]stats.center) {%
+  $\bullet$ point: $N\sim$90--106\\[0.55mm]
+  $\bullet$ planar: $N\sim$12--84\\[0.55mm]
+  $\bullet$ $E$: $k$-shell ($K=3$)\\[0.55mm]
+  $\bullet$ undirected};
+
+% frame hugs content (no empty bottom band)
+\begin{scope}[on background layer]
+  \node[colframe=stageone, inner sep=0.14cm,
+        fit=(T1)(L1)(L2)(L3)(pyg)(tgt)(aux)(stats)] (S1) {};
+\end{scope}
+
+% Stage 0 frame: same height as Stage 1 (stretch to shared baseline)
+\coordinate (s0bot) at (S1.south -| T0);
+\begin{scope}[on background layer]
+  \node[colframe=stagezero, inner sep=0.14cm,
+        fit=(T0)(A)(B)(task)(s0bot)] (S0) {};
+\end{scope}
+
+% ============================================================
+% STAGE 2 — GNN MODEL  (frame hugs all content incl. MODEL OUTPUT)
+% ============================================================
+\node[stage title=stagetwo, minimum width=\colWtwo cm, anchor=north]
+  (T2) at ({\colXtwo+0.5*\colWtwo}, \colTop)
+  {STAGE 2 --- GNN MODEL (CGCNN)\\[-0.6mm]{\normalfont\scriptsize (Residual $\Delta$PE per atom)}};
+
+% INPUT
+\node[box=stagetwo!45, minimum width=7.15cm, minimum height=1.15cm,
+      anchor=north] (inp) at ([yshift=-0.14cm]T2.south) {};
+\node[boxtitle=stagetwo, anchor=north] at ([yshift=-0.08cm]inp.north)
+  {INPUT (per graph)};
+\node[bodyc, text width=6.80cm, anchor=center]
+  at ([yshift=-0.08cm]inp.center) {%
+  Node $x\in\mathbb{R}^{N\times 6}$\quad
+  Edge $e\in\mathbb{R}^{E\times 3}$\quad
+  Index $(u,v)\in\mathbb{Z}^{2\times E}$};
+
+% Input MLP
+\node[box=stagetwo!45, minimum width=7.15cm, minimum height=1.50cm,
+      anchor=north] (inmlp) at ([yshift=-0.28cm]inp.south) {};
+\node[boxtitle=stagetwo, anchor=north] at ([yshift=-0.05cm]inmlp.north)
+  {Input MLP: $6\rightarrow 128\rightarrow 128$ (SiLU)};
+% flow diagram inside the box
+\begin{scope}[
+  shift={([yshift=-0.12cm]inmlp.center)},
+  font=\sffamily\tiny,
+  every node/.append style={inner sep=1.2pt, outer sep=0pt},
+]
+  \node (imlpX) at (-3.15,0) {$x$};
+  \node[draw=stagetwo!55, rounded corners=1.5pt, fill=stagetwo!8,
+        align=center]
+    (imlpL1) at (-1.70,0) {Linear\\[-0.4mm]$6\!\rightarrow\!128$};
+  \node[draw=stagetwo!55, rounded corners=1.5pt, fill=stagetwo!8,
+        align=center]
+    (imlpL2) at (0.55,0) {Linear\\[-0.4mm]$128\!\rightarrow\!128$};
+  % place label on the same horizontal line as imlpL2.east (avoids slanted arrow)
+  \node[anchor=west] (imlpH) at ([xshift=0.22cm]imlpL2.east)
+    {$h_i^{(0)}\!\in\!\mathbb{R}^{N\times 128}$};
+  \foreach \i in {0,...,9} {
+    \fill[stagetwo!70] ([xshift={0.10+0.11*\i} cm,yshift=-0.30cm]imlpH.west)
+      rectangle ++(0.09,0.14);
+  }
+  \draw[modelflow, thin] (imlpX) -- (imlpL1);
+  \draw[modelflow, thin] (imlpL1) -- node[above] {SiLU} (imlpL2);
+  \draw[modelflow, thin] (imlpL2.east) -- (imlpH.west);
+\end{scope}
+\draw[modelflow] (inp.south) -- (inmlp.north);
+
+% Bidirectional
+\node[box=stagetwo!45, dashed, minimum width=6.70cm, minimum height=0.72cm,
+      anchor=north] (bidir) at ([yshift=-0.28cm]inmlp.south) {};
+\node[bodyc, text width=6.30cm] at (bidir.center) {%
+  \textbf{Bidirectional edges at forward time}\\[-0.5mm]
+  Each undirected edge is used in both directions};
+\draw[modelflow] (inmlp.south) -- (bidir.north);
+
+% GatedConv (visual message-passing block)
+\node[box=stagetwo!45, minimum width=6.50cm, minimum height=5.50cm,
+      anchor=north] (gated) at ([yshift=-0.28cm]bidir.south) {};
+\node[boxtitle=stagetwo, anchor=north] at ([yshift=-0.06cm]gated.north)
+  {GatedConv Layer $\ell$\quad (hidden dim $=128$)};
+
+\begin{scope}[
+  shift={(gated.center)},
+  yshift=0.10cm,
+  font=\sffamily\tiny,
+  every node/.append style={inner sep=1.5pt, outer sep=0pt, align=center},
+]
+  % --- inputs ---
+  \node[draw=stageone!60, rounded corners=1.5pt, fill=stageone!10]
+    (gi) at (-1.90,1.90) {$h_i^{(\ell)}$};
+  \node[draw=stagezero!55, rounded corners=1.5pt, fill=stagezero!8]
+    (ge) at (0.00,1.90) {$e_{ij}$ {\scriptsize(3)}};
+  \node[draw=stageone!60, rounded corners=1.5pt, fill=stageone!10]
+    (gj) at (1.90,1.90) {$h_j^{(\ell)}$};
+
+  % --- concat ---
+  \node[draw=stagetwo!50, rounded corners=2pt, fill=stagetwo!12,
+        text width=4.7cm]
+    (gz) at (0,1.20)
+    {$z_{ij}=\operatorname{concat}(h_i^{(\ell)},h_j^{(\ell)},e_{ij})\in\mathbb{R}^{259}$};
+
+  % inputs → concat (orthogonal: down, then into north edge)
+  \draw[modelflow, thin] (gi.south) -- ++(0,-0.18) -| ([xshift=-1.35cm]gz.north);
+  \draw[modelflow, thin] (ge.south) -- (gz.north);
+  \draw[modelflow, thin] (gj.south) -- ++(0,-0.18) -| ([xshift=1.35cm]gz.north);
+
+  % --- gate / content ---
+  \node[draw=planarred!50, rounded corners=1.5pt, fill=planarred!8,
+        text width=2.50cm]
+    (ggate) at (-1.55,0.40)
+    {$\mathrm{gate}_{ij}=\sigma(W_f z_{ij}+b_f)$};
+  \node[draw=planarred!50, rounded corners=1.5pt, fill=planarred!8,
+        text width=2.50cm]
+    (gcont) at (1.55,0.40)
+    {$\mathrm{content}_{ij}=\mathrm{SiLU}(W_s z_{ij}+b_s)$};
+
+  % concat → branches (stem without tip, arrows only into boxes)
+  \coordinate (gsplit) at (0,0.85);
+  \draw[stagetwo, thin] (gz.south) -- (gsplit);
+  \draw[modelflow, thin] (gsplit) -| (ggate.north);
+  \draw[modelflow, thin] (gsplit) -| (gcont.north);
+
+  % --- message ---
+  \node[draw=stagetwo!55, rounded corners=2pt, fill=stagetwo!10,
+        text width=4.5cm]
+    (gmsg) at (0,-0.40)
+    {$\mathrm{message}_{ij}=\mathrm{gate}_{ij}\odot\mathrm{content}_{ij}\in\mathbb{R}^{128}$};
+
+  % branches → message (down onto top edge)
+  \draw[modelflow, thin] (ggate.south) -- ++(0,-0.14) -| ([xshift=-1.15cm]gmsg.north);
+  \draw[modelflow, thin] (gcont.south) -- ++(0,-0.14) -| ([xshift=1.15cm]gmsg.north);
+
+  % --- aggregate ---
+  \node[draw=black!45, rounded corners=2pt, fill=black!3, text width=4.1cm]
+    (gagg) at (0,-1.15)
+    {$m_i^{(\ell)}=\displaystyle\sum_{j\in\mathcal{N}(i)}\mathrm{message}_{ij}$};
+  \draw[modelflow, thin] (gmsg.south) -- (gagg.north);
+
+  % --- residual update ---
+  \node[draw=stagetwo!60, rounded corners=2pt, fill=stagetwo!14, text width=4.1cm]
+    (gout) at (0,-1.90)
+    {$h_i^{(\ell+1)}=h_i^{(\ell)}+m_i^{(\ell)}$};
+  \draw[modelflow, thin] (gagg.south) -- (gout.north);
+
+  % residual skip: left side, enter mid-left of output
+  \draw[modelflow, thin, densely dashed]
+    (gi.west) -- ++(-0.850,0) -- ++(0,-3.80) -- (gout.west);
+\end{scope}
+
+% ×2 brace: full GatedConv height, close to the box edge
+\draw[stagetwo, thick,
+      decorate, decoration={brace,amplitude=4.5pt,raise=1pt}]
+  ([xshift=0.08cm,yshift=-0.08cm]gated.north east)
+  -- ([xshift=0.08cm,yshift=0.08cm]gated.south east)
+  node[midway, anchor=west, xshift=0.06cm,
+       font=\sffamily\bfseries\scriptsize, text=stagetwo]
+  {$\times\,2$};
+\draw[modelflow] (bidir.south) -- (gated.north);
+
+% Output MLP
+\node[box=stagetwo!45, minimum width=7.15cm, minimum height=1.50cm,
+      anchor=north] (outmlp) at ([yshift=-0.28cm]gated.south) {};
+\node[boxtitle=stagetwo, anchor=north] at ([yshift=-0.05cm]outmlp.north)
+  {Output MLP: $128\rightarrow 128\rightarrow 1$ (SiLU on hidden only)};
+\begin{scope}[
+  shift={([yshift=-0.12cm]outmlp.center)},
+  font=\sffamily\tiny,
+  every node/.append style={inner sep=1.2pt, outer sep=0pt},
+]
+  \node (omlpH) at (-3.15,0) {$h_i^{(2)}$};
+  \node[draw=stagetwo!55, rounded corners=1.5pt, fill=stagetwo!8,
+        align=center]
+    (omlpL1) at (-1.55,0) {Linear\\[-0.4mm]$128\!\rightarrow\!128$};
+  \node[draw=stagetwo!55, rounded corners=1.5pt, fill=stagetwo!8,
+        align=center]
+    (omlpL2) at (0.70,0) {Linear\\[-0.4mm]$128\!\rightarrow\!1$};
+  % place label on the same horizontal line as omlpL2.east (avoids slanted arrow)
+  \node[anchor=west] (omlpY) at ([xshift=0.22cm]omlpL2.east)
+    {$\hat{y}_i\in\mathbb{R}^{N\times 1}$};
+  \fill[stagetwo!70] ([xshift=0.12cm,yshift=-0.30cm]omlpY.west)
+    rectangle ++(0.14,0.14);
+  \draw[modelflow, thin] (omlpH) -- (omlpL1);
+  \draw[modelflow, thin] (omlpL1) -- node[above] {SiLU} (omlpL2);
+  \draw[modelflow, thin] (omlpL2.east) -- (omlpY.west);
+\end{scope}
+\draw[modelflow] (gated.south) -- (outmlp.north);
+
+% Model output
+\node[box=stagetwo!45, minimum width=7.15cm, minimum height=1.15cm,
+      anchor=north] (mout) at ([yshift=-0.28cm]outmlp.south) {};
+\node[boxtitle=stagetwo, anchor=north] at ([yshift=-0.08cm]mout.north)
+  {MODEL OUTPUT (per-atom residual)};
+\node[bodyc, text width=6.80cm, anchor=center]
+  at ([yshift=-0.08cm]mout.center)
+  {$\hat{y}_i=\Delta\mathrm{PE}_{i,\mathrm{pred}}\in\mathbb{R}$};
+\draw[modelflow] (outmlp.south) -- (mout.north);
+
+% Stage 2 frame: include MODEL OUTPUT
+\begin{scope}[on background layer]
+  \node[colframe=stagetwo, inner sep=0.14cm,
+        fit=(T2)(inp)(inmlp)(bidir)(gated)(outmlp)(mout)] (S2) {};
+\end{scope}
+
+% ============================================================
+% STAGE 3 — PREDICTIONS  (same height as Stages 0 & 1)
+% ============================================================
+\node[stage title=stagethree, minimum width=\colWthree cm, anchor=north]
+  (T3) at ({\colXthree+0.5*\colWthree}, \colTop)
+  {STAGE 3 --- PREDICTIONS\\[-0.6mm]{\normalfont\scriptsize (Post-processing)}};
+
+% Denormalise
+\node[box=stagethree!45, minimum width=4.70cm, minimum height=3.15cm,
+      anchor=north] (denorm) at ([yshift=-0.14cm]T3.south) {};
+\node[boxtitle=stagethree, anchor=north] at ([yshift=-0.08cm]denorm.north)
+  {Denormalise predictions\\[-0.6mm]{\normalfont\tiny (per atom)}};
+\node[bodyc, text width=4.35cm, anchor=north]
+  at ([yshift=-0.55cm]denorm.north) {%
+  $\displaystyle\hat{y}_i^{\mathrm{denorm}}
+   =\hat{y}_i^{\mathrm{norm}}\,\sigma_{\mathrm{train}}
+   +\mu_{\mathrm{train}}$};
+\pic[scale=0.80] at ([yshift=0.62cm]denorm.south) {miniHistSigned};
+
+% Reconstruct
+\node[box=stagethree!45, minimum width=4.70cm, minimum height=3.15cm,
+      anchor=north] (recon) at ([yshift=-0.28cm]denorm.south) {};
+\node[boxtitle=stagethree, anchor=north] at ([yshift=-0.08cm]recon.north)
+  {Reconstruct absolute relaxed PE\\[-0.6mm]{\normalfont\tiny (per atom)}};
+\node[bodyc, text width=4.35cm, anchor=north]
+  at ([yshift=-0.55cm]recon.north) {%
+  $\displaystyle\widehat{\mathrm{PE}}^{\mathrm{relaxed}}_i
+   =\mathrm{PE}^{\mathrm{initial}}_i
+   +\hat{y}_i^{\mathrm{denorm}}$};
+\pic[scale=0.80] at ([yshift=0.58cm]recon.south) {miniHistAbs};
+\draw[postflow] (denorm.south) -- (recon.north);
+
+% Aggregations
+\node[box=stagethree!45, minimum width=4.70cm, minimum height=2.25cm,
+      anchor=north] (aggr) at ([yshift=-0.28cm]recon.south) {};
+\node[boxtitle=stagethree, anchor=north] at ([yshift=-0.08cm]aggr.north)
+  {Optional aggregations\\[0mm]{\normalfont\tiny (currently not used)}};
+\node[body, text width=4.25cm, anchor=center]
+  at ([yshift=-0.25cm]aggr.center) {%
+  $\bullet$ Total PE (relaxed)\\[0.7mm]
+  $\bullet$ Mean PE (relaxed)\\[0.7mm]
+  $\bullet$ MAE on defect atoms only\\[0.7mm]
+  $\bullet$ computed after reconstruction};
+\draw[postflow] (recon.south) -- (aggr.north);
+
+% Stage 3 frame: match Stage 0/1 baseline
+\coordinate (s3bot) at (S1.south -| T3);
+\begin{scope}[on background layer]
+  \node[colframe=stagethree, inner sep=0.14cm,
+        fit=(T3)(denorm)(recon)(aggr)(s3bot)] (S3) {};
+\end{scope}
+
+% ============================================================
+% INTER-STAGE ARROWS  (gutters are \colGap wide)
+% ============================================================
+% gutter centre-lines between columns
+\coordinate (g01) at ($(S0.east)!0.5!(S1.west)$);
+\coordinate (g12) at ($(S1.east)!0.5!(S2.west)$);
+\coordinate (g23) at ($(S2.east)!0.5!(S3.west)$);
+
+% data: Stage 0 → Stage 1  (horizontal into LOCAL ENVIRONMENT height)
+\draw[flow]
+  (S0.east |- L1.center) -- (S1.west |- L1.center);
+
+% data: Stage 1 → Stage 2  (horizontal from PyG into Stage 2)
+\draw[flow]
+  (S1.east |- pyg.center) -- (S2.west |- pyg.center);
+
+% post: MODEL OUTPUT → Denormalise
+%   right into S2–S3 gutter, up the gutter, left into denorm
+\draw[postflow]
+  (mout.east) -- (mout.east -| g23)
+  -- (denorm.west -| g23) -- (denorm.west);
+
+% ============================================================
+% NESTED PANELS — fill gaps under S0 / S1 / S3 down to S2.south
+% ============================================================
+
+% under Stage 0: target standardisation
+\coordinate (n0nw) at ([yshift=-\nestGap cm]S0.south west);
+\coordinate (n0ne) at ([yshift=-\nestGap cm]S0.south east);
+\coordinate (n0sw) at (S2.south -| S0.west);
+\coordinate (n0se) at (S2.south -| S0.east);
+\node[draw=black!30, rounded corners=4pt, thick, fill=white,
+      inner sep=0pt, fit=(n0nw)(n0ne)(n0sw)(n0se)] (botStd) {};
+\node[boxtitle=stagezero, anchor=center, text width=4.40cm]
+  at ([yshift=1.15cm]botStd.center)
+  {TARGET STANDARDISATION\\[-0.5mm]{\normalfont\tiny (Training Only)}};
+\node[body, text width=4.40cm, anchor=center]
+  at ([yshift=-0.25cm]botStd.center) {%
+  Compute on training set (per atom):\\[1.0mm]
+  $\mu_{\mathrm{train}},\;\sigma_{\mathrm{train}}$\\[1.8mm]
+  Normalise targets for training:\\[1.0mm]
+  $\displaystyle y_i^{\mathrm{norm}}
+   =\frac{y_i-\mu_{\mathrm{train}}}{\sigma_{\mathrm{train}}}$};
+
+% under Stage 1: training loss
+\coordinate (n1nw) at ([yshift=-\nestGap cm]S1.south west);
+\coordinate (n1ne) at ([yshift=-\nestGap cm]S1.south east);
+\coordinate (n1sw) at (S2.south -| S1.west);
+\coordinate (n1se) at (S2.south -| S1.east);
+\node[draw=black!30, rounded corners=4pt, thick, fill=white,
+      inner sep=0pt, fit=(n1nw)(n1ne)(n1sw)(n1se)] (botLoss) {};
+\node[boxtitle=orange!80!black, anchor=center, text width=7.50cm]
+  (losstitle) at ([yshift=1.35cm]botLoss.center)
+  {TRAINING LOSS {\normalfont\tiny (Residual Mode)}};
+\node[body, text width=7.50cm, anchor=center]
+  (lossbody) at ([yshift=-0.30cm]botLoss.center) {%
+  1) Per-graph MAE in normalised targets\\[0.8mm]
+  $\displaystyle\mathcal{L}_g
+   =\frac{1}{N_g}\sum_{i=1}^{N_g}
+   \bigl|\hat{y}_i^{\mathrm{norm}}-y_i^{\mathrm{norm}}\bigr|$\\[1.8mm]
+  2) Average over graphs in batch\\[0.8mm]
+  $\displaystyle\mathcal{L}
+   =\frac{1}{N_{\mathrm{batch}}}\sum_g\mathcal{L}_g$\\[1.4mm]
+  $\longrightarrow$ Backpropagate $\mathcal{L}$};
+
+% under Stage 3: hyperparameters
+\coordinate (n3nw) at ([yshift=-\nestGap cm]S3.south west);
+\coordinate (n3ne) at ([yshift=-\nestGap cm]S3.south east);
+\coordinate (n3sw) at (S2.south -| S3.west);
+\coordinate (n3se) at (S2.south -| S3.east);
+\node[draw=black!30, rounded corners=4pt, thick, fill=white,
+      inner sep=0pt, fit=(n3nw)(n3ne)(n3sw)(n3se)] (botHyper) {};
+\node[boxtitle=stagetwo, anchor=center, text width=4.40cm]
+  at ([yshift=1.55cm]botHyper.center)
+  {MODEL HYPERPARAMETERS};
+\node[body, text width=4.40cm, anchor=center]
+  at ([yshift=-0.25cm]botHyper.center) {%
+  $\bullet$ hidden dimension: 128\\[0.65mm]
+  $\bullet$ activations: SiLU\\[0.65mm]
+  $\bullet$ GatedConv layers: 2\\[0.65mm]
+  $\bullet$ message passing: $k$-shell, $K=3$\\[0.65mm]
+  $\bullet$ edge features: 3\\[0.65mm]
+  $\bullet$ bidirectional edges at forward time\\[0.65mm]
+  $\bullet$ loss: per-graph MAE on normalised residuals\\[0.65mm]
+  $\bullet$ report MAE after denormalisation};
+
+% training signal: Loss panel → MODEL OUTPUT (across the Stage 2 gutter)
+\draw[trainflow]
+  (botLoss.east |- mout.west) -- (mout.west);
+
+\end{tikzpicture}
+\end{document}

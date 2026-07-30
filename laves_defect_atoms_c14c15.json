@@ -1,0 +1,16 @@
+{
+  "_comment": "Narrowed planar-fault defect labels (C14/C15 stacking view). C36 is treated as a repeating C14+C15 compound; atoms are labeled only where the sequence deviates from pure C14 or C15 stacking. XY' is C14 and therefore has no defect atoms. Composition-independent: keyed by the stack-sequence part of A-B_<stack> folder names. Values are 1-based LAMMPS/OVITO atom ids.",
+  "_rationale": "Originally Laves phase has three polytypes: C14, C15, and C36. Treating C36 as C14+C15+C14+C15+... means only deviations from C14/C15 stacking are marked as defects.",
+  "defect_atoms": {
+    "XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'": [4, 5, 6, 10, 11, 12, 16, 17, 18, 82, 83, 84],
+    "XYZ'Y'X'Z'Y'X'Z'": [4, 5, 6, 10, 11, 12, 16, 17, 18, 52, 53, 54],
+    "XYZ'Y'X'Z'": [34, 35, 4, 5, 6, 36, 10, 11, 12, 16, 17, 18],
+    "XYZ'Y'X'": [4, 5, 6, 10, 11, 12, 16, 17, 18, 28, 29, 30],
+    "XYZ'Y'": [4, 5, 6, 10, 11, 12, 16, 17, 18, 22, 23, 24],
+    "XY'XYZXYZXYZX": [4, 5, 6, 16, 17, 18],
+    "XY'XYZXY": [4, 5, 6, 16, 17, 18],
+    "XY'XY": [4, 5, 6, 16, 17, 18],
+    "XY'X": [4, 5, 6, 16, 17, 18],
+    "XY'": []
+  }
+}

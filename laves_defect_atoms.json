@@ -1,0 +1,15 @@
+{
+  "_comment": "Planar-fault (ISF/ESF) defect atom ids per stack sequence, supplied by the materials scientist. Keyed by the stack-sequence part of the folder name (e.g. Zr-Co_XY' -> XY'). Values are LAMMPS/OVITO atom identifiers (1-based). Mapping is composition-independent: it applies to every A-B chemistry sharing the same stack sequence.",
+  "defect_atoms": {
+    "XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 82, 83, 84],
+    "XY'XYZXYZXYZX": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    "XYZ'Y'X'Z'Y'X'Z'": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 52, 53, 54],
+    "XY'XYZXY": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    "XYZ'Y'X'Z'": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 34, 35, 36],
+    "XYZ'Y'X'": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 28, 29, 30],
+    "XY'XY": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    "XYZ'Y'": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+    "XY'X": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    "XY'": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  }
+}

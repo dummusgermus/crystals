@@ -122,6 +122,7 @@ def build_adv_datasets(
     edge_radius: float = EDGE_CUTOFF_RADIUS,
     cutoff_mode: str = "shell",
     variants: Optional[List[str]] = None,
+    target_mode: str = "absolute",
 ) -> Dict[str, str]:
     """Build the base dataset, compute cycle features, and save variants.
 
@@ -153,6 +154,7 @@ def build_adv_datasets(
         cutoff_radius=cutoff_radius,
         edge_radius=edge_radius,
         cutoff_mode=cutoff_mode,
+        target_mode=target_mode,
     )
     if not dataset:
         raise RuntimeError("No graphs were built – check the simulations directory.")
@@ -196,7 +198,10 @@ def build_adv_datasets(
             )
             variant_ds.append(new_data)
 
-        ds_path = os.path.join(output_dir, f"{variant}_dataset.pt")
+        ds_path = os.path.join(
+            output_dir,
+            f"{variant}{'_residual' if target_mode == 'residual' else ''}_dataset.pt",
+        )
         save_dataset(variant_ds, ds_path)
 
         stats = {
@@ -205,8 +210,12 @@ def build_adv_datasets(
             "std": v_std.tolist(),
             "num_graphs": len(variant_ds),
             "base_feature_dim": int(dataset[0].x.size(-1)),
+            "target_mode": target_mode,
         }
-        stats_path = os.path.join(output_dir, f"{variant}_stats.json")
+        stats_path = os.path.join(
+            output_dir,
+            f"{variant}{'_residual' if target_mode == 'residual' else ''}_stats.json",
+        )
         with open(stats_path, "w") as f:
             json.dump(stats, f, indent=2)
 
@@ -261,6 +270,15 @@ if __name__ == "__main__":
             "to regenerate more than one."
         ),
     )
+    parser.add_argument(
+        "--target-mode",
+        choices=["absolute", "residual"],
+        default="absolute",
+        help=(
+            "Target definition: absolute relaxed PE (default) or "
+            "residual PE_relaxed - PE_unrelaxed."
+        ),
+    )
     args = parser.parse_args()
 
     build_adv_datasets(
@@ -272,5 +290,6 @@ if __name__ == "__main__":
         edge_radius=args.edge_radius,
         cutoff_mode=args.cutoff_mode,
         variants=args.variants,
+        target_mode=args.target_mode,
     )
     print("All done.")

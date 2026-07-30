@@ -1,0 +1,275 @@
+# GraphML Pipeline Description for Information Flow Chart
+# Laves / CGCNN defect energy prediction (point & planar defects)
+# Purpose: precise technical brief for diagram / image generation software
+# Do not invent extra stages; follow this flow exactly.
+
+================================================================================
+OVERVIEW (ONE SENTENCE)
+================================================================================
+
+LAMMPS dump pairs (unrelaxed + relaxed) are converted into PyTorch Geometric
+graphs with 6 node features and 3 edge features; a gated CGCNN predicts the
+per-atom residual potential-energy change ΔPE; absolute relaxed PE is recovered
+by PE_relaxed_pred = PE_initial + ΔPE_pred.
+
+================================================================================
+STAGE 0 — SCIENTIFIC TASK
+================================================================================
+
+Predict per-atom potential energy after structural relaxation around crystal
+defects in Laves-phase related materials (C15 bulk point defects and planar
+stacking / fault sequences).
+
+Two defect families share the SAME ML task and SAME model when using residual
+targets; only the raw simulation inputs differ.
+
+--------------------------------------------------------------------------------
+A) POINT DEFECTS (bulk C15 substitutions)
+--------------------------------------------------------------------------------
+- Raw root: SIMULATIONS/C15_{A}-{B}/  (e.g. C15_Ag-Be)
+- Complete folders: exactly 52 files each
+- Usable graphs: 633
+- Structure size: ~3000 atoms per supercell
+- Graph construction: DEFECT-CENTRED SUBGRAPH
+  * Centre on defect atom id
+  * Keep atoms within k-shell cutoff DEFECT_CUTOFF_K = 8 around the defect
+  * Typical subgraph size after cutoff: ~90–106 atoms/graph (median ~106)
+- File pairs per configuration:
+  * unrelaxed_{id}-{from}-{to}-{wyckoff}.dump  → geometry + initial per-atom PE
+  * relaxed_{id}-{from}-{to}-{wyckoff}.dump    → relaxed per-atom PE (targets)
+- PE column in dumps: c_pe_potential_energy
+- Defect metadata: defect_id, from_type, to_type, wyckoff (e.g. 8a, 16d)
+- Typical configs: defect ids 1 or 9; type changes 1→1, 1→2, 2→1
+
+--------------------------------------------------------------------------------
+B) PLANAR DEFECTS (Laves stacking sequences)
+--------------------------------------------------------------------------------
+- Paired archives (folder names match, e.g. Ag-Be_XY'XY):
+  * Laves_Planar_Defects/SIMULATIONS/*/minimised.dump
+      → INITIAL per-atom PE (relax OFF; pe/atom at basefile geometry)
+  * Laves_Screen/SIMULATIONS/*/minimised.dump
+      → RELAXED per-atom PE (z-box + ionic minimisation)
+  * basefile.data → unrelaxed geometry
+- Usable graphs: 1978 (2 folders skipped: missing dumps)
+- Structure size: FULL CELL, 12–84 atoms (no subgraph cutoff)
+- PE column in dumps: c_pe
+- Defect labels: C14/C15 deviation atom IDs from laves_defect_atoms_c14c15.json
+  * Composition-independent, keyed by stack sequence
+  * Pure C14 stack XY' has ZERO defect atoms
+  * 1780/1978 graphs have ≥1 defect atom; 16614 defect-atom marks total
+- Stack families: XY'… and XYZ'Y'… (10 sequences per binary system)
+
+================================================================================
+STAGE 1 — GRAPH CONSTRUCTION (DATA → PyG Data)
+================================================================================
+
+Common schema for BOTH point and planar (residual pipeline):
+
+NODE FEATURES x ∈ R^{N × 6}  (after cycle augmentation)
+  [0] type              — LAMMPS particle type (1 or 2; -1 vacancy if any)
+  [1] per_atom_pe       — INITIAL / unrelaxed per-atom PE (eV)
+  [2] is_defect         — 1.0 if atom is a labeled defect atom, else 0.0
+  [3] dist_to_defect    — PBC-aware distance to nearest defect atom (Å)
+  [4] cycle3_norm       — z-scored count of 3-cycles through the node
+  [5] cycle4_norm       — z-scored count of 4-cycles through the node
+
+EDGE FEATURES edge_attr ∈ R^{E × 3}
+  [0] distance          — PBC-aware neighbor distance (Å)
+  [1] same_type         — 1.0 if both endpoints share particle type
+  [2] incident_defect   — 1.0 if either endpoint is a defect atom
+
+EDGE WIRING
+  - Mode: k-shell neighbours (edge_mode = "shell")
+  - EDGE_K = 3 (first 3 neighbour shells)
+  - Shell tolerance: SHELL_TOL_REL = 0.02
+  - Undirected edges stored once; training optionally doubles them
+
+TARGET y ∈ R^{N × 1}  (RESIDUAL MODE — preferred)
+  y_i = PE_relaxed_i − PE_initial_i
+  Units: eV per atom
+
+ALTERNATIVE TARGET (absolute mode — baseline only)
+  y_i = PE_relaxed_i
+  (same node features; PE_initial still in x[:,1])
+
+AUXILIARY FIELDS ON EACH GRAPH
+  - pos: atomic coordinates (Å)
+  - z: atomic numbers from chemistry (type 1 = A, type 2 = B); vacancy → 0
+  - folder / element tags for grouped train/val/test splits
+  - meta: cutoff info, has_unrelaxed_pe, defect_ids, target_mode
+
+CYCLE FEATURES (adv_graph_maker / planar_graph_maker)
+  1. Convert undirected edge_index → NetworkX graph
+  2. Count simple 3- and 4-cycles per node (DFS enumeration)
+  3. Z-score normalise using dataset-wide mean/std:
+     normed = (count − mean) / std
+  4. Append as node features [cycle3_norm, cycle4_norm]
+  Point residual cycle34 stats (approx):
+    mean(3,4) ≈ (28.14, 194.54), std ≈ (13.20, 111.90)
+  Planar residual cycle34 stats (approx):
+    mean(3,4) ≈ (6.93, 24.78), std ≈ (4.40, 22.01)
+
+DATASET ARTIFACTS (residual — do not overwrite absolute)
+  Point:  adv_datasets/cycle34_residual_dataset.pt   (633 graphs)
+  Planar: planar_pyg_dataset_residual_c14c15.pt      (1978 graphs)
+
+================================================================================
+STAGE 2 — TRAIN / VAL / TEST SPLIT
+================================================================================
+
+- Function: grouped_split_indices (seed = 42)
+- Point defects: group by (defect_id, from_type, to_type, wyckoff)
+  so chemically related configs stay in the same split
+- Planar: if no point-style metadata, groups fall back per-graph
+- Approximate ratios: 70% train / 15% val / 15% test
+- Example residual splits:
+  Point:  443 / 94 / 96 graphs
+  Planar: 1384 / 296 / 298 graphs
+
+================================================================================
+STAGE 3 — MODEL ARCHITECTURE (Gated CGCNN Node Regressor)
+================================================================================
+
+Name: GatedGNNNodeRegressor (CGCNN-style gated convolutions)
+Reference: Xie & Grossman (2018), CGCNN Eq. 5
+
+INPUT DIMENSIONS
+  in_dim  = 6   (node features)
+  edge_dim = 3  (edge features)
+  out_dim = 1   (per-node ΔPE)
+
+HYPERPARAMETERS (identical for point and planar residual training)
+  hidden_dim      = 128
+  num_layers      = 2
+  dropout         = 0.0
+  use_batch_norm  = False
+  activation      = SiLU
+  bidirectional   = True   ← each undirected edge used in BOTH directions
+  learning_rate   = 2e-3
+  weight_decay    = 0.0
+  batch_size      = 8
+  optimizer       = Adam
+  scheduler       = ReduceLROnPlateau (factor 0.5, patience 8, min_lr 1e-6)
+  epochs          = 300
+  loss            = per-graph MAE on STANDARDISDED targets
+  metric          = MAE after denormalisation (eV)
+
+FORWARD PASS (per graph / batch)
+  1. (Optional) Bidirectional wrapper:
+       edge_index, edge_attr ← duplicate reverse edges
+  2. Input MLP:   x ∈ R^{N×6}  →  h ∈ R^{N×128}
+  3. GatedConv × 2:
+       For each directed edge (i←j):
+         z = concat(h_i, h_j, edge_attr_ij) ∈ R^{259}
+             (128 + 128 + 3)
+         gate    = sigmoid(z W_f + b_f) ∈ R^{128}
+         content = SiLU(z W_s + b_s)    ∈ R^{128}
+         message = gate ⊙ content
+       Aggregate messages by sum over neighbours
+       Residual update: h ← h + aggregated_messages
+  4. Output MLP:  h ∈ R^{N×128}  →  pred_norm ∈ R^{N×1}
+
+TRAINING TARGET NORMALISATION
+  On the training split only:
+    target_mean = mean(y_train)
+    target_std  = std(y_train)   (clamped ≥ 1e-6)
+  Train on:  y_norm = (y − target_mean) / target_std
+  Evaluate:  pred = pred_norm * target_std + target_mean
+  Reported MAE is in physical eV on residual ΔPE.
+
+LOSS REDUCTION
+  Per-graph MAE: mean absolute error within each graph, then average over graphs
+  (avoids biasing toward larger graphs).
+
+PARAMETER COUNT (approx)
+  ~167,000 trainable parameters
+
+================================================================================
+STAGE 4 — INFERENCE & RECONSTRUCTION
+================================================================================
+
+Network output (residual pipeline):
+  ΔPE_pred_i  = model(graph)_i
+
+Reconstruction of absolute relaxed potential energy (single post-step):
+  PE_relaxed_pred_i = PE_initial_i + ΔPE_pred_i
+  where PE_initial_i is node feature x[i, 1] (already known at inference)
+
+IMPORTANT IDENTITY
+  |PE_relaxed_pred − PE_relaxed_true|
+    = |(PE_initial + ΔPE_pred) − (PE_initial + ΔPE_true)|
+    = |ΔPE_pred − ΔPE_true|
+  So residual MAE == reconstructed absolute MAE.
+
+Optional absolute-target baseline (for comparison only):
+  model predicts PE_relaxed directly; no reconstruction step.
+
+================================================================================
+STAGE 5 — EMPIRICAL RESULTS (RESIDUAL VS ABSOLUTE)
+================================================================================
+
+Same model, same hparams, 300 epochs, seed 42.
+
+Approximate final TEST MAE (eV/atom):
+  Point absolute:   ~0.013
+  Planar absolute:  ~0.028
+  Point residual:   ~0.010
+  Planar residual:  ~0.010
+
+Interpretation for the flowchart caption:
+  Residual training + reconstruction matches or beats direct absolute prediction;
+  point and planar reach nearly identical residual error.
+
+================================================================================
+SUGGESTED FLOWCHART LAYOUT (FOR THE IMAGE GENERATOR)
+================================================================================
+
+Use a left-to-right or top-to-bottom pipeline with TWO parallel data branches
+that MERGE before the model:
+
+BRANCH A — Point defects
+  SIMULATIONS/C15_A-B
+    → unrelaxed.dump + relaxed.dump
+    → defect-centred subgraph (k=8 shells)
+    → base node/edge features
+    → cycle3/4 counts → z-score
+    → cycle34_residual_dataset.pt (633 graphs)
+
+BRANCH B — Planar defects
+  Laves_Planar_Defects (initial PE)  ⊕  Laves_Screen (relaxed PE)
+    → full-cell graph (12–84 atoms)
+    → C14/C15 defect atom labels
+    → base node/edge features
+    → cycle3/4 counts → z-score
+    → planar_pyg_dataset_residual_c14c15.pt (1978 graphs)
+
+SHARED TRUNK
+  Graph batch (x:6, edge_attr:3)
+    → Bidirectional edges
+    → Input MLP (6→128)
+    → GatedConv × 2 (CGCNN)
+    → Output MLP (128→1)
+    → ΔPE_pred
+    → Reconstruction: PE_relaxed_pred = PE_initial + ΔPE_pred
+
+Annotate boxes with concrete numbers from this document.
+Use one colour for point, one for planar, and a third for shared model/inference.
+Dashed arrow for the reconstruction add-back step.
+Do NOT invent extra modules (no transformers, no global pooling for this
+node-level residual pipeline).
+
+================================================================================
+GLOSSARY (SHORT)
+================================================================================
+
+PE          Potential energy (eV)
+ΔPE         Residual = PE_relaxed − PE_initial
+CGCNN       Crystal Graph Convolutional Neural Network (gated message passing)
+PyG         PyTorch Geometric
+PBC         Periodic boundary conditions
+k-shell     Neighbour shells by discrete distance ranks
+C14/C15     Laves polytypes; planar labels mark stacking deviations from pure
+            C14 or C15
+================================================================================
+END OF DESCRIPTION
+================================================================================

@@ -1,33 +1,29 @@
 """Export per-atom absolute PE predictions into mirrored crystal folders.
 
-Three modes (``--mode``):
+Modes (``--mode``):
 
-* ``export`` (default): full pipeline — dumps + model → CSV/timing.
-* ``inference``: model only (no dumps). Writes per-crystal
-  ``*_graph_pred.pt`` + ``*_timing.json`` (cluster-friendly).
-* ``restore``: dumps + prior inference preds → final CSV (local).
+* ``export``: full pipeline — dumps + model → per-architecture CSV/timing.
+* ``inference``: model only (no dumps). Writes ``*_graph_pred.npz`` +
+  ``*_timing.json`` (cluster-friendly; ``.npz`` avoids ``*.pt`` gitignore).
+* ``restore``: dumps + one architecture's preds → CSV.
+* ``restore-merged``: dumps + CGCNN+Transformer preds → one CSV per crystal
+  under ``point/`` or ``planar/``, with both models' runtimes in the header.
 
-For each crystal the full CSV has one row per atom::
+Merged CSV columns::
 
-    atom_id,pe_initial,pe_true,pe_pred[,in_graph]
+    atom_id,pe_initial,pe_true,pe_pred_cgcnn,pe_pred_transformer[,in_graph]
 
-``pe_pred`` is absolute relaxed PE recovered from a residual model via
-``PE_initial + ΔPE_pred``.  Point-defect atoms outside the defect subgraph
-are filled with ``ΔPE = 0`` (``pe_pred = pe_initial``).
-
-Per-crystal timings (preprocess / predict / postprocess) are written beside
-each output.  Inference always uses ``batch_size=1`` so timings stay meaningful.
-
-Dump I/O uses a pure-Python LAMMPS reader (no OVITO required at export time).
+``pe_pred_*`` is absolute PE via ``PE_initial + ΔPE_pred``.  Point-defect atoms
+outside the subgraph keep ``ΔPE = 0``.
 
 Cluster inference (no dumps)::
 
     python crystal_prediction_export.py --mode inference --job all \\
         --output-root predictions_inference
 
-Local restore from cluster preds + local dumps::
+Local merged restore (cluster timings + local dumps)::
 
-    python crystal_prediction_export.py --mode restore --job all \\
+    python crystal_prediction_export.py --mode restore-merged --job all \\
         --inference-root predictions_inference --output-root predictions
 """
 
@@ -539,7 +535,7 @@ def restore_absolute_predictions(
 
 
 def write_pe_csv(path: str, table: CrystalPETable, include_in_graph: bool) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     fieldnames = ["atom_id", "pe_initial", "pe_true", "pe_pred"]
     if include_in_graph:
         fieldnames.append("in_graph")
@@ -556,6 +552,184 @@ def write_pe_csv(path: str, table: CrystalPETable, include_in_graph: bool) -> No
             if include_in_graph:
                 row["in_graph"] = int(table.in_graph[i])
             writer.writerow(row)
+
+
+def _format_runtime_header(prefix: str, timing: Dict) -> List[str]:
+    keys = (
+        "t_preprocess_s",
+        "t_predict_s",
+        "t_postprocess_s",
+        "t_total_s",
+        "device",
+        "mae_residual_eV",
+    )
+    lines = []
+    for key in keys:
+        if key in timing and timing[key] is not None:
+            lines.append(f"# {prefix}_{key}={timing[key]}")
+    return lines
+
+
+def write_merged_pe_csv(
+    path: str,
+    atom_ids: np.ndarray,
+    pe_initial: np.ndarray,
+    pe_true: np.ndarray,
+    pe_pred_cgcnn: np.ndarray,
+    pe_pred_transformer: np.ndarray,
+    in_graph: np.ndarray,
+    *,
+    domain: str,
+    folder: str,
+    config: str,
+    cgcnn_timing: Dict,
+    transformer_timing: Dict,
+    include_in_graph: bool,
+) -> None:
+    """Write one crystal CSV with both model predictions and runtime header."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    fieldnames = [
+        "atom_id",
+        "pe_initial",
+        "pe_true",
+        "pe_pred_cgcnn",
+        "pe_pred_transformer",
+    ]
+    if include_in_graph:
+        fieldnames.append("in_graph")
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        fh.write(f"# domain={domain}\n")
+        fh.write(f"# folder={folder}\n")
+        fh.write(f"# config={config}\n")
+        for line in _format_runtime_header("cgcnn", cgcnn_timing):
+            fh.write(line + "\n")
+        for line in _format_runtime_header("transformer", transformer_timing):
+            fh.write(line + "\n")
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for i in range(len(atom_ids)):
+            row = {
+                "atom_id": int(atom_ids[i]),
+                "pe_initial": float(pe_initial[i]),
+                "pe_true": float(pe_true[i]),
+                "pe_pred_cgcnn": float(pe_pred_cgcnn[i]),
+                "pe_pred_transformer": float(pe_pred_transformer[i]),
+            }
+            if include_in_graph:
+                row["in_graph"] = int(in_graph[i])
+            writer.writerow(row)
+
+
+def graph_pred_paths(crystal_dir: str, stem: str) -> List[str]:
+    """Candidate paths for on-graph residual predictions (npz preferred)."""
+    return [
+        os.path.join(crystal_dir, f"{stem}_graph_pred.npz"),
+        os.path.join(crystal_dir, f"{stem}_graph_pred.pt"),
+    ]
+
+
+def save_graph_pred(path_npz: str, payload: Dict) -> str:
+    """Save graph-level ΔPE as ``.npz`` (not caught by ``*.pt`` gitignore)."""
+    arrays = {
+        "delta_pred": np.asarray(payload["delta_pred"], dtype=np.float32).reshape(-1, 1),
+        "pe_initial_graph": np.asarray(
+            payload["pe_initial_graph"], dtype=np.float32
+        ).reshape(-1, 1),
+        "y_true_residual": np.asarray(
+            payload["y_true_residual"], dtype=np.float32
+        ).reshape(-1, 1),
+    }
+    if payload.get("particle_ids") is not None:
+        arrays["particle_ids"] = np.asarray(
+            payload["particle_ids"], dtype=np.int64
+        ).reshape(-1)
+    meta = {
+        "folder": str(payload.get("folder", "")),
+        "config": str(payload.get("config", "")),
+        "domain": str(payload.get("domain", "")),
+        "architecture": str(payload.get("architecture", "")),
+        "n_atoms_graph": int(payload.get("n_atoms_graph", arrays["delta_pred"].shape[0])),
+        "identity_pred": bool(payload.get("identity_pred", False)),
+    }
+    np.savez_compressed(path_npz, meta_json=json.dumps(meta), **arrays)
+    return path_npz
+
+
+def load_graph_pred(crystal_dir: str, stem: str) -> Dict:
+    """Load ``*_graph_pred.npz`` or legacy ``*_graph_pred.pt``."""
+    last_err: Optional[Exception] = None
+    for path in graph_pred_paths(crystal_dir, stem):
+        if not os.path.isfile(path):
+            continue
+        try:
+            if path.endswith(".npz"):
+                raw = np.load(path, allow_pickle=False)
+                meta = {}
+                if "meta_json" in raw.files:
+                    meta_raw = raw["meta_json"]
+                    meta = json.loads(
+                        meta_raw.item() if getattr(meta_raw, "shape", ()) == () else str(meta_raw)
+                    )
+                out = {
+                    "delta_pred": np.asarray(raw["delta_pred"], dtype=np.float64).reshape(
+                        -1
+                    ),
+                    "pe_initial_graph": np.asarray(
+                        raw["pe_initial_graph"], dtype=np.float64
+                    ).reshape(-1, 1),
+                    "y_true_residual": np.asarray(
+                        raw["y_true_residual"], dtype=np.float64
+                    ).reshape(-1, 1),
+                    "particle_ids": (
+                        np.asarray(raw["particle_ids"], dtype=np.int64).reshape(-1)
+                        if "particle_ids" in raw.files
+                        else None
+                    ),
+                    **meta,
+                    "pred_path": path,
+                }
+                return out
+            payload = torch.load(path, weights_only=False)
+            out = {
+                "delta_pred": np.asarray(
+                    payload["delta_pred"], dtype=np.float64
+                ).reshape(-1),
+                "pe_initial_graph": np.asarray(
+                    payload["pe_initial_graph"], dtype=np.float64
+                ).reshape(-1, 1),
+                "y_true_residual": np.asarray(
+                    payload["y_true_residual"], dtype=np.float64
+                ).reshape(-1, 1),
+                "particle_ids": (
+                    np.asarray(payload["particle_ids"], dtype=np.int64).reshape(-1)
+                    if payload.get("particle_ids") is not None
+                    else None
+                ),
+                "folder": payload.get("folder"),
+                "config": payload.get("config"),
+                "domain": payload.get("domain"),
+                "architecture": payload.get("architecture"),
+                "n_atoms_graph": payload.get("n_atoms_graph"),
+                "identity_pred": payload.get("identity_pred", False),
+                "pred_path": path,
+            }
+            return out
+        except Exception as err:  # noqa: BLE001 - try next candidate
+            last_err = err
+            continue
+    tried = ", ".join(graph_pred_paths(crystal_dir, stem))
+    raise FileNotFoundError(
+        f"Missing graph pred under {crystal_dir!r} (tried {tried})"
+        + (f"; last error: {last_err}" if last_err else "")
+    )
+
+
+def load_timing_json(crystal_dir: str, stem: str) -> Dict:
+    path = os.path.join(crystal_dir, f"{stem}_timing.json")
+    if not os.path.isfile(path):
+        return {}
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
 
 
 def write_pe_pt(path: str, table: CrystalPETable) -> None:
@@ -694,16 +868,17 @@ def infer_one_crystal(
     )
 
     t_post0 = time.perf_counter()
-    pe_initial_graph = data.x[:, 1:2].detach().cpu()
+    pe_initial_graph = data.x[:, 1:2].detach().cpu().numpy()
     particle_ids = None
     if getattr(data, "particle_ids", None) is not None:
-        particle_ids = data.particle_ids.detach().cpu().long()
-    pred_path = os.path.join(crystal_dir, f"{stem}_graph_pred.pt")
-    torch.save(
+        particle_ids = data.particle_ids.detach().cpu().numpy().astype(np.int64)
+    pred_path = os.path.join(crystal_dir, f"{stem}_graph_pred.npz")
+    save_graph_pred(
+        pred_path,
         {
-            "delta_pred": torch.tensor(delta, dtype=torch.float).view(-1, 1),
-            "pe_initial_graph": pe_initial_graph.float(),
-            "y_true_residual": data.y.detach().cpu().float().view(-1, 1),
+            "delta_pred": delta,
+            "pe_initial_graph": pe_initial_graph,
+            "y_true_residual": data.y.detach().cpu().numpy().reshape(-1, 1),
             "particle_ids": particle_ids,
             "folder": folder,
             "config": config_key,
@@ -712,7 +887,6 @@ def infer_one_crystal(
             "n_atoms_graph": int(data.num_nodes),
             "identity_pred": bool(identity_pred),
         },
-        pred_path,
     )
     t_postprocess = time.perf_counter() - t_post0
 
@@ -757,14 +931,12 @@ def restore_one_crystal(
     domain = job["domain"]
     folder, config_key, rel_dir, stem = crystal_path_info(data, domain)
     infer_dir = os.path.join(inference_root, job["output_subdir"], rel_dir)
-    pred_path = os.path.join(infer_dir, f"{stem}_graph_pred.pt")
-    timing_path = os.path.join(infer_dir, f"{stem}_timing.json")
-    if not os.path.isfile(pred_path):
-        raise FileNotFoundError(f"Missing inference pred file: {pred_path}")
+    payload = load_graph_pred(infer_dir, stem)
+    timing_meta = load_timing_json(infer_dir, stem)
+    delta = np.asarray(payload["delta_pred"], dtype=np.float64).reshape(-1)
+    pred_path = str(payload.get("pred_path", ""))
 
     t_pre0 = time.perf_counter()
-    payload = torch.load(pred_path, weights_only=False)
-    delta = np.asarray(payload["delta_pred"], dtype=np.float64).reshape(-1)
     if domain == "point":
         atom_ids, pe_initial, pe_true, _gpids, graph_pos = load_point_full_cell(
             data, job["simulations_dir"]
@@ -799,11 +971,6 @@ def restore_one_crystal(
         write_pe_pt(pt_path, table)
     t_postprocess = time.perf_counter() - t_post0
 
-    cluster_timing = {}
-    if os.path.isfile(timing_path):
-        with open(timing_path, encoding="utf-8") as fh:
-            cluster_timing = json.load(fh)
-
     meta = {
         "folder": folder,
         "config": config_key,
@@ -817,12 +984,12 @@ def restore_one_crystal(
         "csv_path": csv_path,
         "pt_path": pt_path,
         "t_preprocess_s": t_preprocess,
-        "t_predict_s": float(cluster_timing.get("t_predict_s", 0.0)),
+        "t_predict_s": float(timing_meta.get("t_predict_s", 0.0)),
         "t_postprocess_s": t_postprocess,
         "t_total_s": t_preprocess + t_postprocess,
-        "cluster_t_predict_s": cluster_timing.get("t_predict_s"),
-        "cluster_t_preprocess_s": cluster_timing.get("t_preprocess_s"),
-        "cluster_device": cluster_timing.get("device"),
+        "cluster_t_predict_s": timing_meta.get("t_predict_s"),
+        "cluster_t_preprocess_s": timing_meta.get("t_preprocess_s"),
+        "cluster_device": timing_meta.get("device"),
         "mae_abs_eV": float(np.mean(np.abs(table.pe_pred - table.pe_true))),
         "mae_in_graph_abs_eV": float(
             np.mean(
@@ -840,6 +1007,228 @@ def restore_one_crystal(
     ) as fh:
         json.dump(meta, fh, indent=2)
     return meta
+
+
+def restore_merged_one_crystal(
+    data: Data,
+    domain: str,
+    out_root: str,
+    inference_root: str,
+) -> Dict:
+    """Restore one crystal using both CGCNN and Transformer inference outputs."""
+    cgcnn_job = JOBS[f"{domain}_cgcnn"]
+    xf_job = JOBS[f"{domain}_transformer"]
+    folder, config_key, rel_dir, stem = crystal_path_info(data, domain)
+
+    cgcnn_dir = os.path.join(inference_root, cgcnn_job["output_subdir"], rel_dir)
+    xf_dir = os.path.join(inference_root, xf_job["output_subdir"], rel_dir)
+    cgcnn_payload = load_graph_pred(cgcnn_dir, stem)
+    xf_payload = load_graph_pred(xf_dir, stem)
+    cgcnn_timing = load_timing_json(cgcnn_dir, stem)
+    xf_timing = load_timing_json(xf_dir, stem)
+
+    delta_c = np.asarray(cgcnn_payload["delta_pred"], dtype=np.float64).reshape(-1)
+    delta_t = np.asarray(xf_payload["delta_pred"], dtype=np.float64).reshape(-1)
+    if len(delta_c) != len(delta_t):
+        raise ValueError(
+            f"ΔPE length mismatch for {folder}/{config_key}: "
+            f"cgcnn={len(delta_c)} transformer={len(delta_t)}"
+        )
+
+    t_pre0 = time.perf_counter()
+    if domain == "point":
+        atom_ids, pe_initial, pe_true, _gpids, graph_pos = load_point_full_cell(
+            data, cgcnn_job["simulations_dir"]
+        )
+    else:
+        atom_ids, pe_initial, pe_true, _gpids, graph_pos = load_planar_full_cell(
+            data, cgcnn_job["initial_dir"], cgcnn_job["relaxed_dir"]
+        )
+    pids = cgcnn_payload.get("particle_ids")
+    if pids is None:
+        pids = xf_payload.get("particle_ids")
+    if pids is not None:
+        graph_pids = np.asarray(pids, dtype=np.int64).reshape(-1)
+        id_to_pos = {int(pid): i for i, pid in enumerate(atom_ids)}
+        graph_pos = np.array(
+            [id_to_pos[int(pid)] for pid in graph_pids], dtype=np.int64
+        )
+    t_preprocess = time.perf_counter() - t_pre0
+
+    t_post0 = time.perf_counter()
+    table_c = restore_absolute_predictions(
+        atom_ids, pe_initial, pe_true, graph_pos, delta_c
+    )
+    table_t = restore_absolute_predictions(
+        atom_ids, pe_initial, pe_true, graph_pos, delta_t
+    )
+    crystal_dir = os.path.join(out_root, rel_dir)
+    csv_path = os.path.join(crystal_dir, f"{stem}.csv")
+    write_merged_pe_csv(
+        csv_path,
+        atom_ids=atom_ids,
+        pe_initial=pe_initial,
+        pe_true=pe_true,
+        pe_pred_cgcnn=table_c.pe_pred,
+        pe_pred_transformer=table_t.pe_pred,
+        in_graph=table_c.in_graph,
+        domain=domain,
+        folder=folder,
+        config=config_key,
+        cgcnn_timing=cgcnn_timing,
+        transformer_timing=xf_timing,
+        include_in_graph=(domain == "point"),
+    )
+    t_postprocess = time.perf_counter() - t_post0
+
+    meta = {
+        "folder": folder,
+        "config": config_key,
+        "domain": domain,
+        "mode": "restore-merged",
+        "n_atoms_full": int(len(atom_ids)),
+        "n_atoms_graph": int(data.num_nodes),
+        "n_atoms_in_graph_flag": int(table_c.in_graph.sum()),
+        "csv_path": csv_path,
+        "cgcnn_pred_path": cgcnn_payload.get("pred_path"),
+        "transformer_pred_path": xf_payload.get("pred_path"),
+        "t_preprocess_s": t_preprocess,
+        "t_postprocess_s": t_postprocess,
+        "t_predict_s": float(cgcnn_timing.get("t_predict_s", 0.0))
+        + float(xf_timing.get("t_predict_s", 0.0)),
+        "t_total_s": t_preprocess + t_postprocess,
+        "cgcnn_t_predict_s": cgcnn_timing.get("t_predict_s"),
+        "transformer_t_predict_s": xf_timing.get("t_predict_s"),
+        "mae_cgcnn_abs_eV": float(
+            np.mean(np.abs(table_c.pe_pred - table_c.pe_true))
+        ),
+        "mae_transformer_abs_eV": float(
+            np.mean(np.abs(table_t.pe_pred - table_t.pe_true))
+        ),
+    }
+    with open(
+        os.path.join(crystal_dir, f"{stem}_timing.json"), "w", encoding="utf-8"
+    ) as fh:
+        json.dump(
+            {
+                **meta,
+                "cgcnn_timing": cgcnn_timing,
+                "transformer_timing": xf_timing,
+            },
+            fh,
+            indent=2,
+        )
+    return meta
+
+
+def run_merged_restore(
+    domain: str,
+    output_root: str,
+    inference_root: str,
+    limit: Optional[int],
+) -> None:
+    if domain not in {"point", "planar"}:
+        raise SystemExit(f"Unknown domain {domain!r}")
+    job = JOBS[f"{domain}_cgcnn"]
+    dataset_path = job["dataset"]
+    if not os.path.isfile(dataset_path):
+        raise SystemExit(f"Dataset not found: {dataset_path}")
+
+    print(f"[{domain}] mode=restore-merged")
+    print(f"[{domain}] dataset={dataset_path}")
+    print(f"[{domain}] inference_root={inference_root}")
+
+    dataset: List[Data] = torch.load(dataset_path, weights_only=False)
+    if limit is not None:
+        dataset = dataset[: max(0, int(limit))]
+    print(f"[{domain}] crystals={len(dataset)}")
+
+    out_root = os.path.join(output_root, domain)
+    os.makedirs(out_root, exist_ok=True)
+
+    summaries: List[Dict] = []
+    for i, data in enumerate(dataset):
+        try:
+            meta = restore_merged_one_crystal(
+                data=data,
+                domain=domain,
+                out_root=out_root,
+                inference_root=inference_root,
+            )
+        except Exception as err:
+            print(
+                f"  [{i + 1}/{len(dataset)}] FAIL "
+                f"{getattr(data, 'folder', '?')}: {err}"
+            )
+            summaries.append(
+                {
+                    "folder": str(getattr(data, "folder", "")),
+                    "error": str(err),
+                }
+            )
+            continue
+        summaries.append(meta)
+        if (i + 1) % 25 == 0 or i == 0 or i + 1 == len(dataset):
+            print(
+                f"  [{i + 1}/{len(dataset)}] {meta['folder']}/{meta['config']} "
+                f"MAE_c={meta['mae_cgcnn_abs_eV']:.4e} "
+                f"MAE_t={meta['mae_transformer_abs_eV']:.4e} "
+                f"t_restore={meta['t_total_s'] * 1000:.1f} ms "
+                f"(cluster pred c={meta.get('cgcnn_t_predict_s')} / "
+                f"t={meta.get('transformer_t_predict_s')})"
+            )
+
+    ok = [s for s in summaries if "error" not in s]
+    summary_path = os.path.join(out_root, "restore_merged_summary.json")
+    with open(summary_path, "w", encoding="utf-8") as fh:
+        json.dump(
+            {
+                "domain": domain,
+                "mode": "restore-merged",
+                "dataset": dataset_path,
+                "inference_root": inference_root,
+                "n_requested": len(dataset),
+                "n_ok": len(ok),
+                "n_failed": len(summaries) - len(ok),
+                "mean_mae_cgcnn_abs_eV": float(
+                    np.mean([s["mae_cgcnn_abs_eV"] for s in ok])
+                )
+                if ok
+                else None,
+                "mean_mae_transformer_abs_eV": float(
+                    np.mean([s["mae_transformer_abs_eV"] for s in ok])
+                )
+                if ok
+                else None,
+                "mean_cgcnn_t_predict_s": float(
+                    np.mean(
+                        [
+                            s["cgcnn_t_predict_s"]
+                            for s in ok
+                            if s.get("cgcnn_t_predict_s") is not None
+                        ]
+                    )
+                )
+                if ok
+                else None,
+                "mean_transformer_t_predict_s": float(
+                    np.mean(
+                        [
+                            s["transformer_t_predict_s"]
+                            for s in ok
+                            if s.get("transformer_t_predict_s") is not None
+                        ]
+                    )
+                )
+                if ok
+                else None,
+                "crystals": summaries,
+            },
+            fh,
+            indent=2,
+        )
+    print(f"[{domain}] wrote {len(ok)} crystals -> {out_root}")
+    print(f"[{domain}] summary -> {summary_path}")
 
 
 def export_one_crystal(
@@ -1124,10 +1513,10 @@ def parse_args() -> argparse.Namespace:
         "--mode",
         type=str,
         default="export",
-        choices=["export", "inference", "restore"],
+        choices=["export", "inference", "restore", "restore-merged"],
         help=(
-            "export=dumps+model→CSV; inference=model only (no dumps); "
-            "restore=dumps+saved preds→CSV"
+            "export=dumps+model→CSV; inference=model only; "
+            "restore=one model; restore-merged=CGCNN+Transformer in one CSV"
         ),
     )
     parser.add_argument(
@@ -1195,8 +1584,23 @@ def main() -> None:
 
     if args.checkpoint and len(selected) != 1:
         raise SystemExit("--checkpoint requires exactly one --job")
-    if args.mode == "restore" and not args.inference_root:
-        raise SystemExit("--mode restore requires --inference-root")
+    if args.mode in {"restore", "restore-merged"} and not args.inference_root:
+        raise SystemExit(f"--mode {args.mode} requires --inference-root")
+
+    if args.mode == "restore-merged":
+        domains: List[str] = []
+        for name in selected:
+            domain = JOBS[name]["domain"]
+            if domain not in domains:
+                domains.append(domain)
+        for domain in domains:
+            run_merged_restore(
+                domain=domain,
+                output_root=args.output_root,
+                inference_root=args.inference_root,
+                limit=args.limit,
+            )
+        return
 
     for name in selected:
         run_job(

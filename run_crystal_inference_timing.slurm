@@ -20,8 +20,14 @@
 #
 # Does NOT need SIMULATIONS / Laves_* dump trees.
 #
-# After the job finishes, pull predictions_inference/ locally and restore:
-#   python crystal_prediction_export.py --mode restore --job all \
+# After the job finishes, pull the tree (include ``*_graph_pred.npz`` / legacy
+# ``*_graph_pred.pt`` — do not use git for the preds; ``*.pt`` is gitignored):
+#   rsync -avz --include='*/' --include='*_graph_pred.*' --include='*_timing.json' \
+#     --include='*summary.json' --exclude='*' \
+#     host:/path/code/predictions_inference/ ./predictions_inference/
+#
+# Then restore locally (merged CGCNN+Transformer CSVs):
+#   python crystal_prediction_export.py --mode restore-merged --job all \
 #       --inference-root predictions_inference --output-root predictions
 #
 # Submit:

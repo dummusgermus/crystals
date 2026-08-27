@@ -75,6 +75,10 @@ uae_embeddings/
 !planar_pyg_dataset_c14c15.pt
 !planar_pyg_dataset_residual_c14c15.pt
 
+# Cluster inference ΔPE preds (needed for local restore-merged)
+!predictions_inference/**/*_graph_pred.pt
+!predictions_inference/**/*_graph_pred.npz
+
 # -----------------------------
 # Media / papers / plots
 # -----------------------------

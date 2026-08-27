@@ -8,36 +8,31 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 
-# Full residual pipeline (C14/C15 planar labels):
-#   1) Rebuild point + planar residual .pt graphs WITH particle_ids
-#   2) Train CGCNN + Graph Transformer for EPOCHS (default 2000), save ckpts
-#   3) Export per-crystal absolute PE tables + timings for all 4 combos
+# Train + export using prebuilt residual datasets (built/annotated locally).
 #
-# particle_ids / orig_indices are metadata only — models never read them as
-# features (forward uses data.x / data.edge_attr only).
+# Prerequisites on the cluster (copy/rsync from local — do NOT rebuild here):
+#   adv_datasets/cycle34_residual_dataset.pt   (with particle_ids)
+#   planar_pyg_dataset_residual_c14c15.pt      (C14/C15, with particle_ids)
 #
-# Outputs:
-#   adv_datasets/cycle34_residual_dataset.pt
-#   planar_pyg_dataset_residual_c14c15.pt
-#   cgcnn_defect_residual_model.pt
-#   cgcnn_planar_residual_c14c15_model.pt
-#   transformer_graph_defect_residual_model.pt
-#   transformer_graph_planar_residual_c14c15_model.pt
-#   predictions/{point,planar}_{cgcnn,transformer}/...
+# Raw SIMULATIONS trees are still required for crystal export (dumps → full-cell
+# PE tables), but dataset *building* is skipped.
 #
-# Required data:
+# Also needed for export:
 #   SIMULATIONS/
 #   Laves_Planar_Defects/SIMULATIONS/
 #   Laves_Screen/SIMULATIONS/
-#   laves_defect_atoms_c14c15.json
+#
+# Pipeline:
+#   1) Verify residual .pt files + particle_ids
+#   2) Train CGCNN + Graph Transformer (default 2000 epochs), save ckpts
+#   3) Export per-crystal absolute PE + timings (4 combos)
 #
 # Submit:
 #   sbatch run_residual_train_export_2000.slurm
 #
 # Overrides:
-#   sbatch --export=ALL,EPOCHS=2000,SKIP_BUILD=0 run_residual_train_export_2000.slurm
-#   sbatch --export=ALL,SKIP_BUILD=1,SKIP_TRAIN=1 run_residual_train_export_2000.slurm  # export only
-#   sbatch --export=ALL,SKIP_EXPORT=1 run_residual_train_export_2000.slurm              # train only
+#   sbatch --export=ALL,SKIP_TRAIN=1 run_residual_train_export_2000.slurm   # export only
+#   sbatch --export=ALL,SKIP_EXPORT=1 run_residual_train_export_2000.slurm  # train only
 
 set -euo pipefail
 
@@ -57,36 +52,21 @@ export TRITON_CACHE_DIR="${CACHE_ROOT}/triton"
 export TORCHINDUCTOR_CACHE_DIR="${CACHE_ROOT}/inductor"
 mkdir -p "${TRITON_CACHE_DIR}" "${TORCHINDUCTOR_CACHE_DIR}"
 
-# OVITO OpenGL shim (needed when rebuilding datasets on headless nodes)
-SHIM_DIR="${SLURM_SUBMIT_DIR}/.lib_shim"
-mkdir -p "${SHIM_DIR}"
-if [ ! -e "${SHIM_DIR}/libOpenGL.so.0" ]; then
-  SYS_LIBGL="$(ldconfig -p | awk '/libGL\.so\.1\b/ {print $NF; exit}')"
-  if [ -z "${SYS_LIBGL}" ] || [ ! -e "${SYS_LIBGL}" ]; then
-    SYS_LIBGL="/lib/x86_64-linux-gnu/libGL.so.1"
-  fi
-  if [ -e "${SYS_LIBGL}" ]; then
-    ln -sf "${SYS_LIBGL}" "${SHIM_DIR}/libOpenGL.so.0"
-    echo "[env] libOpenGL.so.0 -> ${SYS_LIBGL}"
-  else
-    echo "[env] WARNING: no libGL.so.1 found; OVITO import may fail during build." >&2
-  fi
-fi
-export LD_LIBRARY_PATH="${SHIM_DIR}:${LD_LIBRARY_PATH:-}"
-
 EPOCHS="${EPOCHS:-2000}"
 SEED="${SEED:-42}"
 SCORE_LAST_N="${SCORE_LAST_N:-100}"
-SKIP_BUILD="${SKIP_BUILD:-0}"
 SKIP_TRAIN="${SKIP_TRAIN:-0}"
 SKIP_EXPORT="${SKIP_EXPORT:-0}"
 EXPORT_ROOT="${EXPORT_ROOT:-predictions}"
 DEVICE="${DEVICE:-auto}"
 
+POINT_PT="adv_datasets/cycle34_residual_dataset.pt"
+PLANAR_PT="planar_pyg_dataset_residual_c14c15.pt"
+
 echo "============================================================"
-echo "[job] residual rebuild + train ${EPOCHS}ep + crystal export"
+echo "[job] train ${EPOCHS}ep + crystal export (prebuilt datasets)"
 echo "[job] seed=${SEED} score_last_n=${SCORE_LAST_N}"
-echo "[job] skip_build=${SKIP_BUILD} skip_train=${SKIP_TRAIN} skip_export=${SKIP_EXPORT}"
+echo "[job] skip_train=${SKIP_TRAIN} skip_export=${SKIP_EXPORT}"
 echo "[job] export_root=${EXPORT_ROOT}"
 echo "============================================================"
 
@@ -98,14 +78,19 @@ if torch.cuda.is_available():
 PY
 
 # ---------------------------------------------------------------------------
-# 1) Rebuild residual datasets (point + planar C14/C15) with particle_ids
+# 0) Verify locally prepared residual datasets
 # ---------------------------------------------------------------------------
-if [ "${SKIP_BUILD}" != "1" ]; then
-  echo
-  echo "=== [1/3] Building residual datasets (force) ==="
-  python -u build_residual_datasets.py --force
+echo
+echo "=== [0/3] Checking prebuilt residual datasets ==="
+for path in "${POINT_PT}" "${PLANAR_PT}"; do
+  if [ ! -f "${path}" ]; then
+    echo "[FATAL] Missing ${path}" >&2
+    echo "        Build/annotate locally, then rsync to the cluster." >&2
+    exit 1
+  fi
+done
 
-  python - <<'PY'
+python - <<'PY'
 import torch
 from pathlib import Path
 
@@ -124,19 +109,18 @@ for path in checks:
         flush=True,
     )
     if not has_ids:
-        raise SystemExit(f"Missing particle_ids on rebuilt dataset: {path}")
+        raise SystemExit(
+            f"Missing particle_ids on {path}. "
+            "Run annotate_residual_atom_ids.py locally, then re-copy."
+        )
 PY
-else
-  echo
-  echo "=== [1/3] SKIP build ==="
-fi
 
 # ---------------------------------------------------------------------------
-# 2) Train CGCNN + Transformer (residual), save checkpoints
+# 1) Train CGCNN + Transformer (residual), save checkpoints
 # ---------------------------------------------------------------------------
 if [ "${SKIP_TRAIN}" != "1" ]; then
   echo
-  echo "=== [2a/3] Training residual CGCNN (${EPOCHS} epochs) ==="
+  echo "=== [1a/3] Training residual CGCNN (${EPOCHS} epochs) ==="
   python -u train_cgcnn_residual_both.py \
     --skip-build \
     --epochs "${EPOCHS}" \
@@ -146,7 +130,7 @@ if [ "${SKIP_TRAIN}" != "1" ]; then
     --output-json "cgcnn_residual_both_curves_${EPOCHS}.json"
 
   echo
-  echo "=== [2b/3] Training residual Graph Transformer (${EPOCHS} epochs) ==="
+  echo "=== [1b/3] Training residual Graph Transformer (${EPOCHS} epochs) ==="
   python -u train_transformer_absolute_residual.py \
     --datasets residual \
     --architecture graph \
@@ -158,7 +142,7 @@ if [ "${SKIP_TRAIN}" != "1" ]; then
     --output-json "transformer_residual_curves_${EPOCHS}.json"
 
   echo
-  echo "=== [2/3] Checkpoint presence ==="
+  echo "=== [1/3] Checkpoint presence ==="
   for ckpt in \
     cgcnn_defect_residual_model.pt \
     cgcnn_planar_residual_c14c15_model.pt \
@@ -174,15 +158,29 @@ if [ "${SKIP_TRAIN}" != "1" ]; then
   done
 else
   echo
-  echo "=== [2/3] SKIP train ==="
+  echo "=== [1/3] SKIP train ==="
 fi
 
 # ---------------------------------------------------------------------------
-# 3) Per-crystal inference export (absolute PE + timings)
+# 2) Per-crystal inference export (absolute PE + timings)
 # ---------------------------------------------------------------------------
 if [ "${SKIP_EXPORT}" != "1" ]; then
   echo
-  echo "=== [3/3] Exporting crystal PE tables (4 jobs) ==="
+  echo "=== [2/3] Checking dump trees needed for export ==="
+  for d in \
+    SIMULATIONS \
+    Laves_Planar_Defects/SIMULATIONS \
+    Laves_Screen/SIMULATIONS
+  do
+    if [ ! -d "${d}" ]; then
+      echo "[FATAL] Missing ${d} (required to restore full-cell PE tables)." >&2
+      echo "        Copy/rsync the raw dumps to the cluster, or skip export." >&2
+      exit 1
+    fi
+  done
+
+  echo
+  echo "=== [2/3] Exporting crystal PE tables (4 jobs) ==="
   python -u crystal_prediction_export.py \
     --job all \
     --output-root "${EXPORT_ROOT}" \
@@ -190,7 +188,7 @@ if [ "${SKIP_EXPORT}" != "1" ]; then
     --write-pt
 
   echo
-  echo "=== [3/3] Export summaries ==="
+  echo "=== [2/3] Export summaries ==="
   for sub in point_cgcnn point_transformer planar_cgcnn planar_transformer; do
     summary="${EXPORT_ROOT}/${sub}/export_summary.json"
     if [ -f "${summary}" ]; then
@@ -211,8 +209,8 @@ PY
   done
 else
   echo
-  echo "=== [3/3] SKIP export ==="
+  echo "=== [2/3] SKIP export ==="
 fi
 
 echo
-echo "[done] residual rebuild + ${EPOCHS}-epoch train + crystal export complete"
+echo "[done] train ${EPOCHS}ep + crystal export complete (prebuilt datasets)"

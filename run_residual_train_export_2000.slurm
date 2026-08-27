@@ -14,20 +14,17 @@
 #   adv_datasets/cycle34_residual_dataset.pt   (with particle_ids)
 #   planar_pyg_dataset_residual_c14c15.pt      (C14/C15, with particle_ids)
 #
-# Raw SIMULATIONS trees are still required for crystal export (dumps → full-cell
-# PE tables), but dataset *building* is skipped.
-#
-# Also needed for export:
-#   SIMULATIONS/
-#   Laves_Planar_Defects/SIMULATIONS/
-#   Laves_Screen/SIMULATIONS/
+# Dataset *building* is skipped (use prebuilt .pt). Full dump trees are only
+# needed for --mode export. Prefer dump-free cluster timings via:
+#   sbatch run_crystal_inference_timing.slurm
+# then restore CSVs locally with dumps.
 #
 # Pipeline:
 #   1) Verify residual .pt files + particle_ids
 #   2) Train CGCNN + Graph Transformer (default 2000 epochs), save ckpts
 #      Delivery fit: ~90% train / ~10% within-group val (no test); best-by-val
 #      Within each defect group, hold out ~10% so configs stay in training.
-#   3) Export per-crystal absolute PE + timings (4 combos)
+#   3) Optional full export (needs dumps) — usually SKIP_EXPORT=1 on cluster
 #
 # Submit:
 #   sbatch run_residual_train_export_2000.slurm

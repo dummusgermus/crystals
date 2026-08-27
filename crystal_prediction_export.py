@@ -1,6 +1,13 @@
 """Export per-atom absolute PE predictions into mirrored crystal folders.
 
-For each crystal configuration the script writes a CSV with one row per atom::
+Three modes (``--mode``):
+
+* ``export`` (default): full pipeline — dumps + model → CSV/timing.
+* ``inference``: model only (no dumps). Writes per-crystal
+  ``*_graph_pred.pt`` + ``*_timing.json`` (cluster-friendly).
+* ``restore``: dumps + prior inference preds → final CSV (local).
+
+For each crystal the full CSV has one row per atom::
 
     atom_id,pe_initial,pe_true,pe_pred[,in_graph]
 
@@ -9,22 +16,19 @@ For each crystal configuration the script writes a CSV with one row per atom::
 are filled with ``ΔPE = 0`` (``pe_pred = pe_initial``).
 
 Per-crystal timings (preprocess / predict / postprocess) are written beside
-each CSV.  Inference always uses ``batch_size=1`` so timings stay meaningful.
-
-Existing residual ``.pt`` graphs do not always carry ``particle_ids``; when
-missing, the export path re-resolves the atom map from the source dumps using
-the same cutoff logic as :mod:`graph_maker`.
+each output.  Inference always uses ``batch_size=1`` so timings stay meaningful.
 
 Dump I/O uses a pure-Python LAMMPS reader (no OVITO required at export time).
 
-Example (validate restore without a trained model)::
+Cluster inference (no dumps)::
 
-    python crystal_prediction_export.py --job point_transformer --identity-pred --limit 2
+    python crystal_prediction_export.py --mode inference --job all \\
+        --output-root predictions_inference
 
-Example (real residual checkpoint)::
+Local restore from cluster preds + local dumps::
 
-    python crystal_prediction_export.py --job planar_cgcnn \\
-        --checkpoint cgcnn_planar_residual_c14c15_model.pt
+    python crystal_prediction_export.py --mode restore --job all \\
+        --inference-root predictions_inference --output-root predictions
 """
 
 from __future__ import annotations
@@ -623,6 +627,15 @@ def load_residual_model(
     return model, target_mean, target_std
 
 
+def crystal_path_info(data: Data, domain: str) -> Tuple[str, str, str, str]:
+    """Return ``(folder, config_key, rel_dir, stem)`` for mirrored outputs."""
+    folder = str(data.folder)
+    if domain == "point":
+        config_key = point_config_key(data)
+        return folder, config_key, folder, config_key
+    return folder, folder, folder, "pe_table"
+
+
 def predict_residual_delta(
     model: Optional[torch.nn.Module],
     data: Data,
@@ -630,26 +643,203 @@ def predict_residual_delta(
     target_mean: Optional[torch.Tensor],
     target_std: Optional[torch.Tensor],
     identity_pred: bool,
-) -> Tuple[np.ndarray, float]:
-    """Return residual ΔPE predictions and predict-phase seconds."""
+) -> Tuple[np.ndarray, float, float]:
+    """Return residual ΔPE, preprocess seconds (to device), predict seconds."""
     if identity_pred:
         t0 = time.perf_counter()
-        # Residual datasets already store ΔPE in data.y (eV).
         delta = data.y.detach().cpu().numpy().reshape(-1)
-        _sync(device)
-        return delta, time.perf_counter() - t0
+        dt = time.perf_counter() - t0
+        return delta, 0.0, dt
 
     assert model is not None and target_mean is not None and target_std is not None
     loader = DataLoader([data], batch_size=1, shuffle=False)
+    t_pre0 = time.perf_counter()
     batch = next(iter(loader)).to(device)
+    _sync(device)
+    t_preprocess = time.perf_counter() - t_pre0
+
     with torch.no_grad():
         _sync(device)
         t0 = time.perf_counter()
         pred_norm = model(batch)
         pred = pred_norm * target_std + target_mean
         _sync(device)
-        dt = time.perf_counter() - t0
-    return pred.detach().cpu().numpy().reshape(-1), dt
+        t_predict = time.perf_counter() - t0
+    return pred.detach().cpu().numpy().reshape(-1), t_preprocess, t_predict
+
+
+def infer_one_crystal(
+    data: Data,
+    job: Dict[str, str],
+    out_root: str,
+    device: torch.device,
+    model: Optional[torch.nn.Module],
+    target_mean: Optional[torch.Tensor],
+    target_std: Optional[torch.Tensor],
+    identity_pred: bool,
+) -> Dict:
+    """Run model inference only (no dumps). Saves ΔPE + timing for later restore."""
+    domain = job["domain"]
+    folder, config_key, rel_dir, stem = crystal_path_info(data, domain)
+    crystal_dir = os.path.join(out_root, rel_dir)
+    os.makedirs(crystal_dir, exist_ok=True)
+
+    delta, t_preprocess, t_predict = predict_residual_delta(
+        model=model,
+        data=data,
+        device=device,
+        target_mean=target_mean,
+        target_std=target_std,
+        identity_pred=identity_pred,
+    )
+
+    t_post0 = time.perf_counter()
+    pe_initial_graph = data.x[:, 1:2].detach().cpu()
+    particle_ids = None
+    if getattr(data, "particle_ids", None) is not None:
+        particle_ids = data.particle_ids.detach().cpu().long()
+    pred_path = os.path.join(crystal_dir, f"{stem}_graph_pred.pt")
+    torch.save(
+        {
+            "delta_pred": torch.tensor(delta, dtype=torch.float).view(-1, 1),
+            "pe_initial_graph": pe_initial_graph.float(),
+            "y_true_residual": data.y.detach().cpu().float().view(-1, 1),
+            "particle_ids": particle_ids,
+            "folder": folder,
+            "config": config_key,
+            "domain": domain,
+            "architecture": job["architecture"],
+            "n_atoms_graph": int(data.num_nodes),
+            "identity_pred": bool(identity_pred),
+        },
+        pred_path,
+    )
+    t_postprocess = time.perf_counter() - t_post0
+
+    # On-graph residual MAE vs dataset labels (no dumps needed).
+    y_true = data.y.detach().cpu().numpy().reshape(-1)
+    mae_resid = float(np.mean(np.abs(delta - y_true)))
+
+    timing = CrystalTiming(
+        t_preprocess_s=t_preprocess,
+        t_predict_s=t_predict,
+        t_postprocess_s=t_postprocess,
+    )
+    meta = {
+        "folder": folder,
+        "config": config_key,
+        "domain": domain,
+        "architecture": job["architecture"],
+        "mode": "inference",
+        "n_atoms_graph": int(data.num_nodes),
+        "identity_pred": bool(identity_pred),
+        "pred_path": pred_path,
+        "mae_residual_eV": mae_resid,
+        **asdict(timing),
+        "t_total_s": timing.t_total_s,
+        "device": str(device),
+    }
+    with open(
+        os.path.join(crystal_dir, f"{stem}_timing.json"), "w", encoding="utf-8"
+    ) as fh:
+        json.dump(meta, fh, indent=2)
+    return meta
+
+
+def restore_one_crystal(
+    data: Data,
+    job: Dict[str, str],
+    out_root: str,
+    inference_root: str,
+    write_pt: bool,
+) -> Dict:
+    """Restore full-crystal PE tables from a prior ``--mode inference`` run."""
+    domain = job["domain"]
+    folder, config_key, rel_dir, stem = crystal_path_info(data, domain)
+    infer_dir = os.path.join(inference_root, job["output_subdir"], rel_dir)
+    pred_path = os.path.join(infer_dir, f"{stem}_graph_pred.pt")
+    timing_path = os.path.join(infer_dir, f"{stem}_timing.json")
+    if not os.path.isfile(pred_path):
+        raise FileNotFoundError(f"Missing inference pred file: {pred_path}")
+
+    t_pre0 = time.perf_counter()
+    payload = torch.load(pred_path, weights_only=False)
+    delta = np.asarray(payload["delta_pred"], dtype=np.float64).reshape(-1)
+    if domain == "point":
+        atom_ids, pe_initial, pe_true, _gpids, graph_pos = load_point_full_cell(
+            data, job["simulations_dir"]
+        )
+    else:
+        atom_ids, pe_initial, pe_true, _gpids, graph_pos = load_planar_full_cell(
+            data, job["initial_dir"], job["relaxed_dir"]
+        )
+    # Prefer stored particle_ids map when available.
+    if payload.get("particle_ids") is not None:
+        graph_pids = np.asarray(payload["particle_ids"], dtype=np.int64).reshape(-1)
+        id_to_pos = {int(pid): i for i, pid in enumerate(atom_ids)}
+        graph_pos = np.array(
+            [id_to_pos[int(pid)] for pid in graph_pids], dtype=np.int64
+        )
+    t_preprocess = time.perf_counter() - t_pre0
+
+    t_post0 = time.perf_counter()
+    table = restore_absolute_predictions(
+        atom_ids=atom_ids,
+        pe_initial=pe_initial,
+        pe_true=pe_true,
+        graph_pos=graph_pos,
+        delta_pred=delta,
+    )
+    crystal_dir = os.path.join(out_root, rel_dir)
+    csv_path = os.path.join(crystal_dir, f"{stem}.csv")
+    write_pe_csv(csv_path, table, include_in_graph=(domain == "point"))
+    pt_path = None
+    if write_pt:
+        pt_path = os.path.join(crystal_dir, f"{stem}.pt")
+        write_pe_pt(pt_path, table)
+    t_postprocess = time.perf_counter() - t_post0
+
+    cluster_timing = {}
+    if os.path.isfile(timing_path):
+        with open(timing_path, encoding="utf-8") as fh:
+            cluster_timing = json.load(fh)
+
+    meta = {
+        "folder": folder,
+        "config": config_key,
+        "domain": domain,
+        "architecture": job["architecture"],
+        "mode": "restore",
+        "n_atoms_full": int(len(atom_ids)),
+        "n_atoms_graph": int(data.num_nodes),
+        "n_atoms_in_graph_flag": int(table.in_graph.sum()),
+        "pred_path": pred_path,
+        "csv_path": csv_path,
+        "pt_path": pt_path,
+        "t_preprocess_s": t_preprocess,
+        "t_predict_s": float(cluster_timing.get("t_predict_s", 0.0)),
+        "t_postprocess_s": t_postprocess,
+        "t_total_s": t_preprocess + t_postprocess,
+        "cluster_t_predict_s": cluster_timing.get("t_predict_s"),
+        "cluster_t_preprocess_s": cluster_timing.get("t_preprocess_s"),
+        "cluster_device": cluster_timing.get("device"),
+        "mae_abs_eV": float(np.mean(np.abs(table.pe_pred - table.pe_true))),
+        "mae_in_graph_abs_eV": float(
+            np.mean(
+                np.abs(
+                    table.pe_pred[table.in_graph == 1]
+                    - table.pe_true[table.in_graph == 1]
+                )
+            )
+        )
+        if table.in_graph.any()
+        else None,
+    }
+    with open(
+        os.path.join(crystal_dir, f"{stem}_timing.json"), "w", encoding="utf-8"
+    ) as fh:
+        json.dump(meta, fh, indent=2)
+    return meta
 
 
 def export_one_crystal(
@@ -665,27 +855,20 @@ def export_one_crystal(
 ) -> Dict:
     domain = job["domain"]
     include_in_graph = domain == "point"
+    folder, config_key, rel_dir, stem = crystal_path_info(data, domain)
 
     t_pre0 = time.perf_counter()
     if domain == "point":
         atom_ids, pe_initial, pe_true, _gpids, graph_pos = load_point_full_cell(
             data, job["simulations_dir"]
         )
-        folder = str(data.folder)
-        config_key = point_config_key(data)
-        rel_dir = os.path.join(folder)
-        stem = config_key
     else:
         atom_ids, pe_initial, pe_true, _gpids, graph_pos = load_planar_full_cell(
             data, job["initial_dir"], job["relaxed_dir"]
         )
-        folder = str(data.folder)
-        config_key = folder
-        rel_dir = folder
-        stem = "pe_table"
-    t_preprocess = time.perf_counter() - t_pre0
+    t_dump = time.perf_counter() - t_pre0
 
-    delta, t_predict = predict_residual_delta(
+    delta, t_to_device, t_predict = predict_residual_delta(
         model=model,
         data=data,
         device=device,
@@ -693,6 +876,7 @@ def export_one_crystal(
         target_std=target_std,
         identity_pred=identity_pred,
     )
+    t_preprocess = t_dump + t_to_device
 
     t_post0 = time.perf_counter()
     table = restore_absolute_predictions(
@@ -713,16 +897,15 @@ def export_one_crystal(
     timing = CrystalTiming(
         t_preprocess_s=t_preprocess,
         t_predict_s=t_predict,
-        t_postprocess_s=0.0,  # filled after write
+        t_postprocess_s=time.perf_counter() - t_post0,
     )
-    # Include file write in postprocess.
-    timing.t_postprocess_s = time.perf_counter() - t_post0
 
     meta = {
         "folder": folder,
         "config": config_key,
         "domain": domain,
         "architecture": job["architecture"],
+        "mode": "export",
         "n_atoms_full": int(len(atom_ids)),
         "n_atoms_graph": int(data.num_nodes),
         "n_atoms_in_graph_flag": int(table.in_graph.sum()),
@@ -734,20 +917,31 @@ def export_one_crystal(
         "mae_abs_eV": float(np.mean(np.abs(table.pe_pred - table.pe_true))),
         "mae_in_graph_abs_eV": float(
             np.mean(
-                np.abs(table.pe_pred[table.in_graph == 1] - table.pe_true[table.in_graph == 1])
+                np.abs(
+                    table.pe_pred[table.in_graph == 1]
+                    - table.pe_true[table.in_graph == 1]
+                )
             )
         )
         if table.in_graph.any()
         else None,
     }
-    with open(os.path.join(crystal_dir, f"{stem}_timing.json"), "w", encoding="utf-8") as fh:
+    with open(
+        os.path.join(crystal_dir, f"{stem}_timing.json"), "w", encoding="utf-8"
+    ) as fh:
         json.dump(meta, fh, indent=2)
     return meta
 
 
+def _progress_mae_key(mode: str) -> str:
+    return "mae_residual_eV" if mode == "inference" else "mae_abs_eV"
+
+
 def run_job(
     job_name: str,
+    mode: str,
     output_root: str,
+    inference_root: Optional[str],
     checkpoint: Optional[str],
     identity_pred: bool,
     limit: Optional[int],
@@ -757,6 +951,11 @@ def run_job(
 ) -> None:
     if job_name not in JOBS:
         raise SystemExit(f"Unknown job {job_name!r}; choose from {list(JOBS)}")
+    if mode not in {"export", "inference", "restore"}:
+        raise SystemExit(f"Unknown mode {mode!r}")
+    if mode == "restore" and not inference_root:
+        raise SystemExit("--mode restore requires --inference-root")
+
     job = dict(JOBS[job_name])
     if checkpoint:
         job["checkpoint"] = checkpoint
@@ -770,7 +969,7 @@ def run_job(
         if device_str != "auto"
         else ("cuda" if torch.cuda.is_available() else "cpu")
     )
-    print(f"[{job_name}] device={device}")
+    print(f"[{job_name}] mode={mode} device={device}")
     print(f"[{job_name}] dataset={dataset_path}")
 
     dataset: List[Data] = torch.load(dataset_path, weights_only=False)
@@ -782,41 +981,66 @@ def run_job(
     target_mean = None
     target_std = None
     ckpt_path = job["checkpoint"]
-    if identity_pred:
-        print(f"[{job_name}] identity-pred: using graph.y (residual GT) as dPE")
-    else:
-        if not os.path.isfile(ckpt_path):
-            msg = f"Checkpoint not found: {ckpt_path}"
-            if skip_missing_checkpoint:
-                print(f"[{job_name}] SKIP - {msg}")
-                return
-            raise SystemExit(
-                msg
-                + " (retrain/save residual model, or pass --identity-pred to "
-                "test the restore pipeline)"
+    need_model = mode in {"export", "inference"}
+    if need_model:
+        if identity_pred:
+            print(f"[{job_name}] identity-pred: using graph.y (residual GT) as dPE")
+        else:
+            if not os.path.isfile(ckpt_path):
+                msg = f"Checkpoint not found: {ckpt_path}"
+                if skip_missing_checkpoint:
+                    print(f"[{job_name}] SKIP - {msg}")
+                    return
+                raise SystemExit(
+                    msg
+                    + " (retrain/save residual model, or pass --identity-pred to "
+                    "test the restore pipeline)"
+                )
+            print(f"[{job_name}] checkpoint={ckpt_path}")
+            model, target_mean, target_std = load_residual_model(
+                ckpt_path, dataset, job["architecture"], device
             )
-        print(f"[{job_name}] checkpoint={ckpt_path}")
-        model, target_mean, target_std = load_residual_model(
-            ckpt_path, dataset, job["architecture"], device
-        )
+    else:
+        print(f"[{job_name}] restore from inference_root={inference_root}")
 
     out_root = os.path.join(output_root, job["output_subdir"])
     os.makedirs(out_root, exist_ok=True)
 
     summaries: List[Dict] = []
+    mae_key = _progress_mae_key(mode)
     for i, data in enumerate(dataset):
         try:
-            meta = export_one_crystal(
-                data=data,
-                job=job,
-                out_root=out_root,
-                device=device,
-                model=model,
-                target_mean=target_mean,
-                target_std=target_std,
-                identity_pred=identity_pred,
-                write_pt=write_pt,
-            )
+            if mode == "inference":
+                meta = infer_one_crystal(
+                    data=data,
+                    job=job,
+                    out_root=out_root,
+                    device=device,
+                    model=model,
+                    target_mean=target_mean,
+                    target_std=target_std,
+                    identity_pred=identity_pred,
+                )
+            elif mode == "restore":
+                meta = restore_one_crystal(
+                    data=data,
+                    job=job,
+                    out_root=out_root,
+                    inference_root=inference_root,  # type: ignore[arg-type]
+                    write_pt=write_pt,
+                )
+            else:
+                meta = export_one_crystal(
+                    data=data,
+                    job=job,
+                    out_root=out_root,
+                    device=device,
+                    model=model,
+                    target_mean=target_mean,
+                    target_std=target_std,
+                    identity_pred=identity_pred,
+                    write_pt=write_pt,
+                )
         except Exception as err:
             print(f"  [{i + 1}/{len(dataset)}] FAIL {getattr(data, 'folder', '?')}: {err}")
             summaries.append(
@@ -828,9 +1052,11 @@ def run_job(
             continue
         summaries.append(meta)
         if (i + 1) % 25 == 0 or i == 0 or i + 1 == len(dataset):
+            mae_val = meta.get(mae_key)
+            mae_str = f"{mae_val:.4e}" if mae_val is not None else "n/a"
             print(
                 f"  [{i + 1}/{len(dataset)}] {meta['folder']}/{meta['config']} "
-                f"MAE={meta['mae_abs_eV']:.4e} eV  "
+                f"MAE={mae_str} eV  "
                 f"t={meta['t_total_s'] * 1000:.1f} ms "
                 f"(pre {meta['t_preprocess_s'] * 1000:.1f} / "
                 f"pred {meta['t_predict_s'] * 1000:.1f} / "
@@ -838,23 +1064,35 @@ def run_job(
             )
 
     ok = [s for s in summaries if "error" not in s]
-    summary_path = os.path.join(out_root, "export_summary.json")
+    summary_name = {
+        "export": "export_summary.json",
+        "inference": "inference_summary.json",
+        "restore": "restore_summary.json",
+    }[mode]
+    summary_path = os.path.join(out_root, summary_name)
+
+    mean_mae = None
+    if ok and mae_key in ok[0]:
+        mean_mae = float(np.mean([s[mae_key] for s in ok if mae_key in s]))
+
     with open(summary_path, "w", encoding="utf-8") as fh:
         json.dump(
             {
                 "job": job_name,
+                "mode": mode,
                 "domain": job["domain"],
                 "architecture": job["architecture"],
                 "dataset": dataset_path,
-                "checkpoint": None if identity_pred else ckpt_path,
-                "identity_pred": identity_pred,
+                "checkpoint": None
+                if (identity_pred or mode == "restore")
+                else ckpt_path,
+                "identity_pred": identity_pred if need_model else False,
+                "inference_root": inference_root if mode == "restore" else None,
                 "device": str(device),
                 "n_requested": len(dataset),
                 "n_ok": len(ok),
                 "n_failed": len(summaries) - len(ok),
-                "mean_mae_abs_eV": float(np.mean([s["mae_abs_eV"] for s in ok]))
-                if ok
-                else None,
+                f"mean_{mae_key}": mean_mae,
                 "mean_t_preprocess_s": float(np.mean([s["t_preprocess_s"] for s in ok]))
                 if ok
                 else None,
@@ -878,9 +1116,19 @@ def run_job(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Export full-crystal absolute PE tables "
-            "(atom_id, pe_initial, pe_true, pe_pred) with inference timings."
+            "Crystal PE export / cluster inference / local restore "
+            "(atom_id, pe_initial, pe_true, pe_pred) with timings."
         )
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="export",
+        choices=["export", "inference", "restore"],
+        help=(
+            "export=dumps+model→CSV; inference=model only (no dumps); "
+            "restore=dumps+saved preds→CSV"
+        ),
     )
     parser.add_argument(
         "--job",
@@ -893,6 +1141,15 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=os.path.join(ROOT, "predictions"),
         help="Root directory for mirrored prediction trees.",
+    )
+    parser.add_argument(
+        "--inference-root",
+        type=str,
+        default=None,
+        help=(
+            "Root of a prior --mode inference tree (contains point_cgcnn/, …). "
+            "Required for --mode restore."
+        ),
     )
     parser.add_argument(
         "--checkpoint",
@@ -918,7 +1175,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--write-pt",
         action="store_true",
-        help="Also write dataset-style .pt tensors beside each CSV.",
+        help="Also write dataset-style .pt tensors beside each CSV (export/restore).",
     )
     parser.add_argument(
         "--skip-missing-checkpoint",
@@ -938,11 +1195,15 @@ def main() -> None:
 
     if args.checkpoint and len(selected) != 1:
         raise SystemExit("--checkpoint requires exactly one --job")
+    if args.mode == "restore" and not args.inference_root:
+        raise SystemExit("--mode restore requires --inference-root")
 
     for name in selected:
         run_job(
             job_name=name,
+            mode=args.mode,
             output_root=args.output_root,
+            inference_root=args.inference_root,
             checkpoint=args.checkpoint,
             identity_pred=args.identity_pred,
             limit=args.limit,

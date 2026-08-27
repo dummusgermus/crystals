@@ -1,0 +1,16 @@
+{
+  "folder": "Nd-Al_XY'X",
+  "config": "Nd-Al_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Nd-Al_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0043776798993349075,
+  "t_preprocess_s": 0.002271631034091115,
+  "t_predict_s": 0.003791889874264598,
+  "t_postprocess_s": 0.003311397973448038,
+  "t_total_s": 0.009374918881803751,
+  "device": "cuda"
+}

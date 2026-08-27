@@ -1,0 +1,16 @@
+{
+  "folder": "Ca-Ni_XY'XYZXY",
+  "config": "Ca-Ni_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Ca-Ni_XY'XYZXY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.002824364695698023,
+  "t_preprocess_s": 0.0018672279547899961,
+  "t_predict_s": 0.00290184305049479,
+  "t_postprocess_s": 0.001687070820480585,
+  "t_total_s": 0.006456141825765371,
+  "device": "cuda"
+}

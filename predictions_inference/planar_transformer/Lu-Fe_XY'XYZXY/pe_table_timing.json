@@ -1,0 +1,16 @@
+{
+  "folder": "Lu-Fe_XY'XYZXY",
+  "config": "Lu-Fe_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Lu-Fe_XY'XYZXY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.001382425194606185,
+  "t_preprocess_s": 0.001975908875465393,
+  "t_predict_s": 0.002874152036383748,
+  "t_postprocess_s": 0.002313202014192939,
+  "t_total_s": 0.00716326292604208,
+  "device": "cuda"
+}

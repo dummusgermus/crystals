@@ -1,0 +1,16 @@
+{
+  "folder": "Lu-Co_XY'XY",
+  "config": "Lu-Co_XY'XY",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Lu-Co_XY'XY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0020791746210306883,
+  "t_preprocess_s": 0.0022426650393754244,
+  "t_predict_s": 0.0009491511154919863,
+  "t_postprocess_s": 0.0024926140904426575,
+  "t_total_s": 0.005684430245310068,
+  "device": "cuda"
+}

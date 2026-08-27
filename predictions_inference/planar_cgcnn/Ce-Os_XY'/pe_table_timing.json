@@ -1,0 +1,16 @@
+{
+  "folder": "Ce-Os_XY'",
+  "config": "Ce-Os_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Ce-Os_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0015120938187465072,
+  "t_preprocess_s": 0.0019255820661783218,
+  "t_predict_s": 0.0009320380631834269,
+  "t_postprocess_s": 0.0014681098982691765,
+  "t_total_s": 0.004325730027630925,
+  "device": "cuda"
+}

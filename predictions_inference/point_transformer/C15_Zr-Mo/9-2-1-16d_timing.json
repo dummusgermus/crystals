@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Zr-Mo",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_transformer/C15_Zr-Mo/9-2-1-16d_graph_pred.pt",
+  "mae_residual_eV": 0.001342301955446601,
+  "t_preprocess_s": 0.002192640909925103,
+  "t_predict_s": 0.002938011195510626,
+  "t_postprocess_s": 0.0020806570537388325,
+  "t_total_s": 0.0072113091591745615,
+  "device": "cuda"
+}

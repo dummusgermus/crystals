@@ -1,0 +1,16 @@
+{
+  "folder": "Pb-Au_XY'XYZXY",
+  "config": "Pb-Au_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Pb-Au_XY'XYZXY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.001724575413390994,
+  "t_preprocess_s": 0.001970278797671199,
+  "t_predict_s": 0.0009723349940031767,
+  "t_postprocess_s": 0.0021594709251075983,
+  "t_total_s": 0.005102084716781974,
+  "device": "cuda"
+}

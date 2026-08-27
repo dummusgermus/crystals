@@ -1,0 +1,16 @@
+{
+  "folder": "Dy-Ir_XY'",
+  "config": "Dy-Ir_XY'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Dy-Ir_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.017691204324364662,
+  "t_preprocess_s": 0.0019494101870805025,
+  "t_predict_s": 0.002849451033398509,
+  "t_postprocess_s": 0.0025362269952893257,
+  "t_total_s": 0.007335088215768337,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Ti-Cr_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Ti-Cr_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Ti-Cr_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0025713350623846054,
+  "t_preprocess_s": 0.002385219093412161,
+  "t_predict_s": 0.002962325932458043,
+  "t_postprocess_s": 0.002178928814828396,
+  "t_total_s": 0.0075264738406986,
+  "device": "cuda"
+}

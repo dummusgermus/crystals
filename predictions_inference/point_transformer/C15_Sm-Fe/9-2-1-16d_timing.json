@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Sm-Fe",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_transformer/C15_Sm-Fe/9-2-1-16d_graph_pred.pt",
+  "mae_residual_eV": 0.005940835457295179,
+  "t_preprocess_s": 0.002205043099820614,
+  "t_predict_s": 0.0029162419959902763,
+  "t_postprocess_s": 0.0017383310478180647,
+  "t_total_s": 0.006859616143628955,
+  "device": "cuda"
+}

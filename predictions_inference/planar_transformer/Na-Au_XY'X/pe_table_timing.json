@@ -1,0 +1,16 @@
+{
+  "folder": "Na-Au_XY'X",
+  "config": "Na-Au_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Na-Au_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.004277793224900961,
+  "t_preprocess_s": 0.0018016558606177568,
+  "t_predict_s": 0.0030421940609812737,
+  "t_postprocess_s": 0.0026804108638316393,
+  "t_total_s": 0.00752426078543067,
+  "device": "cuda"
+}

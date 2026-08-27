@@ -1,0 +1,16 @@
+{
+  "folder": "Tb-Ir_XY'XY",
+  "config": "Tb-Ir_XY'XY",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Tb-Ir_XY'XY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0018763542175292969,
+  "t_preprocess_s": 0.00206926092505455,
+  "t_predict_s": 0.0009706658311188221,
+  "t_postprocess_s": 0.0018013620283454657,
+  "t_total_s": 0.004841288784518838,
+  "device": "cuda"
+}

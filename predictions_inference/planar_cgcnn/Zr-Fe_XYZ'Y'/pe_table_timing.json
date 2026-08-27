@@ -1,0 +1,16 @@
+{
+  "folder": "Zr-Fe_XYZ'Y'",
+  "config": "Zr-Fe_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Zr-Fe_XYZ'Y'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0019104694947600365,
+  "t_preprocess_s": 0.001810035901144147,
+  "t_predict_s": 0.0010189348831772804,
+  "t_postprocess_s": 0.0027075158432126045,
+  "t_total_s": 0.005536486627534032,
+  "device": "cuda"
+}

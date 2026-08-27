@@ -1,0 +1,16 @@
+{
+  "folder": "Gd-Al_XY'X",
+  "config": "Gd-Al_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Gd-Al_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.007348436396569014,
+  "t_preprocess_s": 0.0019640009850263596,
+  "t_predict_s": 0.0029683918692171574,
+  "t_postprocess_s": 0.0019258761312812567,
+  "t_total_s": 0.006858268985524774,
+  "device": "cuda"
+}

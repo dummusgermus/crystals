@@ -1,0 +1,16 @@
+{
+  "folder": "Ho-Ni_XY'",
+  "config": "Ho-Ni_XY'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Ho-Ni_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0012594746658578515,
+  "t_preprocess_s": 0.002314502838999033,
+  "t_predict_s": 0.002804863965138793,
+  "t_postprocess_s": 0.0026003639213740826,
+  "t_total_s": 0.0077197307255119085,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Nb-Be_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Nb-Be_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Nb-Be_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0017017305362969637,
+  "t_preprocess_s": 0.0022961299400776625,
+  "t_predict_s": 0.0038081188686192036,
+  "t_postprocess_s": 0.003680373076349497,
+  "t_total_s": 0.009784621885046363,
+  "device": "cuda"
+}

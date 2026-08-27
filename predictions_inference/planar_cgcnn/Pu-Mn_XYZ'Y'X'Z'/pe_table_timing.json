@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Mn_XYZ'Y'X'Z'",
+  "config": "Pu-Mn_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Pu-Mn_XYZ'Y'X'Z'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.023891892284154892,
+  "t_preprocess_s": 0.0019689600449055433,
+  "t_predict_s": 0.0009764400310814381,
+  "t_postprocess_s": 0.0023884628899395466,
+  "t_total_s": 0.005333862965926528,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Pr-Ru_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Pr-Ru_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Pr-Ru_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.008503729477524757,
+  "t_preprocess_s": 0.0019539210479706526,
+  "t_predict_s": 0.0029555819928646088,
+  "t_postprocess_s": 0.0027312610764056444,
+  "t_total_s": 0.007640764117240906,
+  "device": "cuda"
+}

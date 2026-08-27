@@ -1,0 +1,16 @@
+{
+  "folder": "Ho-Ni_XY'",
+  "config": "Ho-Ni_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Ho-Ni_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0013825217029079795,
+  "t_preprocess_s": 0.0021160307805985212,
+  "t_predict_s": 0.0010562140960246325,
+  "t_postprocess_s": 0.0015965120401233435,
+  "t_total_s": 0.004768756916746497,
+  "device": "cuda"
+}

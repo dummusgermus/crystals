@@ -1,0 +1,16 @@
+{
+  "folder": "Np-Os_XY'X",
+  "config": "Np-Os_XY'X",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Np-Os_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.013708989135921001,
+  "t_preprocess_s": 0.002281729830428958,
+  "t_predict_s": 0.0009708330035209656,
+  "t_postprocess_s": 0.0022142170928418636,
+  "t_total_s": 0.005466779926791787,
+  "device": "cuda"
+}

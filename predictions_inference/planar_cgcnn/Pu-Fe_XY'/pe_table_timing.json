@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Fe_XY'",
+  "config": "Pu-Fe_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Pu-Fe_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0233625415712595,
+  "t_preprocess_s": 0.0018660370260477066,
+  "t_predict_s": 0.0009064211044460535,
+  "t_postprocess_s": 0.001687722047790885,
+  "t_total_s": 0.004460180178284645,
+  "device": "cuda"
+}

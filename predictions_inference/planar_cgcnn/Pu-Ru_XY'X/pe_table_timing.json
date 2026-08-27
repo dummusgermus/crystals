@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Ru_XY'X",
+  "config": "Pu-Ru_XY'X",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Pu-Ru_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.003631752450019121,
+  "t_preprocess_s": 0.001959222136065364,
+  "t_predict_s": 0.00091979606077075,
+  "t_postprocess_s": 0.0015184958465397358,
+  "t_total_s": 0.00439751404337585,
+  "device": "cuda"
+}

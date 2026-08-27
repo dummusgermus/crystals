@@ -1,0 +1,16 @@
+{
+  "folder": "Ti-Co_XY'",
+  "config": "Ti-Co_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Ti-Co_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0030264079105108976,
+  "t_preprocess_s": 0.0019066769164055586,
+  "t_predict_s": 0.0010181278921663761,
+  "t_postprocess_s": 0.0022504120133817196,
+  "t_total_s": 0.005175216821953654,
+  "device": "cuda"
+}

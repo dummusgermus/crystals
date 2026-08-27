@@ -1,0 +1,16 @@
+{
+  "folder": "Er-Fe_XY'",
+  "config": "Er-Fe_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Er-Fe_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.001129241893067956,
+  "t_preprocess_s": 0.0019192828331142664,
+  "t_predict_s": 0.0009335789363831282,
+  "t_postprocess_s": 0.002198541071265936,
+  "t_total_s": 0.0050514028407633305,
+  "device": "cuda"
+}

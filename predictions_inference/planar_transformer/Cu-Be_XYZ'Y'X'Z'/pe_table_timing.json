@@ -1,0 +1,16 @@
+{
+  "folder": "Cu-Be_XYZ'Y'X'Z'",
+  "config": "Cu-Be_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Cu-Be_XYZ'Y'X'Z'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.004323984496295452,
+  "t_preprocess_s": 0.0020115480292588472,
+  "t_predict_s": 0.0029383220244199038,
+  "t_postprocess_s": 0.0026046300772577524,
+  "t_total_s": 0.007554500130936503,
+  "device": "cuda"
+}

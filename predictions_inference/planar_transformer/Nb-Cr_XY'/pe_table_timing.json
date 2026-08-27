@@ -1,0 +1,16 @@
+{
+  "folder": "Nb-Cr_XY'",
+  "config": "Nb-Cr_XY'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Nb-Cr_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.004123238380998373,
+  "t_preprocess_s": 0.002320145955309272,
+  "t_predict_s": 0.003743526991456747,
+  "t_postprocess_s": 0.0030727118719369173,
+  "t_total_s": 0.009136384818702936,
+  "device": "cuda"
+}

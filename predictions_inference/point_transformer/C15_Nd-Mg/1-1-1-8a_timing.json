@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Nd-Mg",
+  "config": "1-1-1-8a",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 106,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_transformer/C15_Nd-Mg/1-1-1-8a_graph_pred.pt",
+  "mae_residual_eV": 6.448982458095998e-05,
+  "t_preprocess_s": 0.0021894420497119427,
+  "t_predict_s": 0.002837363863363862,
+  "t_postprocess_s": 0.0026484651025384665,
+  "t_total_s": 0.007675271015614271,
+  "device": "cuda"
+}

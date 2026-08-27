@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Ce-Ni",
+  "config": "1-1-1-8a",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 108,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_cgcnn/C15_Ce-Ni/1-1-1-8a_graph_pred.pt",
+  "mae_residual_eV": 0.0001811418915167451,
+  "t_preprocess_s": 0.0025584069080650806,
+  "t_predict_s": 0.0013164628762751818,
+  "t_postprocess_s": 0.0025957159232348204,
+  "t_total_s": 0.006470585707575083,
+  "device": "cuda"
+}

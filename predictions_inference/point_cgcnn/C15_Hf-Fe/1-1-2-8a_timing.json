@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Hf-Fe",
+  "config": "1-1-2-8a",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 108,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_cgcnn/C15_Hf-Fe/1-1-2-8a_graph_pred.pt",
+  "mae_residual_eV": 0.0021507691126316786,
+  "t_preprocess_s": 0.002416646108031273,
+  "t_predict_s": 0.0012900189030915499,
+  "t_postprocess_s": 0.0025133290328085423,
+  "t_total_s": 0.006219994043931365,
+  "device": "cuda"
+}

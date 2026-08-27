@@ -1,0 +1,16 @@
+{
+  "folder": "Rb-Bi_XY'XYZXYZXYZX",
+  "config": "Rb-Bi_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Rb-Bi_XY'XYZXYZXYZX/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.002851069439202547,
+  "t_preprocess_s": 0.002120089950039983,
+  "t_predict_s": 0.003026193007826805,
+  "t_postprocess_s": 0.0018533638212829828,
+  "t_total_s": 0.006999646779149771,
+  "device": "cuda"
+}

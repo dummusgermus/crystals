@@ -1,0 +1,16 @@
+{
+  "folder": "La-Os_XY'X",
+  "config": "La-Os_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/La-Os_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.010514665395021439,
+  "t_preprocess_s": 0.0019730920903384686,
+  "t_predict_s": 0.002891778014600277,
+  "t_postprocess_s": 0.0025037198793143034,
+  "t_total_s": 0.007368589984253049,
+  "device": "cuda"
+}

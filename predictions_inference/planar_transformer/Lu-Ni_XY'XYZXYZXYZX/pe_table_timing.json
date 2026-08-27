@@ -1,0 +1,16 @@
+{
+  "folder": "Lu-Ni_XY'XYZXYZXYZX",
+  "config": "Lu-Ni_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Lu-Ni_XY'XYZXYZXYZX/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.002147822640836239,
+  "t_preprocess_s": 0.0020934150088578463,
+  "t_predict_s": 0.002867181086912751,
+  "t_postprocess_s": 0.0023306270595639944,
+  "t_total_s": 0.007291223155334592,
+  "device": "cuda"
+}

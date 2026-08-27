@@ -1,0 +1,16 @@
+{
+  "folder": "Nd-Ru_XYZ'Y'",
+  "config": "Nd-Ru_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Nd-Ru_XYZ'Y'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.006867218762636185,
+  "t_preprocess_s": 0.002266841009259224,
+  "t_predict_s": 0.003836719784885645,
+  "t_postprocess_s": 0.0036224417854100466,
+  "t_total_s": 0.009726002579554915,
+  "device": "cuda"
+}

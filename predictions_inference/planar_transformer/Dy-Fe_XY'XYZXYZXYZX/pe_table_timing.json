@@ -1,0 +1,16 @@
+{
+  "folder": "Dy-Fe_XY'XYZXYZXYZX",
+  "config": "Dy-Fe_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Dy-Fe_XY'XYZXYZXYZX/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.002193397143855691,
+  "t_preprocess_s": 0.0019517960026860237,
+  "t_predict_s": 0.0029015671461820602,
+  "t_postprocess_s": 0.0019245590083301067,
+  "t_total_s": 0.006777922157198191,
+  "device": "cuda"
+}

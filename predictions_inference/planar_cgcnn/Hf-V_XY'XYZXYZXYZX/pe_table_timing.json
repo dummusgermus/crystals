@@ -1,0 +1,16 @@
+{
+  "folder": "Hf-V_XY'XYZXYZXYZX",
+  "config": "Hf-V_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Hf-V_XY'XYZXYZXYZX/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.017969660460948944,
+  "t_preprocess_s": 0.002411559922620654,
+  "t_predict_s": 0.0009402469731867313,
+  "t_postprocess_s": 0.0016492519062012434,
+  "t_total_s": 0.005001058802008629,
+  "device": "cuda"
+}

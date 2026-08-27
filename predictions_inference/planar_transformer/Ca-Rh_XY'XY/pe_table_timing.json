@@ -1,0 +1,16 @@
+{
+  "folder": "Ca-Rh_XY'XY",
+  "config": "Ca-Rh_XY'XY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Ca-Rh_XY'XY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.007593369111418724,
+  "t_preprocess_s": 0.001960060093551874,
+  "t_predict_s": 0.0029223719611763954,
+  "t_postprocess_s": 0.002341645769774914,
+  "t_total_s": 0.007224077824503183,
+  "device": "cuda"
+}

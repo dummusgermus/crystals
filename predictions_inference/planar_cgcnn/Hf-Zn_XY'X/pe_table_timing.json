@@ -1,0 +1,16 @@
+{
+  "folder": "Hf-Zn_XY'X",
+  "config": "Hf-Zn_XY'X",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Hf-Zn_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.009809617884457111,
+  "t_preprocess_s": 0.0019450951367616653,
+  "t_predict_s": 0.000927426852285862,
+  "t_postprocess_s": 0.0015019208658486605,
+  "t_total_s": 0.004374442854896188,
+  "device": "cuda"
+}

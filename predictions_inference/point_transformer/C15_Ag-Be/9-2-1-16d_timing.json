@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Ag-Be",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 65,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_transformer/C15_Ag-Be/9-2-1-16d_graph_pred.pt",
+  "mae_residual_eV": 0.0024980795569717884,
+  "t_preprocess_s": 0.002547025214880705,
+  "t_predict_s": 0.00385371595621109,
+  "t_postprocess_s": 0.0028797078412026167,
+  "t_total_s": 0.009280449012294412,
+  "device": "cuda"
+}

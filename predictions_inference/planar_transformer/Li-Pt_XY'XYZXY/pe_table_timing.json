@@ -1,0 +1,16 @@
+{
+  "folder": "Li-Pt_XY'XYZXY",
+  "config": "Li-Pt_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Li-Pt_XY'XYZXY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0033322221133857965,
+  "t_preprocess_s": 0.0019641430117189884,
+  "t_predict_s": 0.0029716589488089085,
+  "t_postprocess_s": 0.0019200821407139301,
+  "t_total_s": 0.006855884101241827,
+  "device": "cuda"
+}

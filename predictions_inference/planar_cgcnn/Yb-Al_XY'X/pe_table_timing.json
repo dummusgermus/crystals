@@ -1,0 +1,16 @@
+{
+  "folder": "Yb-Al_XY'X",
+  "config": "Yb-Al_XY'X",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Yb-Al_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.001978169195353985,
+  "t_preprocess_s": 0.001989944139495492,
+  "t_predict_s": 0.0009668029379099607,
+  "t_postprocess_s": 0.0018198629841208458,
+  "t_total_s": 0.0047766100615262985,
+  "device": "cuda"
+}

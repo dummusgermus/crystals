@@ -1,0 +1,16 @@
+{
+  "folder": "Np-Al_XY'",
+  "config": "Np-Al_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Np-Al_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0033792557660490274,
+  "t_preprocess_s": 0.0018537451978772879,
+  "t_predict_s": 0.0009292019531130791,
+  "t_postprocess_s": 0.0023814791347831488,
+  "t_total_s": 0.005164426285773516,
+  "device": "cuda"
+}

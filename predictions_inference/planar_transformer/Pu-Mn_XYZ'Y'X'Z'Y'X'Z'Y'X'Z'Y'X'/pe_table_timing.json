@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Mn_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Pu-Mn_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Pu-Mn_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.04005877301096916,
+  "t_preprocess_s": 0.00227506086230278,
+  "t_predict_s": 0.0030044838786125183,
+  "t_postprocess_s": 0.002292039105668664,
+  "t_total_s": 0.0075715838465839624,
+  "device": "cuda"
+}

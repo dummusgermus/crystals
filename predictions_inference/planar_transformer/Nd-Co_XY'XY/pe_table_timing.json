@@ -1,0 +1,16 @@
+{
+  "folder": "Nd-Co_XY'XY",
+  "config": "Nd-Co_XY'XY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Nd-Co_XY'XY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.008488304913043976,
+  "t_preprocess_s": 0.002265497110784054,
+  "t_predict_s": 0.003811559174209833,
+  "t_postprocess_s": 0.002457532100379467,
+  "t_total_s": 0.008534588385373354,
+  "device": "cuda"
+}

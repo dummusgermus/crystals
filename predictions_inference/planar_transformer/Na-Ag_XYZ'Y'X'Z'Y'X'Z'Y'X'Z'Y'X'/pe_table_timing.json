@@ -1,0 +1,16 @@
+{
+  "folder": "Na-Ag_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Na-Ag_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Na-Ag_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0008816468180157244,
+  "t_preprocess_s": 0.001840344863012433,
+  "t_predict_s": 0.0030215668957680464,
+  "t_postprocess_s": 0.0020639218855649233,
+  "t_total_s": 0.006925833644345403,
+  "device": "cuda"
+}

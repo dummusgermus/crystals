@@ -1,0 +1,16 @@
+{
+  "folder": "Nd-Fe_XYZ'Y'X'Z'Y'X'Z'",
+  "config": "Nd-Fe_XYZ'Y'X'Z'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 54,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Nd-Fe_XYZ'Y'X'Z'Y'X'Z'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0019217707449570298,
+  "t_preprocess_s": 0.002004653913900256,
+  "t_predict_s": 0.0009393149521201849,
+  "t_postprocess_s": 0.0021620760671794415,
+  "t_total_s": 0.0051060449331998825,
+  "device": "cuda"
+}

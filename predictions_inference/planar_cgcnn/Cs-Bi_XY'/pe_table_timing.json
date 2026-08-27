@@ -1,0 +1,16 @@
+{
+  "folder": "Cs-Bi_XY'",
+  "config": "Cs-Bi_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Cs-Bi_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.009368873201310635,
+  "t_preprocess_s": 0.0019229031167924404,
+  "t_predict_s": 0.000950999092310667,
+  "t_postprocess_s": 0.0024441350251436234,
+  "t_total_s": 0.005318037234246731,
+  "device": "cuda"
+}

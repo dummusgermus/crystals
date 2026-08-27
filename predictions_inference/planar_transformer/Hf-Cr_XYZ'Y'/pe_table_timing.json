@@ -1,0 +1,16 @@
+{
+  "folder": "Hf-Cr_XYZ'Y'",
+  "config": "Hf-Cr_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Hf-Cr_XYZ'Y'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.001753254677169025,
+  "t_preprocess_s": 0.0020023700781166553,
+  "t_predict_s": 0.002935426076874137,
+  "t_postprocess_s": 0.0019390610978007317,
+  "t_total_s": 0.006876857252791524,
+  "device": "cuda"
+}

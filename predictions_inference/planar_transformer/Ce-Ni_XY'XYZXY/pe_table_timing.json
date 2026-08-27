@@ -1,0 +1,16 @@
+{
+  "folder": "Ce-Ni_XY'XYZXY",
+  "config": "Ce-Ni_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Ce-Ni_XY'XYZXY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0045186723582446575,
+  "t_preprocess_s": 0.002306798007339239,
+  "t_predict_s": 0.0028702651616185904,
+  "t_postprocess_s": 0.0021764510311186314,
+  "t_total_s": 0.007353514200076461,
+  "device": "cuda"
+}

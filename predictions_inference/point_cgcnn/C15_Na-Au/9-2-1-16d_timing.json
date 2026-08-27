@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Na-Au",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_cgcnn/C15_Na-Au/9-2-1-16d_graph_pred.pt",
+  "mae_residual_eV": 0.0017527518793940544,
+  "t_preprocess_s": 0.002416108036413789,
+  "t_predict_s": 0.0012630140408873558,
+  "t_postprocess_s": 0.0027603839989751577,
+  "t_total_s": 0.006439506076276302,
+  "device": "cuda"
+}

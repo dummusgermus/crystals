@@ -1,0 +1,16 @@
+{
+  "folder": "Tb-Mn_XY'XYZXYZXYZX",
+  "config": "Tb-Mn_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Tb-Mn_XY'XYZXYZXYZX/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.003505977801978588,
+  "t_preprocess_s": 0.002178381895646453,
+  "t_predict_s": 0.0030430241022258997,
+  "t_postprocess_s": 0.0024429699406027794,
+  "t_total_s": 0.007664375938475132,
+  "device": "cuda"
+}

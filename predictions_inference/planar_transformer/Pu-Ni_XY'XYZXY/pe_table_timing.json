@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Ni_XY'XYZXY",
+  "config": "Pu-Ni_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Pu-Ni_XY'XYZXY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0013778206193819642,
+  "t_preprocess_s": 0.001992558129131794,
+  "t_predict_s": 0.002981652971357107,
+  "t_postprocess_s": 0.002368779154494405,
+  "t_total_s": 0.007342990254983306,
+  "device": "cuda"
+}

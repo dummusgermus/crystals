@@ -1,0 +1,16 @@
+{
+  "folder": "Er-Ni_XY'XYZXYZXYZX",
+  "config": "Er-Ni_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Er-Ni_XY'XYZXYZXYZX/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.001463268999941647,
+  "t_preprocess_s": 0.0019315150566399097,
+  "t_predict_s": 0.0009508919902145863,
+  "t_postprocess_s": 0.0018906251061707735,
+  "t_total_s": 0.0047730321530252695,
+  "device": "cuda"
+}

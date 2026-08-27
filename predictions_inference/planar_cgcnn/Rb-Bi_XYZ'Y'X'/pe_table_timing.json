@@ -1,0 +1,16 @@
+{
+  "folder": "Rb-Bi_XYZ'Y'X'",
+  "config": "Rb-Bi_XYZ'Y'X'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 30,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Rb-Bi_XYZ'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0034570202697068453,
+  "t_preprocess_s": 0.0020994420628994703,
+  "t_predict_s": 0.0009693070314824581,
+  "t_postprocess_s": 0.0027270361315459013,
+  "t_total_s": 0.00579578522592783,
+  "device": "cuda"
+}

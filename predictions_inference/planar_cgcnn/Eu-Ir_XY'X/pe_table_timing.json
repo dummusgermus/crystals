@@ -1,0 +1,16 @@
+{
+  "folder": "Eu-Ir_XY'X",
+  "config": "Eu-Ir_XY'X",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Eu-Ir_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0017758267931640148,
+  "t_preprocess_s": 0.0019263699650764465,
+  "t_predict_s": 0.0009578100871294737,
+  "t_postprocess_s": 0.0023345649242401123,
+  "t_total_s": 0.0052187449764460325,
+  "device": "cuda"
+}

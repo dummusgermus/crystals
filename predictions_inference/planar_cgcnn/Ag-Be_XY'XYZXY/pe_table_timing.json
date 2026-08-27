@@ -1,0 +1,16 @@
+{
+  "folder": "Ag-Be_XY'XYZXY",
+  "config": "Ag-Be_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Ag-Be_XY'XYZXY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0015562763437628746,
+  "t_preprocess_s": 0.0019367749337106943,
+  "t_predict_s": 0.0010157590731978416,
+  "t_postprocess_s": 0.0024196701124310493,
+  "t_total_s": 0.005372204119339585,
+  "device": "cuda"
+}

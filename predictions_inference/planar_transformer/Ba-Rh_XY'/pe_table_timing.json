@@ -1,0 +1,16 @@
+{
+  "folder": "Ba-Rh_XY'",
+  "config": "Ba-Rh_XY'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Ba-Rh_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.004631223622709513,
+  "t_preprocess_s": 0.001947856042534113,
+  "t_predict_s": 0.0028004758059978485,
+  "t_postprocess_s": 0.00250602001324296,
+  "t_total_s": 0.007254351861774921,
+  "device": "cuda"
+}

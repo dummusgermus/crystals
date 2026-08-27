@@ -1,0 +1,16 @@
+{
+  "folder": "Ta-Cr_XY'X",
+  "config": "Ta-Cr_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Ta-Cr_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0024501222651451826,
+  "t_preprocess_s": 0.001929061021655798,
+  "t_predict_s": 0.0028993200976401567,
+  "t_postprocess_s": 0.0018784389831125736,
+  "t_total_s": 0.006706820102408528,
+  "device": "cuda"
+}

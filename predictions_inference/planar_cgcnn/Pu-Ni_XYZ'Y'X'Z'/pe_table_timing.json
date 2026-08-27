@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Ni_XYZ'Y'X'Z'",
+  "config": "Pu-Ni_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Pu-Ni_XYZ'Y'X'Z'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0017882217653095722,
+  "t_preprocess_s": 0.001971608027815819,
+  "t_predict_s": 0.0009163289796561003,
+  "t_postprocess_s": 0.0017996670212596655,
+  "t_total_s": 0.0046876040287315845,
+  "device": "cuda"
+}

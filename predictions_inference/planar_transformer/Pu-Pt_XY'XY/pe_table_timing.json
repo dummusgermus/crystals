@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Pt_XY'XY",
+  "config": "Pu-Pt_XY'XY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Pu-Pt_XY'XY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.004732937086373568,
+  "t_preprocess_s": 0.002375194104388356,
+  "t_predict_s": 0.003008970059454441,
+  "t_postprocess_s": 0.002069551032036543,
+  "t_total_s": 0.00745371519587934,
+  "device": "cuda"
+}

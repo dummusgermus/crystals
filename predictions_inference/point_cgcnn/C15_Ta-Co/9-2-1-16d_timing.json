@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Ta-Co",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_cgcnn/C15_Ta-Co/9-2-1-16d_graph_pred.pt",
+  "mae_residual_eV": 0.014862636104226112,
+  "t_preprocess_s": 0.0023025679402053356,
+  "t_predict_s": 0.0012843338772654533,
+  "t_postprocess_s": 0.002857245970517397,
+  "t_total_s": 0.006444147787988186,
+  "device": "cuda"
+}

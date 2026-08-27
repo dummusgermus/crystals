@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Ba-Pt",
+  "config": "1-1-1-8a",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 107,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_cgcnn/C15_Ba-Pt/1-1-1-8a_graph_pred.pt",
+  "mae_residual_eV": 0.00017022855172399431,
+  "t_preprocess_s": 0.002676964970305562,
+  "t_predict_s": 0.0012911849189549685,
+  "t_postprocess_s": 0.0029022630769759417,
+  "t_total_s": 0.006870412966236472,
+  "device": "cuda"
+}

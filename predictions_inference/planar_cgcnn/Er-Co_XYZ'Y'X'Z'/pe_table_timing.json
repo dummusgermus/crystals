@@ -1,0 +1,16 @@
+{
+  "folder": "Er-Co_XYZ'Y'X'Z'",
+  "config": "Er-Co_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Er-Co_XYZ'Y'X'Z'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0015477107372134924,
+  "t_preprocess_s": 0.002038397127762437,
+  "t_predict_s": 0.000980135053396225,
+  "t_postprocess_s": 0.002081044018268585,
+  "t_total_s": 0.005099576199427247,
+  "device": "cuda"
+}

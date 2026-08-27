@@ -1,0 +1,16 @@
+{
+  "folder": "Dy-Ni_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Dy-Ni_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Dy-Ni_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0016071583377197385,
+  "t_preprocess_s": 0.001949833007529378,
+  "t_predict_s": 0.002994620008394122,
+  "t_postprocess_s": 0.002366052009165287,
+  "t_total_s": 0.007310505025088787,
+  "device": "cuda"
+}

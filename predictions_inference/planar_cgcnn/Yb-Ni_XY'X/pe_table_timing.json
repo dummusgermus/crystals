@@ -1,0 +1,16 @@
+{
+  "folder": "Yb-Ni_XY'X",
+  "config": "Yb-Ni_XY'X",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Yb-Ni_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0018935746047645807,
+  "t_preprocess_s": 0.001989800948649645,
+  "t_predict_s": 0.0009988951496779919,
+  "t_postprocess_s": 0.0024614969734102488,
+  "t_total_s": 0.0054501930717378855,
+  "device": "cuda"
+}

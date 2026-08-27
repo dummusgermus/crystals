@@ -1,0 +1,16 @@
+{
+  "folder": "Gd-Ni_XYZ'Y'X'",
+  "config": "Gd-Ni_XYZ'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 30,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Gd-Ni_XYZ'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.003288933075964451,
+  "t_preprocess_s": 0.001933008898049593,
+  "t_predict_s": 0.002890943782404065,
+  "t_postprocess_s": 0.0020992651116102934,
+  "t_total_s": 0.0069232177920639515,
+  "device": "cuda"
+}

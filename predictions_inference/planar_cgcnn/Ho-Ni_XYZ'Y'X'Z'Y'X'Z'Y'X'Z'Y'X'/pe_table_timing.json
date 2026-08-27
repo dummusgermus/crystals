@@ -1,0 +1,16 @@
+{
+  "folder": "Ho-Ni_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Ho-Ni_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Ho-Ni_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.001009357045404613,
+  "t_preprocess_s": 0.0018730061128735542,
+  "t_predict_s": 0.0009435201063752174,
+  "t_postprocess_s": 0.0024687510449439287,
+  "t_total_s": 0.0052852772641927,
+  "device": "cuda"
+}

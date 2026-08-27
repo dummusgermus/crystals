@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Fe_XY'X",
+  "config": "Pu-Fe_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Pu-Fe_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.012141246348619461,
+  "t_preprocess_s": 0.0019501300994306803,
+  "t_predict_s": 0.00297916610725224,
+  "t_postprocess_s": 0.0026432201266288757,
+  "t_total_s": 0.007572516333311796,
+  "device": "cuda"
+}

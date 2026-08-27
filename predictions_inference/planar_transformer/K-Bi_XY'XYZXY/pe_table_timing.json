@@ -1,0 +1,16 @@
+{
+  "folder": "K-Bi_XY'XYZXY",
+  "config": "K-Bi_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/K-Bi_XY'XYZXY/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.002623880049213767,
+  "t_preprocess_s": 0.002033177064731717,
+  "t_predict_s": 0.0029528120066970587,
+  "t_postprocess_s": 0.001853876980021596,
+  "t_total_s": 0.006839866051450372,
+  "device": "cuda"
+}

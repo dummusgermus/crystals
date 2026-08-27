@@ -1,0 +1,16 @@
+{
+  "folder": "Ho-Ir_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Ho-Ir_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Ho-Ir_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.006586751900613308,
+  "t_preprocess_s": 0.0018863491714000702,
+  "t_predict_s": 0.0029590940102934837,
+  "t_postprocess_s": 0.0024075738620013,
+  "t_total_s": 0.007253017043694854,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Dy-Ni_XYZ'Y'",
+  "config": "Dy-Ni_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Dy-Ni_XYZ'Y'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0012890674406662583,
+  "t_preprocess_s": 0.0019694489892572165,
+  "t_predict_s": 0.0009203448425978422,
+  "t_postprocess_s": 0.002062286948785186,
+  "t_total_s": 0.0049520807806402445,
+  "device": "cuda"
+}

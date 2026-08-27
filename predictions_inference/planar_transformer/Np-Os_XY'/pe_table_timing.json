@@ -1,0 +1,16 @@
+{
+  "folder": "Np-Os_XY'",
+  "config": "Np-Os_XY'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_transformer/Np-Os_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.014200039207935333,
+  "t_preprocess_s": 0.0020790898706763983,
+  "t_predict_s": 0.003684824099764228,
+  "t_postprocess_s": 0.003769651986658573,
+  "t_total_s": 0.0095335659570992,
+  "device": "cuda"
+}

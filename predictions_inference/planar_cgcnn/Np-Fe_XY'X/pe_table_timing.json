@@ -1,0 +1,16 @@
+{
+  "folder": "Np-Fe_XY'X",
+  "config": "Np-Fe_XY'X",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Np-Fe_XY'X/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.01790824718773365,
+  "t_preprocess_s": 0.0019929560367017984,
+  "t_predict_s": 0.0009740549139678478,
+  "t_postprocess_s": 0.0022499109618365765,
+  "t_total_s": 0.005216921912506223,
+  "device": "cuda"
+}

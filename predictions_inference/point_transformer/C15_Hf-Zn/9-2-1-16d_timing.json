@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Hf-Zn",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/point_transformer/C15_Hf-Zn/9-2-1-16d_graph_pred.pt",
+  "mae_residual_eV": 0.003167256712913513,
+  "t_preprocess_s": 0.0021107359789311886,
+  "t_predict_s": 0.002910285023972392,
+  "t_postprocess_s": 0.002114358125254512,
+  "t_total_s": 0.0071353791281580925,
+  "device": "cuda"
+}

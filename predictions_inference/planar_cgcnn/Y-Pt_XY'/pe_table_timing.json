@@ -1,0 +1,16 @@
+{
+  "folder": "Y-Pt_XY'",
+  "config": "Y-Pt_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_inference/planar_cgcnn/Y-Pt_XY'/pe_table_graph_pred.pt",
+  "mae_residual_eV": 0.0016276634996756911,
+  "t_preprocess_s": 0.002281416906043887,
+  "t_predict_s": 0.0010263370350003242,
+  "t_postprocess_s": 0.0026117609813809395,
+  "t_total_s": 0.005919514922425151,
+  "device": "cuda"
+}

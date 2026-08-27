@@ -232,11 +232,7 @@ def random_train_val_indices(
     seed: int,
     val_fraction: float = 0.1,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Per-graph random train/val split (no test).
-
-    Preferred for final delivery fits: every defect configuration / chemistry
-    can still appear in training; val is only for LR / checkpoint steering.
-    """
+    """Per-graph random train/val split (no test)."""
     if not 0.0 < val_fraction < 1.0:
         raise ValueError(f"val_fraction must be in (0, 1), got {val_fraction}")
 
@@ -251,6 +247,51 @@ def random_train_val_indices(
     val_idx = np.sort(indices[:n_val]).astype(int)
     train_idx = np.sort(indices[n_val:]).astype(int)
     return train_idx, val_idx
+
+
+def within_group_train_val_indices(
+    dataset,
+    seed: int,
+    val_fraction: float = 0.1,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Train/val split that keeps every group represented in training when possible.
+
+    For each group key (same as :func:`grouped_split_indices`), a random
+    ``val_fraction`` of that group's graphs go to val and the rest to train.
+    Singleton groups always go to train so no defect configuration is wholly
+    excluded from learning. If that leaves val empty, falls back to
+    :func:`random_train_val_indices`.
+    """
+    if not 0.0 < val_fraction < 1.0:
+        raise ValueError(f"val_fraction must be in (0, 1), got {val_fraction}")
+
+    groups: Dict[Tuple, List[int]] = {}
+    for idx, data in enumerate(dataset):
+        key = _group_key(data)
+        groups.setdefault(key, []).append(idx)
+
+    rng = np.random.default_rng(seed)
+    train_idx: List[int] = []
+    val_idx: List[int] = []
+
+    for key in groups:
+        members = list(groups[key])
+        rng.shuffle(members)
+        if len(members) == 1:
+            train_idx.extend(members)
+            continue
+        n_val = max(1, int(round(val_fraction * len(members))))
+        n_val = min(n_val, len(members) - 1)  # keep ≥1 in train
+        val_idx.extend(members[:n_val])
+        train_idx.extend(members[n_val:])
+
+    if len(val_idx) == 0 or len(train_idx) == 0:
+        return random_train_val_indices(dataset, seed, val_fraction=val_fraction)
+
+    return (
+        np.array(sorted(train_idx), dtype=int),
+        np.array(sorted(val_idx), dtype=int),
+    )
 
 
 def summarize_split(name: str, subset) -> None:

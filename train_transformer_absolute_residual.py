@@ -37,9 +37,9 @@ from train_single import (
     metric_value,
     per_graph_mae_loss,
     per_graph_mse_loss,
-    random_train_val_indices,
     set_seed,
     summarize_split,
+    within_group_train_val_indices,
 )
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -226,14 +226,14 @@ def _train_one(
     set_seed(seed)
 
     if val_fraction is not None:
-        train_idx, val_idx = random_train_val_indices(
+        train_idx, val_idx = within_group_train_val_indices(
             dataset, seed, val_fraction=val_fraction
         )
         train_set = [dataset[i] for i in train_idx]
         val_set = [dataset[i] for i in val_idx]
         test_set = []
         print(
-            f"[{name}] delivery fit (random val): train={len(train_set)} "
+            f"[{name}] delivery fit (within-group val): train={len(train_set)} "
             f"val={len(val_set)} (val_fraction={val_fraction}, no test)",
             flush=True,
         )
@@ -459,8 +459,8 @@ def main() -> None:
         type=float,
         default=None,
         help=(
-            "If set (e.g. 0.1), train/val-only delivery fit with a random "
-            "per-graph val split (no test). Default keeps the old grouped "
+            "If set (e.g. 0.1), train/val-only delivery fit with a "
+            "within-group val split (no test). Default keeps the old grouped "
             "70/15/15 split."
         ),
     )

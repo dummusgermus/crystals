@@ -1,0 +1,68 @@
+{
+  "score_last_n": 50,
+  "definitions": {
+    "planar_residual_isf": {
+      "label": "broad ISF/ESF defect sites",
+      "json": "d:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\laves_defect_atoms.json",
+      "dataset": "d:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\planar_pyg_dataset_residual_isf.pt"
+    },
+    "planar_residual_c14c15": {
+      "label": "C14/C15 deviation defect sites",
+      "json": "d:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\laves_defect_atoms_c14c15.json",
+      "dataset": "d:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\planar_pyg_dataset_residual_c14c15.pt"
+    }
+  },
+  "models": {
+    "cgcnn": {
+      "curves_json": "d:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\cgcnn_planar_defect_defs_residual_1000_curves.json",
+      "datasets": {
+        "planar_residual_isf": {
+          "label": "broad ISF/ESF defect sites",
+          "num_graphs": 1978,
+          "best_val": 0.012928109087452695,
+          "best_test": 0.011132084853609637,
+          "last_n_val_mean": 0.01293595262199036,
+          "last_n_test_mean": 0.011145950603617618,
+          "last_n_val_std": 4.010437784323073e-06,
+          "last_n_test_std": 5.641941514307426e-06
+        },
+        "planar_residual_c14c15": {
+          "label": "C14/C15 deviation defect sites",
+          "num_graphs": 1978,
+          "best_val": 0.013121132134787133,
+          "best_test": 0.011473332312983154,
+          "last_n_val_mean": 0.013134469065336964,
+          "last_n_test_mean": 0.01148819292807989,
+          "last_n_val_std": 6.201692425603972e-06,
+          "last_n_test_std": 7.045673210634829e-06
+        }
+      }
+    },
+    "transformer": {
+      "curves_json": "d:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\transformer_planar_defect_defs_residual_1000_curves.json",
+      "datasets": {
+        "planar_residual_isf": {
+          "label": "broad ISF/ESF defect sites",
+          "num_graphs": 1978,
+          "best_val": 0.013802094586394928,
+          "best_test": 0.008961132477543899,
+          "last_n_val_mean": 0.014028910815690618,
+          "last_n_test_mean": 0.0090294689277262,
+          "last_n_val_std": 0.00011499051601821498,
+          "last_n_test_std": 5.924724637763988e-05
+        },
+        "planar_residual_c14c15": {
+          "label": "C14/C15 deviation defect sites",
+          "num_graphs": 1978,
+          "best_val": 0.009562185279571929,
+          "best_test": 0.008165995926352455,
+          "last_n_val_mean": 0.009592356274936448,
+          "last_n_test_mean": 0.008156605481307628,
+          "last_n_val_std": 1.1718208972645827e-05,
+          "last_n_test_std": 1.9174849504117112e-05
+        }
+      }
+    }
+  },
+  "notes": "Same planar residual graphs; defect-site definition is the only difference. Lower last-N MAE is better."
+}

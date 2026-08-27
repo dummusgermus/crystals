@@ -1,0 +1,18 @@
+{
+  "folder": "C15_Ag-Be",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "n_atoms_full": 3000,
+  "n_atoms_graph": 65,
+  "n_atoms_in_graph_flag": 65,
+  "identity_pred": true,
+  "csv_path": "d:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\predictions_validate\\point_transformer\\C15_Ag-Be\\9-2-1-16d.csv",
+  "pt_path": "d:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\predictions_validate\\point_transformer\\C15_Ag-Be\\9-2-1-16d.pt",
+  "t_preprocess_s": 0.06590409999989788,
+  "t_predict_s": 7.569999979750719e-05,
+  "t_postprocess_s": 0.012949099999786995,
+  "t_total_s": 0.07892889999948238,
+  "mae_abs_eV": 0.0003661366806040364,
+  "mae_in_graph_abs_eV": 6.432675725420723e-10
+}

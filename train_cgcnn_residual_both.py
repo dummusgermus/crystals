@@ -55,6 +55,13 @@ DATASETS: OrderedDict[str, str] = OrderedDict([
 
 CURVES_JSON = os.path.join(ROOT, "cgcnn_residual_both_curves.json")
 
+CHECKPOINT_PATHS = {
+    "defect_residual": os.path.join(ROOT, "cgcnn_defect_residual_model.pt"),
+    "planar_residual_c14c15": os.path.join(
+        ROOT, "cgcnn_planar_residual_c14c15_model.pt"
+    ),
+}
+
 DEFAULT_CONFIG = dict(
     hidden_dim=128,
     num_layers=2,
@@ -115,6 +122,7 @@ def _train_one(
         activation=config["activation"],
         bidirectional=config["bidirectional"],
     ).to(device)
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     optimizer = torch.optim.Adam(
         model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"]
@@ -182,6 +190,10 @@ def _train_one(
         "best_val": metric_value(final_val, metric),
         "best_test": metric_value(final_test, metric),
         "target_mode": "residual",
+        "best_state": best_state,
+        "target_mean": float(target_mean.cpu()),
+        "target_std": float(target_std.cpu()),
+        "num_parameters": n_params,
     }
 
 
@@ -207,6 +219,15 @@ def main() -> None:
         "--plot-output",
         type=str,
         default=os.path.join(ROOT, "cgcnn_absolute_vs_residual_curves.png"),
+    )
+    parser.add_argument(
+        "--save-checkpoints",
+        action="store_true",
+        help=(
+            "Save best residual CGCNN weights for export "
+            "(cgcnn_defect_residual_model.pt / "
+            "cgcnn_planar_residual_c14c15_model.pt)."
+        ),
     )
     args = parser.parse_args()
 
@@ -239,6 +260,38 @@ def main() -> None:
         )
         curves["dataset_path"] = path
         curves["num_graphs"] = len(dataset)
+
+        if args.save_checkpoints:
+            ckpt_path = CHECKPOINT_PATHS[name]
+            torch.save(
+                {
+                    "model_state": curves.pop("best_state"),
+                    "config": {
+                        **DEFAULT_CONFIG,
+                        "lr": DEFAULT_CONFIG["lr"],
+                        "weight_decay": DEFAULT_CONFIG["weight_decay"],
+                        "batch_size": DEFAULT_CONFIG["batch_size"],
+                    },
+                    "target_mean": curves.pop("target_mean"),
+                    "target_std": curves.pop("target_std"),
+                    "best_val_mae": curves["best_val"],
+                    "test_mae": curves["best_test"],
+                    "num_parameters": curves.pop("num_parameters"),
+                    "epochs": args.epochs,
+                    "seed": args.seed,
+                    "dataset": path,
+                    "target_mode": "residual",
+                },
+                ckpt_path,
+            )
+            print(f"[{name}] Saved checkpoint → {ckpt_path}")
+            curves["checkpoint"] = ckpt_path
+        else:
+            curves.pop("best_state", None)
+            curves.pop("target_mean", None)
+            curves.pop("target_std", None)
+            curves.pop("num_parameters", None)
+
         results[name] = curves
 
     payload = {

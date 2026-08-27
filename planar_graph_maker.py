@@ -320,11 +320,21 @@ def _build_full_graph(
     edge_mode: str,
     target_mode: str = "absolute",
     require_initial_pe: bool = True,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Dict]:
+) -> Tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    Dict,
+    torch.Tensor,
+]:
     """Build one full-cell graph from unrelaxed geometry and relaxed targets.
 
     *target_mode* ``residual`` sets ``y = PE_relaxed − PE_initial``;
     ``absolute`` sets ``y = PE_relaxed``.
+
+    Returns ``particle_ids`` aligned with node order (LAMMPS ids).
     """
     if target_mode not in TARGET_MODES:
         raise ValueError(
@@ -510,7 +520,11 @@ def _build_full_graph(
         "defect_ids": list(defect_ids) if defect_ids else [],
         "target_mode": target_mode,
     }
-    return x, pos, edge_index_tensor, edge_attr_tensor, y_node, meta
+    particle_ids_tensor = torch.tensor(
+        [int(pid) for pid in particle_ids],
+        dtype=torch.long,
+    )
+    return x, pos, edge_index_tensor, edge_attr_tensor, y_node, meta, particle_ids_tensor
 
 
 def build_planar_pyg_dataset(
@@ -629,7 +643,7 @@ def build_planar_pyg_dataset(
 
         defect_ids = load_defect_ids(label_folder, stack, defect_atoms_by_stack)
         try:
-            x, pos, edge_index, edge_attr, y_node, meta = _build_full_graph(
+            x, pos, edge_index, edge_attr, y_node, meta, particle_ids = _build_full_graph(
                 basefile_path=basefile_path,
                 relaxed_dump_path=relaxed_dump_path,
                 unrelaxed_dump_path=unrelaxed_dump_path,
@@ -667,6 +681,7 @@ def build_planar_pyg_dataset(
         data.edge_mode = edge_mode
         data.target_mode = target_mode
         data.meta = meta
+        data.particle_ids = particle_ids
         if defect_ids is not None:
             data.defect_ids = list(defect_ids)
         dataset.append(data)

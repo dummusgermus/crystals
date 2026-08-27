@@ -122,7 +122,17 @@ def _build_subgraph(
     torch.Tensor,
     Dict[int, int],
     Dict,
+    torch.Tensor,
+    torch.Tensor,
 ]:
+    """Build a defect-centred subgraph.
+
+    Returns
+    -------
+    x, pos, edge_index, edge_attr, y, sub_index, meta, particle_ids, orig_indices
+        ``particle_ids`` / ``orig_indices`` map graph nodes back to the full
+        dump (LAMMPS id and OVITO array index).
+    """
     pipeline = import_file(dump_path)
     data = pipeline.compute()
 
@@ -320,7 +330,22 @@ def _build_subgraph(
         "cutoff_mode": cutoff_mode,
         "target_mode": target_mode,
     }
-    return x, pos, edge_index_tensor, edge_attr_tensor, y_node, sub_index, meta
+    particle_ids_subset = torch.tensor(
+        [int(particle_ids[orig]) for orig in subset_indices],
+        dtype=torch.long,
+    )
+    orig_indices_tensor = torch.tensor(subset_indices, dtype=torch.long)
+    return (
+        x,
+        pos,
+        edge_index_tensor,
+        edge_attr_tensor,
+        y_node,
+        sub_index,
+        meta,
+        particle_ids_subset,
+        orig_indices_tensor,
+    )
 
 
 def build_pyg_dataset(
@@ -386,7 +411,17 @@ def build_pyg_dataset(
             if not os.path.exists(relaxed_dump_path):
                 continue
 
-            x, pos, edge_index, edge_attr, y_node, sub_index, meta = _build_subgraph(
+            (
+                x,
+                pos,
+                edge_index,
+                edge_attr,
+                y_node,
+                _sub_index,
+                meta,
+                particle_ids_subset,
+                orig_indices,
+            ) = _build_subgraph(
                 dump_path,
                 relaxed_dump_path=relaxed_dump_path,
                 data_path=data_path,
@@ -427,6 +462,8 @@ def build_pyg_dataset(
             data.cutoff_mode = cutoff_mode
             data.folder = folder
             data.meta = meta
+            data.particle_ids = particle_ids_subset
+            data.orig_indices = orig_indices
             dataset.append(data)
 
     return dataset

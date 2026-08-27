@@ -147,7 +147,7 @@ def build_pretrain_records(
                 continue
 
             try:
-                x, pos, _ei, _ea, y_node, _sub, _meta = _build_subgraph(
+                x, pos, _ei, _ea, y_node, _sub, _meta, _pids, _orig = _build_subgraph(
                     dump_path,
                     relaxed_dump_path=relaxed_dump_path,
                     data_path=data_path,

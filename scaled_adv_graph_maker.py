@@ -162,7 +162,7 @@ def build_scaled_pyg_dataset(
             if not os.path.exists(relaxed_dump_path):
                 continue
 
-            x, pos, edge_index, edge_attr, y_node, _sub_index, meta = _build_subgraph(
+            x, pos, edge_index, edge_attr, y_node, _sub_index, meta, particle_ids_subset, orig_indices = _build_subgraph(
                 dump_path,
                 relaxed_dump_path=relaxed_dump_path,
                 data_path=data_path,
@@ -206,6 +206,8 @@ def build_scaled_pyg_dataset(
             data.folder = folder
             data.meta = meta
             data.scaled_to_unit_box = True
+            data.particle_ids = particle_ids_subset
+            data.orig_indices = orig_indices
             dataset.append(data)
 
     return dataset

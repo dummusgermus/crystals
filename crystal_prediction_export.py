@@ -1,0 +1,956 @@
+"""Export per-atom absolute PE predictions into mirrored crystal folders.
+
+For each crystal configuration the script writes a CSV with one row per atom::
+
+    atom_id,pe_initial,pe_true,pe_pred[,in_graph]
+
+``pe_pred`` is absolute relaxed PE recovered from a residual model via
+``PE_initial + ΔPE_pred``.  Point-defect atoms outside the defect subgraph
+are filled with ``ΔPE = 0`` (``pe_pred = pe_initial``).
+
+Per-crystal timings (preprocess / predict / postprocess) are written beside
+each CSV.  Inference always uses ``batch_size=1`` so timings stay meaningful.
+
+Existing residual ``.pt`` graphs do not always carry ``particle_ids``; when
+missing, the export path re-resolves the atom map from the source dumps using
+the same cutoff logic as :mod:`graph_maker`.
+
+Dump I/O uses a pure-Python LAMMPS reader (no OVITO required at export time).
+
+Example (validate restore without a trained model)::
+
+    python crystal_prediction_export.py --job point_transformer --identity-pred --limit 2
+
+Example (real residual checkpoint)::
+
+    python crystal_prediction_export.py --job planar_cgcnn \\
+        --checkpoint cgcnn_planar_residual_c14c15_model.pt
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import os
+import time
+from dataclasses import asdict, dataclass
+from typing import Dict, List, Optional, Sequence, Tuple
+
+import numpy as np
+import torch
+from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader
+
+from gnn_models import (
+    build_gated_model_from_dataset,
+    build_graph_transformer_from_dataset,
+)
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# Keep in sync with graph_maker / planar_graph_maker.
+DEFECT_CUTOFF_K = 8
+DEFECT_CUTOFF_RADIUS = 6.0
+SHELL_TOL_REL = 0.02
+
+POINT_PE_CANDIDATES = [
+    "c_pe_potential_energy",
+    "c_pe_potential_energy[1]",
+    "pe_potential_energy",
+    "c_pe",
+]
+PLANAR_PE_CANDIDATES = list(POINT_PE_CANDIDATES)
+
+JOBS: Dict[str, Dict[str, str]] = {
+    "point_cgcnn": {
+        "domain": "point",
+        "architecture": "cgcnn",
+        "dataset": os.path.join(ROOT, "adv_datasets", "cycle34_residual_dataset.pt"),
+        "checkpoint": os.path.join(ROOT, "cgcnn_defect_residual_model.pt"),
+        "simulations_dir": os.path.join(ROOT, "SIMULATIONS"),
+        "output_subdir": "point_cgcnn",
+    },
+    "point_transformer": {
+        "domain": "point",
+        "architecture": "transformer",
+        "dataset": os.path.join(ROOT, "adv_datasets", "cycle34_residual_dataset.pt"),
+        "checkpoint": os.path.join(
+            ROOT, "transformer_graph_defect_residual_model.pt"
+        ),
+        "simulations_dir": os.path.join(ROOT, "SIMULATIONS"),
+        "output_subdir": "point_transformer",
+    },
+    "planar_cgcnn": {
+        "domain": "planar",
+        "architecture": "cgcnn",
+        "dataset": os.path.join(ROOT, "planar_pyg_dataset_residual_c14c15.pt"),
+        "checkpoint": os.path.join(ROOT, "cgcnn_planar_residual_c14c15_model.pt"),
+        "initial_dir": os.path.join(ROOT, "Laves_Planar_Defects", "SIMULATIONS"),
+        "relaxed_dir": os.path.join(ROOT, "Laves_Screen", "SIMULATIONS"),
+        "output_subdir": "planar_cgcnn",
+    },
+    "planar_transformer": {
+        "domain": "planar",
+        "architecture": "transformer",
+        "dataset": os.path.join(ROOT, "planar_pyg_dataset_residual_c14c15.pt"),
+        "checkpoint": os.path.join(
+            ROOT, "transformer_graph_planar_residual_c14c15_model.pt"
+        ),
+        "initial_dir": os.path.join(ROOT, "Laves_Planar_Defects", "SIMULATIONS"),
+        "relaxed_dir": os.path.join(ROOT, "Laves_Screen", "SIMULATIONS"),
+        "output_subdir": "planar_transformer",
+    },
+}
+
+
+@dataclass
+class CrystalTiming:
+    t_preprocess_s: float
+    t_predict_s: float
+    t_postprocess_s: float
+
+    @property
+    def t_total_s(self) -> float:
+        return self.t_preprocess_s + self.t_predict_s + self.t_postprocess_s
+
+
+@dataclass
+class CrystalPETable:
+    atom_id: np.ndarray
+    pe_initial: np.ndarray
+    pe_true: np.ndarray
+    pe_pred: np.ndarray
+    in_graph: np.ndarray
+
+
+@dataclass
+class DumpFrame:
+    atom_ids: np.ndarray
+    positions: np.ndarray
+    pe: np.ndarray
+    cell_matrix: np.ndarray
+    pbc: Tuple[bool, bool, bool]
+
+
+def _sync(device: torch.device) -> None:
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+
+
+def _is_nonempty_file(path: str) -> bool:
+    return os.path.isfile(path) and os.path.getsize(path) > 0
+
+
+def _parse_box_bounds(
+    lines: Sequence[str],
+    bounds_header: str,
+) -> Tuple[np.ndarray, Tuple[bool, bool, bool]]:
+    """Parse LAMMPS ``ITEM: BOX BOUNDS`` into a 3x3 cell matrix + PBC flags."""
+    tokens = bounds_header.split()
+    pbc_tokens = tokens[-3:]
+    pbc = tuple(t.lower() == "pp" for t in pbc_tokens)
+    if len(pbc) != 3:
+        pbc = (True, True, True)
+
+    rows = [list(map(float, lines[i].split())) for i in range(3)]
+    triclinic = "xy" in tokens
+
+    if triclinic:
+        xlo_bound, xhi_bound, xy = rows[0]
+        ylo_bound, yhi_bound, xz = rows[1]
+        zlo_bound, zhi_bound, yz = rows[2]
+        xlo = xlo_bound - min(0.0, xy, xz, xy + xz)
+        xhi = xhi_bound - max(0.0, xy, xz, xy + xz)
+        ylo = ylo_bound - min(0.0, yz)
+        yhi = yhi_bound - max(0.0, yz)
+        zlo, zhi = zlo_bound, zhi_bound
+        cell = np.array(
+            [
+                [xhi - xlo, xy, xz],
+                [0.0, yhi - ylo, yz],
+                [0.0, 0.0, zhi - zlo],
+            ],
+            dtype=np.float64,
+        ).T
+    else:
+        xlo, xhi = rows[0][0], rows[0][1]
+        ylo, yhi = rows[1][0], rows[1][1]
+        zlo, zhi = rows[2][0], rows[2][1]
+        cell = np.diag([xhi - xlo, yhi - ylo, zhi - zlo]).astype(np.float64)
+
+    return cell, (bool(pbc[0]), bool(pbc[1]), bool(pbc[2]))
+
+
+def read_lammps_dump(dump_path: str, pe_candidates: Sequence[str]) -> DumpFrame:
+    """Read atom ids, positions, PE, and cell from a LAMMPS dump (no OVITO)."""
+    with open(dump_path, "r", encoding="utf-8", errors="replace") as fh:
+        lines = fh.readlines()
+
+    i = 0
+    n_atoms = None
+    bounds_header = None
+    bounds_lines: List[str] = []
+    atoms_header = None
+    atoms_start = None
+
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith("ITEM: NUMBER OF ATOMS"):
+            n_atoms = int(lines[i + 1].split()[0])
+            i += 2
+            continue
+        if line.startswith("ITEM: BOX BOUNDS"):
+            bounds_header = line
+            bounds_lines = [lines[i + 1], lines[i + 2], lines[i + 3]]
+            i += 4
+            continue
+        if line.startswith("ITEM: ATOMS"):
+            atoms_header = line.split()[2:]
+            atoms_start = i + 1
+            break
+        i += 1
+
+    if (
+        n_atoms is None
+        or bounds_header is None
+        or atoms_header is None
+        or atoms_start is None
+    ):
+        raise ValueError(f"Incomplete LAMMPS dump header in {dump_path}")
+
+    col = {name: idx for idx, name in enumerate(atoms_header)}
+    if "id" not in col:
+        raise ValueError(f"Missing id column in {dump_path}")
+
+    if all(k in col for k in ("xu", "yu", "zu")):
+        x_key, y_key, z_key = "xu", "yu", "zu"
+    elif all(k in col for k in ("x", "y", "z")):
+        x_key, y_key, z_key = "x", "y", "z"
+    else:
+        raise ValueError(f"Missing position columns in {dump_path}")
+
+    pe_key = next((c for c in pe_candidates if c in col), None)
+    if pe_key is None:
+        raise ValueError(
+            f"Missing PE column in {dump_path}; have {atoms_header}, "
+            f"tried {list(pe_candidates)}"
+        )
+
+    atom_ids = np.empty(n_atoms, dtype=np.int64)
+    positions = np.empty((n_atoms, 3), dtype=np.float64)
+    pe = np.empty(n_atoms, dtype=np.float64)
+    for row_i in range(n_atoms):
+        parts = lines[atoms_start + row_i].split()
+        atom_ids[row_i] = int(float(parts[col["id"]]))
+        positions[row_i, 0] = float(parts[col[x_key]])
+        positions[row_i, 1] = float(parts[col[y_key]])
+        positions[row_i, 2] = float(parts[col[z_key]])
+        pe[row_i] = float(parts[col[pe_key]])
+
+    cell_matrix, pbc = _parse_box_bounds(bounds_lines, bounds_header)
+    return DumpFrame(
+        atom_ids=atom_ids,
+        positions=positions,
+        pe=pe,
+        cell_matrix=cell_matrix,
+        pbc=pbc,
+    )
+
+
+def _load_dump_pe(
+    dump_path: str,
+    pe_candidates: Sequence[str],
+) -> Tuple[np.ndarray, np.ndarray]:
+    frame = read_lammps_dump(dump_path, pe_candidates)
+    return frame.atom_ids, frame.pe
+
+
+def _pe_by_id(atom_ids: np.ndarray, pe: np.ndarray) -> Dict[int, float]:
+    return {int(pid): float(val) for pid, val in zip(atom_ids, pe)}
+
+
+def _shell_threshold(sorted_distances: np.ndarray, k_shells: int) -> float:
+    shell_tol = max(float(sorted_distances[0]) * SHELL_TOL_REL, 1e-6)
+    shell_distances = [float(sorted_distances[0])]
+    for dist in sorted_distances[1:]:
+        if abs(float(dist) - shell_distances[-1]) > shell_tol:
+            shell_distances.append(float(dist))
+    cutoff_idx = min(k_shells, len(shell_distances)) - 1
+    return shell_distances[cutoff_idx]
+
+
+def _point_subset_orig_indices(
+    unrelaxed_dump: str,
+    defect_id: int,
+    cutoff_k: int = DEFECT_CUTOFF_K,
+    cutoff_radius: float = DEFECT_CUTOFF_RADIUS,
+    cutoff_mode: str = "shell",
+) -> Tuple[np.ndarray, np.ndarray]:
+    frame = read_lammps_dump(unrelaxed_dump, POINT_PE_CANDIDATES)
+    particle_ids = frame.atom_ids
+    id_to_index = {int(pid): idx for idx, pid in enumerate(particle_ids)}
+    if int(defect_id) not in id_to_index:
+        raise ValueError(f"Defect id {defect_id} not found in {unrelaxed_dump}")
+    defect_index = id_to_index[int(defect_id)]
+
+    positions = frame.positions
+    cell_matrix = frame.cell_matrix
+    pbc = frame.pbc
+    try:
+        inv_cell = np.linalg.inv(cell_matrix)
+    except np.linalg.LinAlgError:
+        inv_cell = np.linalg.pinv(cell_matrix)
+    frac_positions = positions @ inv_cell
+
+    all_dist = np.zeros(len(positions), dtype=float)
+    for idx in range(len(positions)):
+        if idx == defect_index:
+            continue
+        dfrac = frac_positions[idx] - frac_positions[defect_index]
+        for dim in range(3):
+            if pbc[dim]:
+                dfrac[dim] -= np.round(dfrac[dim])
+        all_dist[idx] = float(np.linalg.norm(dfrac @ cell_matrix))
+
+    tol = 1e-6
+    if cutoff_mode == "shell":
+        non_self = np.array([d for d in all_dist if d > 0.0])
+        cutoff_dist = (
+            _shell_threshold(np.sort(non_self), cutoff_k) if len(non_self) else 0.0
+        )
+    elif cutoff_mode == "radius":
+        cutoff_dist = float(cutoff_radius)
+    else:
+        raise ValueError(f"Unsupported cutoff_mode: {cutoff_mode}")
+
+    subset = [idx for idx, dist in enumerate(all_dist) if dist <= cutoff_dist + tol]
+    if defect_index not in subset:
+        subset.append(defect_index)
+    subset = sorted(set(subset))
+    return particle_ids, np.asarray(subset, dtype=np.int64)
+
+
+def _match_graph_nodes_by_pe(
+    data: Data,
+    atom_ids: np.ndarray,
+    pe_initial: np.ndarray,
+    pe_true: np.ndarray,
+    atol: float = 1e-5,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Fallback: map graph nodes to full-cell rows via (PE_initial, PE_true)."""
+    pe0 = data.x[:, 1].detach().cpu().numpy().reshape(-1)
+    y = data.y.detach().cpu().numpy().reshape(-1)
+    target_mode = None
+    if isinstance(getattr(data, "meta", None), dict):
+        target_mode = data.meta.get("target_mode")
+    pe_t = y if target_mode == "absolute" else (pe0 + y)
+
+    used = np.zeros(len(atom_ids), dtype=bool)
+    graph_pos = np.empty(len(pe0), dtype=np.int64)
+    for i, (a, b) in enumerate(zip(pe0, pe_t)):
+        hits = np.where(
+            (~used)
+            & np.isclose(pe_initial, a, atol=atol, rtol=0.0)
+            & np.isclose(pe_true, b, atol=atol, rtol=0.0)
+        )[0]
+        if len(hits) == 0:
+            hits = np.where((~used) & np.isclose(pe_initial, a, atol=atol, rtol=0.0))[0]
+        if len(hits) == 0:
+            raise RuntimeError(
+                f"Could not match graph node {i} (pe0={a}, pe_t={b}) to dump atoms"
+            )
+        j = int(hits[0])
+        used[j] = True
+        graph_pos[i] = j
+    return atom_ids[graph_pos], graph_pos
+
+
+def resolve_paired_paths(
+    folder: str,
+    initial_dir: str,
+    relaxed_dir: str,
+) -> Optional[Tuple[str, str, str]]:
+    initial_folder = os.path.join(initial_dir, folder)
+    relaxed_folder = os.path.join(relaxed_dir, folder)
+    if not os.path.isdir(initial_folder) or not os.path.isdir(relaxed_folder):
+        return None
+
+    basefile = os.path.join(initial_folder, "basefile.data")
+    if not _is_nonempty_file(basefile):
+        basefile = os.path.join(relaxed_folder, "basefile.data")
+    if not _is_nonempty_file(basefile):
+        return None
+
+    initial_dump = None
+    for name in ("unrelaxed.dump", "initial.dump", "pre_relax.dump", "minimised.dump"):
+        candidate = os.path.join(initial_folder, name)
+        if _is_nonempty_file(candidate):
+            initial_dump = candidate
+            break
+    if initial_dump is None:
+        return None
+
+    relaxed_dump = os.path.join(relaxed_folder, "minimised.dump")
+    if not _is_nonempty_file(relaxed_dump):
+        return None
+    if os.path.normcase(os.path.abspath(initial_dump)) == os.path.normcase(
+        os.path.abspath(relaxed_dump)
+    ):
+        return None
+    return basefile, initial_dump, relaxed_dump
+
+
+def point_config_key(data: Data) -> str:
+    return (
+        f"{int(data.defect_id)}-{int(data.from_type)}-"
+        f"{int(data.to_type)}-{data.wyckoff}"
+    )
+
+
+def resolve_point_dump_paths(
+    data: Data,
+    simulations_dir: str,
+) -> Tuple[str, str, str]:
+    folder = str(data.folder)
+    key = point_config_key(data)
+    folder_path = os.path.join(simulations_dir, folder)
+    unrelaxed_dump = os.path.join(folder_path, f"unrelaxed_{key}.dump")
+    relaxed_dump = os.path.join(folder_path, f"relaxed_{key}.dump")
+    data_path = os.path.join(folder_path, f"unrelaxed_{key}.data")
+    for path, label in (
+        (unrelaxed_dump, "unrelaxed dump"),
+        (relaxed_dump, "relaxed dump"),
+    ):
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"Missing {label}: {path}")
+    return unrelaxed_dump, relaxed_dump, data_path
+
+
+def load_point_full_cell(
+    data: Data,
+    simulations_dir: str,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    unrelaxed_dump, relaxed_dump, _data_path = resolve_point_dump_paths(
+        data, simulations_dir
+    )
+    atom_ids, pe_initial = _load_dump_pe(unrelaxed_dump, POINT_PE_CANDIDATES)
+    relaxed_ids, relaxed_pe = _load_dump_pe(relaxed_dump, POINT_PE_CANDIDATES)
+    relaxed_map = _pe_by_id(relaxed_ids, relaxed_pe)
+    pe_true = np.array([relaxed_map[int(pid)] for pid in atom_ids], dtype=np.float64)
+
+    if getattr(data, "particle_ids", None) is not None:
+        graph_pids = np.asarray(data.particle_ids.cpu().numpy(), dtype=np.int64)
+        id_to_pos = {int(pid): i for i, pid in enumerate(atom_ids)}
+        graph_pos = np.array(
+            [id_to_pos[int(pid)] for pid in graph_pids], dtype=np.int64
+        )
+        return atom_ids, pe_initial, pe_true, graph_pids, graph_pos
+
+    cutoff_k = int(getattr(data, "cutoff_k", DEFECT_CUTOFF_K))
+    cutoff_radius = float(getattr(data, "cutoff_radius", DEFECT_CUTOFF_RADIUS))
+    cutoff_mode = str(getattr(data, "cutoff_mode", "shell"))
+    try:
+        _pids_full, orig_indices = _point_subset_orig_indices(
+            unrelaxed_dump,
+            defect_id=int(data.defect_id),
+            cutoff_k=cutoff_k,
+            cutoff_radius=cutoff_radius,
+            cutoff_mode=cutoff_mode,
+        )
+        if len(orig_indices) != int(data.num_nodes):
+            raise RuntimeError(
+                f"Subset size mismatch: recomputed {len(orig_indices)} "
+                f"vs graph {data.num_nodes}"
+            )
+        graph_pos = orig_indices
+        graph_pids = atom_ids[graph_pos]
+    except Exception:
+        graph_pids, graph_pos = _match_graph_nodes_by_pe(
+            data, atom_ids, pe_initial, pe_true
+        )
+
+    return atom_ids, pe_initial, pe_true, graph_pids, graph_pos
+
+
+def load_planar_full_cell(
+    data: Data,
+    initial_dir: str,
+    relaxed_dir: str,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    folder = str(data.folder)
+    resolved = resolve_paired_paths(folder, initial_dir, relaxed_dir)
+    if resolved is None:
+        raise FileNotFoundError(
+            f"Could not resolve paired planar paths for {folder!r}"
+        )
+    _basefile, initial_dump, relaxed_dump = resolved
+    atom_ids, pe_initial = _load_dump_pe(initial_dump, PLANAR_PE_CANDIDATES)
+    relaxed_ids, relaxed_pe = _load_dump_pe(relaxed_dump, PLANAR_PE_CANDIDATES)
+    relaxed_map = _pe_by_id(relaxed_ids, relaxed_pe)
+    pe_true = np.array([relaxed_map[int(pid)] for pid in atom_ids], dtype=np.float64)
+
+    if getattr(data, "particle_ids", None) is not None:
+        graph_pids = np.asarray(data.particle_ids.cpu().numpy(), dtype=np.int64)
+    else:
+        graph_pids = atom_ids.copy()
+        if len(graph_pids) != int(data.num_nodes):
+            raise RuntimeError(
+                f"Planar atom count mismatch for {folder}: "
+                f"dump {len(graph_pids)} vs graph {data.num_nodes}"
+            )
+
+    id_to_pos = {int(pid): i for i, pid in enumerate(atom_ids)}
+    graph_pos = np.array([id_to_pos[int(pid)] for pid in graph_pids], dtype=np.int64)
+    return atom_ids, pe_initial, pe_true, graph_pids, graph_pos
+
+
+def restore_absolute_predictions(
+    atom_ids: np.ndarray,
+    pe_initial: np.ndarray,
+    pe_true: np.ndarray,
+    graph_pos: np.ndarray,
+    delta_pred: np.ndarray,
+) -> CrystalPETable:
+    """Scatter residual predictions into a full-cell absolute PE table.
+
+    Atoms not in the graph keep ``pe_pred = pe_initial`` (ΔPE = 0).
+    """
+    pe_pred = pe_initial.copy()
+    in_graph = np.zeros(len(atom_ids), dtype=np.int64)
+    delta = np.asarray(delta_pred, dtype=np.float64).reshape(-1)
+    if len(delta) != len(graph_pos):
+        raise ValueError(
+            f"Prediction length {len(delta)} != graph map length {len(graph_pos)}"
+        )
+    pe_pred[graph_pos] = pe_initial[graph_pos] + delta
+    in_graph[graph_pos] = 1
+    return CrystalPETable(
+        atom_id=atom_ids.astype(np.int64),
+        pe_initial=pe_initial.astype(np.float64),
+        pe_true=pe_true.astype(np.float64),
+        pe_pred=pe_pred.astype(np.float64),
+        in_graph=in_graph,
+    )
+
+
+def write_pe_csv(path: str, table: CrystalPETable, include_in_graph: bool) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fieldnames = ["atom_id", "pe_initial", "pe_true", "pe_pred"]
+    if include_in_graph:
+        fieldnames.append("in_graph")
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for i in range(len(table.atom_id)):
+            row = {
+                "atom_id": int(table.atom_id[i]),
+                "pe_initial": float(table.pe_initial[i]),
+                "pe_true": float(table.pe_true[i]),
+                "pe_pred": float(table.pe_pred[i]),
+            }
+            if include_in_graph:
+                row["in_graph"] = int(table.in_graph[i])
+            writer.writerow(row)
+
+
+def write_pe_pt(path: str, table: CrystalPETable) -> None:
+    """Store the same PE columns as float tensors (dataset-style)."""
+    payload = {
+        "atom_id": torch.tensor(table.atom_id, dtype=torch.long),
+        "pe_initial": torch.tensor(table.pe_initial, dtype=torch.float).view(-1, 1),
+        "pe_true": torch.tensor(table.pe_true, dtype=torch.float).view(-1, 1),
+        "pe_pred": torch.tensor(table.pe_pred, dtype=torch.float).view(-1, 1),
+        "in_graph": torch.tensor(table.in_graph, dtype=torch.long),
+    }
+    torch.save(payload, path)
+
+
+def load_residual_model(
+    checkpoint_path: str,
+    dataset: List[Data],
+    architecture: str,
+    device: torch.device,
+) -> Tuple[torch.nn.Module, torch.Tensor, torch.Tensor]:
+    ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    config = dict(ckpt.get("config", {}))
+    # Training configs often mix optimiser knobs into the same dict.
+    model_keys = {
+        "hidden_dim",
+        "num_layers",
+        "dropout",
+        "use_batch_norm",
+        "activation",
+        "bidirectional",
+        "num_heads",
+        "attention_dropout",
+        "out_dim",
+    }
+    model_cfg = {k: v for k, v in config.items() if k in model_keys}
+
+    if architecture == "cgcnn":
+        model = build_gated_model_from_dataset(
+            dataset,
+            hidden_dim=int(model_cfg.get("hidden_dim", 128)),
+            num_layers=int(model_cfg.get("num_layers", 2)),
+            dropout=float(model_cfg.get("dropout", 0.0)),
+            use_batch_norm=bool(model_cfg.get("use_batch_norm", False)),
+            activation=str(model_cfg.get("activation", "silu")),
+            bidirectional=bool(model_cfg.get("bidirectional", True)),
+            out_dim=int(model_cfg.get("out_dim", 1)),
+        )
+    elif architecture == "transformer":
+        model = build_graph_transformer_from_dataset(
+            dataset,
+            hidden_dim=int(model_cfg.get("hidden_dim", 128)),
+            num_layers=int(model_cfg.get("num_layers", 4)),
+            num_heads=int(model_cfg.get("num_heads", 4)),
+            dropout=float(model_cfg.get("dropout", 0.1)),
+            attention_dropout=float(model_cfg.get("attention_dropout", 0.1)),
+            activation=str(model_cfg.get("activation", "gelu")),
+            out_dim=int(model_cfg.get("out_dim", 1)),
+        )
+    else:
+        raise ValueError(f"Unknown architecture: {architecture!r}")
+
+    state = ckpt["model_state"]
+    model.load_state_dict(state)
+    model.to(device)
+    model.eval()
+
+    target_mean = torch.tensor(float(ckpt["target_mean"]), device=device)
+    target_std = torch.tensor(float(ckpt["target_std"]), device=device)
+    return model, target_mean, target_std
+
+
+def predict_residual_delta(
+    model: Optional[torch.nn.Module],
+    data: Data,
+    device: torch.device,
+    target_mean: Optional[torch.Tensor],
+    target_std: Optional[torch.Tensor],
+    identity_pred: bool,
+) -> Tuple[np.ndarray, float]:
+    """Return residual ΔPE predictions and predict-phase seconds."""
+    if identity_pred:
+        t0 = time.perf_counter()
+        # Residual datasets already store ΔPE in data.y (eV).
+        delta = data.y.detach().cpu().numpy().reshape(-1)
+        _sync(device)
+        return delta, time.perf_counter() - t0
+
+    assert model is not None and target_mean is not None and target_std is not None
+    loader = DataLoader([data], batch_size=1, shuffle=False)
+    batch = next(iter(loader)).to(device)
+    with torch.no_grad():
+        _sync(device)
+        t0 = time.perf_counter()
+        pred_norm = model(batch)
+        pred = pred_norm * target_std + target_mean
+        _sync(device)
+        dt = time.perf_counter() - t0
+    return pred.detach().cpu().numpy().reshape(-1), dt
+
+
+def export_one_crystal(
+    data: Data,
+    job: Dict[str, str],
+    out_root: str,
+    device: torch.device,
+    model: Optional[torch.nn.Module],
+    target_mean: Optional[torch.Tensor],
+    target_std: Optional[torch.Tensor],
+    identity_pred: bool,
+    write_pt: bool,
+) -> Dict:
+    domain = job["domain"]
+    include_in_graph = domain == "point"
+
+    t_pre0 = time.perf_counter()
+    if domain == "point":
+        atom_ids, pe_initial, pe_true, _gpids, graph_pos = load_point_full_cell(
+            data, job["simulations_dir"]
+        )
+        folder = str(data.folder)
+        config_key = point_config_key(data)
+        rel_dir = os.path.join(folder)
+        stem = config_key
+    else:
+        atom_ids, pe_initial, pe_true, _gpids, graph_pos = load_planar_full_cell(
+            data, job["initial_dir"], job["relaxed_dir"]
+        )
+        folder = str(data.folder)
+        config_key = folder
+        rel_dir = folder
+        stem = "pe_table"
+    t_preprocess = time.perf_counter() - t_pre0
+
+    delta, t_predict = predict_residual_delta(
+        model=model,
+        data=data,
+        device=device,
+        target_mean=target_mean,
+        target_std=target_std,
+        identity_pred=identity_pred,
+    )
+
+    t_post0 = time.perf_counter()
+    table = restore_absolute_predictions(
+        atom_ids=atom_ids,
+        pe_initial=pe_initial,
+        pe_true=pe_true,
+        graph_pos=graph_pos,
+        delta_pred=delta,
+    )
+    crystal_dir = os.path.join(out_root, rel_dir)
+    csv_path = os.path.join(crystal_dir, f"{stem}.csv")
+    write_pe_csv(csv_path, table, include_in_graph=include_in_graph)
+    pt_path = None
+    if write_pt:
+        pt_path = os.path.join(crystal_dir, f"{stem}.pt")
+        write_pe_pt(pt_path, table)
+
+    timing = CrystalTiming(
+        t_preprocess_s=t_preprocess,
+        t_predict_s=t_predict,
+        t_postprocess_s=0.0,  # filled after write
+    )
+    # Include file write in postprocess.
+    timing.t_postprocess_s = time.perf_counter() - t_post0
+
+    meta = {
+        "folder": folder,
+        "config": config_key,
+        "domain": domain,
+        "architecture": job["architecture"],
+        "n_atoms_full": int(len(atom_ids)),
+        "n_atoms_graph": int(data.num_nodes),
+        "n_atoms_in_graph_flag": int(table.in_graph.sum()),
+        "identity_pred": bool(identity_pred),
+        "csv_path": csv_path,
+        "pt_path": pt_path,
+        **asdict(timing),
+        "t_total_s": timing.t_total_s,
+        "mae_abs_eV": float(np.mean(np.abs(table.pe_pred - table.pe_true))),
+        "mae_in_graph_abs_eV": float(
+            np.mean(
+                np.abs(table.pe_pred[table.in_graph == 1] - table.pe_true[table.in_graph == 1])
+            )
+        )
+        if table.in_graph.any()
+        else None,
+    }
+    with open(os.path.join(crystal_dir, f"{stem}_timing.json"), "w", encoding="utf-8") as fh:
+        json.dump(meta, fh, indent=2)
+    return meta
+
+
+def run_job(
+    job_name: str,
+    output_root: str,
+    checkpoint: Optional[str],
+    identity_pred: bool,
+    limit: Optional[int],
+    device_str: str,
+    write_pt: bool,
+    skip_missing_checkpoint: bool,
+) -> None:
+    if job_name not in JOBS:
+        raise SystemExit(f"Unknown job {job_name!r}; choose from {list(JOBS)}")
+    job = dict(JOBS[job_name])
+    if checkpoint:
+        job["checkpoint"] = checkpoint
+
+    dataset_path = job["dataset"]
+    if not os.path.isfile(dataset_path):
+        raise SystemExit(f"Dataset not found: {dataset_path}")
+
+    device = torch.device(
+        device_str
+        if device_str != "auto"
+        else ("cuda" if torch.cuda.is_available() else "cpu")
+    )
+    print(f"[{job_name}] device={device}")
+    print(f"[{job_name}] dataset={dataset_path}")
+
+    dataset: List[Data] = torch.load(dataset_path, weights_only=False)
+    if limit is not None:
+        dataset = dataset[: max(0, int(limit))]
+    print(f"[{job_name}] crystals={len(dataset)}")
+
+    model = None
+    target_mean = None
+    target_std = None
+    ckpt_path = job["checkpoint"]
+    if identity_pred:
+        print(f"[{job_name}] identity-pred: using graph.y (residual GT) as dPE")
+    else:
+        if not os.path.isfile(ckpt_path):
+            msg = f"Checkpoint not found: {ckpt_path}"
+            if skip_missing_checkpoint:
+                print(f"[{job_name}] SKIP - {msg}")
+                return
+            raise SystemExit(
+                msg
+                + " (retrain/save residual model, or pass --identity-pred to "
+                "test the restore pipeline)"
+            )
+        print(f"[{job_name}] checkpoint={ckpt_path}")
+        model, target_mean, target_std = load_residual_model(
+            ckpt_path, dataset, job["architecture"], device
+        )
+
+    out_root = os.path.join(output_root, job["output_subdir"])
+    os.makedirs(out_root, exist_ok=True)
+
+    summaries: List[Dict] = []
+    for i, data in enumerate(dataset):
+        try:
+            meta = export_one_crystal(
+                data=data,
+                job=job,
+                out_root=out_root,
+                device=device,
+                model=model,
+                target_mean=target_mean,
+                target_std=target_std,
+                identity_pred=identity_pred,
+                write_pt=write_pt,
+            )
+        except Exception as err:
+            print(f"  [{i + 1}/{len(dataset)}] FAIL {getattr(data, 'folder', '?')}: {err}")
+            summaries.append(
+                {
+                    "folder": str(getattr(data, "folder", "")),
+                    "error": str(err),
+                }
+            )
+            continue
+        summaries.append(meta)
+        if (i + 1) % 25 == 0 or i == 0 or i + 1 == len(dataset):
+            print(
+                f"  [{i + 1}/{len(dataset)}] {meta['folder']}/{meta['config']} "
+                f"MAE={meta['mae_abs_eV']:.4e} eV  "
+                f"t={meta['t_total_s'] * 1000:.1f} ms "
+                f"(pre {meta['t_preprocess_s'] * 1000:.1f} / "
+                f"pred {meta['t_predict_s'] * 1000:.1f} / "
+                f"post {meta['t_postprocess_s'] * 1000:.1f})"
+            )
+
+    ok = [s for s in summaries if "error" not in s]
+    summary_path = os.path.join(out_root, "export_summary.json")
+    with open(summary_path, "w", encoding="utf-8") as fh:
+        json.dump(
+            {
+                "job": job_name,
+                "domain": job["domain"],
+                "architecture": job["architecture"],
+                "dataset": dataset_path,
+                "checkpoint": None if identity_pred else ckpt_path,
+                "identity_pred": identity_pred,
+                "device": str(device),
+                "n_requested": len(dataset),
+                "n_ok": len(ok),
+                "n_failed": len(summaries) - len(ok),
+                "mean_mae_abs_eV": float(np.mean([s["mae_abs_eV"] for s in ok]))
+                if ok
+                else None,
+                "mean_t_preprocess_s": float(np.mean([s["t_preprocess_s"] for s in ok]))
+                if ok
+                else None,
+                "mean_t_predict_s": float(np.mean([s["t_predict_s"] for s in ok]))
+                if ok
+                else None,
+                "mean_t_postprocess_s": float(
+                    np.mean([s["t_postprocess_s"] for s in ok])
+                )
+                if ok
+                else None,
+                "crystals": summaries,
+            },
+            fh,
+            indent=2,
+        )
+    print(f"[{job_name}] wrote {len(ok)} crystals -> {out_root}")
+    print(f"[{job_name}] summary -> {summary_path}")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Export full-crystal absolute PE tables "
+            "(atom_id, pe_initial, pe_true, pe_pred) with inference timings."
+        )
+    )
+    parser.add_argument(
+        "--job",
+        action="append",
+        choices=list(JOBS) + ["all"],
+        help="Job name; repeatable. Use 'all' for the four combos.",
+    )
+    parser.add_argument(
+        "--output-root",
+        type=str,
+        default=os.path.join(ROOT, "predictions"),
+        help="Root directory for mirrored prediction trees.",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        help="Override checkpoint path (only valid with a single --job).",
+    )
+    parser.add_argument(
+        "--identity-pred",
+        action="store_true",
+        help=(
+            "Use residual ground-truth y as ΔPE to validate restore/write "
+            "without a model (MAE should be ~0 outside fill policy)."
+        ),
+    )
+    parser.add_argument("--limit", type=int, default=None, help="Only first N crystals.")
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="auto",
+        help="auto | cpu | cuda",
+    )
+    parser.add_argument(
+        "--write-pt",
+        action="store_true",
+        help="Also write dataset-style .pt tensors beside each CSV.",
+    )
+    parser.add_argument(
+        "--skip-missing-checkpoint",
+        action="store_true",
+        help="Skip jobs whose default checkpoint file is absent.",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    jobs = args.job or ["all"]
+    if "all" in jobs:
+        selected = list(JOBS)
+    else:
+        selected = list(dict.fromkeys(jobs))
+
+    if args.checkpoint and len(selected) != 1:
+        raise SystemExit("--checkpoint requires exactly one --job")
+
+    for name in selected:
+        run_job(
+            job_name=name,
+            output_root=args.output_root,
+            checkpoint=args.checkpoint,
+            identity_pred=args.identity_pred,
+            limit=args.limit,
+            device_str=args.device,
+            write_pt=args.write_pt,
+            skip_missing_checkpoint=args.skip_missing_checkpoint,
+        )
+
+
+if __name__ == "__main__":
+    main()

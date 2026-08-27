@@ -34,6 +34,7 @@ from gnn_models import (
 from train_single import (
     evaluate,
     grouped_split_indices,
+    grouped_train_val_indices,
     metric_value,
     per_graph_mae_loss,
     per_graph_mse_loss,
@@ -220,22 +221,39 @@ def _train_one(
     checkpoint_path: Optional[str] = None,
     score_last_n: int = 50,
     quiet_every: int = 10,
+    val_fraction: Optional[float] = None,
 ) -> Dict:
     set_seed(seed)
 
-    train_idx, val_idx, test_idx = grouped_split_indices(dataset, seed)
-    train_set = [dataset[i] for i in train_idx]
-    val_set = [dataset[i] for i in val_idx]
-    test_set = [dataset[i] for i in test_idx]
+    if val_fraction is not None:
+        train_idx, val_idx = grouped_train_val_indices(
+            dataset, seed, val_fraction=val_fraction
+        )
+        train_set = [dataset[i] for i in train_idx]
+        val_set = [dataset[i] for i in val_idx]
+        test_set = []
+        print(
+            f"[{name}] delivery fit: train={len(train_set)} val={len(val_set)} "
+            f"(val_fraction={val_fraction}, no test)",
+            flush=True,
+        )
+    else:
+        train_idx, val_idx, test_idx = grouped_split_indices(dataset, seed)
+        train_set = [dataset[i] for i in train_idx]
+        val_set = [dataset[i] for i in val_idx]
+        test_set = [dataset[i] for i in test_idx]
 
     summarize_split(f"[{name}] Train", train_set)
     summarize_split(f"[{name}] Val", val_set)
-    summarize_split(f"[{name}] Test", test_set)
+    if test_set:
+        summarize_split(f"[{name}] Test", test_set)
 
     bs = config["batch_size"]
     train_loader = DataLoader(train_set, batch_size=bs, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=bs, shuffle=False)
-    test_loader = DataLoader(test_set, batch_size=bs, shuffle=False)
+    test_loader = (
+        DataLoader(test_set, batch_size=bs, shuffle=False) if test_set else None
+    )
 
     train_targets = torch.cat([d.y for d in train_set], dim=0).view(-1)
     target_mean = train_targets.mean().to(device)
@@ -297,11 +315,9 @@ def _train_one(
 
         train_m = evaluate(model, train_loader, device, target_mean, target_std)
         val_m = evaluate(model, val_loader, device, target_mean, target_std)
-        test_m = evaluate(model, test_loader, device, target_mean, target_std)
 
         train_curve.append(metric_value(train_m, metric))
         val_curve.append(metric_value(val_m, metric))
-        test_curve.append(metric_value(test_m, metric))
 
         if scheduler_name == "plateau":
             scheduler.step(val_curve[-1])
@@ -316,6 +332,12 @@ def _train_one(
                 k: v.cpu().clone() for k, v in model.state_dict().items()
             }
 
+        test_msg = ""
+        if test_loader is not None:
+            test_m = evaluate(model, test_loader, device, target_mean, target_std)
+            test_curve.append(metric_value(test_m, metric))
+            test_msg = f" | test {metric.upper()} {test_curve[-1]:.4f}"
+
         if quiet_every > 0 and (
             epoch % quiet_every == 0 or epoch == 1 or epoch == epochs
         ):
@@ -323,8 +345,8 @@ def _train_one(
             print(
                 f"[{name}] Epoch {epoch:03d} | "
                 f"train {metric.upper()} {train_curve[-1]:.4f} | "
-                f"val {metric.upper()} {val_curve[-1]:.4f} | "
-                f"test {metric.upper()} {test_curve[-1]:.4f} | "
+                f"val {metric.upper()} {val_curve[-1]:.4f}"
+                f"{test_msg} | "
                 f"lr {optimizer.param_groups[0]['lr']:.1e} | {dt:.1f}s",
                 flush=True,
             )
@@ -333,7 +355,10 @@ def _train_one(
     save_state = best_last_window_state or best_state
     model.load_state_dict({k: v.to(device) for k, v in save_state.items()})
     final_val = evaluate(model, val_loader, device, target_mean, target_std)
-    final_test = evaluate(model, test_loader, device, target_mean, target_std)
+    best_test = None
+    if test_loader is not None:
+        final_test = evaluate(model, test_loader, device, target_mean, target_std)
+        best_test = metric_value(final_test, metric)
 
     if checkpoint_path:
         torch.save(
@@ -345,6 +370,10 @@ def _train_one(
                 "target_std": float(target_std.cpu()),
                 "dataset": name,
                 "score_last_n": score_last_n,
+                "val_fraction": val_fraction,
+                "n_train": len(train_set),
+                "n_val": len(val_set),
+                "n_test": len(test_set),
             },
             checkpoint_path,
         )
@@ -356,17 +385,25 @@ def _train_one(
         "test": test_curve,
         "final_train": train_curve[-1],
         "final_val": val_curve[-1],
-        "final_test": test_curve[-1],
+        "final_test": test_curve[-1] if test_curve else None,
         "best_val": metric_value(final_val, metric),
-        "best_test": metric_value(final_test, metric),
+        "best_test": best_test,
         "last_n": score_last_n,
         "last_n_val_mean": _mean_last_n(val_curve, score_last_n),
-        "last_n_test_mean": _mean_last_n(test_curve, score_last_n),
+        "last_n_test_mean": _mean_last_n(test_curve, score_last_n)
+        if test_curve
+        else None,
         "last_n_val_std": _std_last_n(val_curve, score_last_n),
-        "last_n_test_std": _std_last_n(test_curve, score_last_n),
+        "last_n_test_std": _std_last_n(test_curve, score_last_n)
+        if test_curve
+        else None,
         "target_mode": target_mode,
         "num_params": n_params,
         "config": dict(config),
+        "n_train": len(train_set),
+        "n_val": len(val_set),
+        "n_test": len(test_set),
+        "val_fraction": val_fraction,
     }
 
 
@@ -417,6 +454,15 @@ def main() -> None:
         default=50,
         help="Report mean/std over the last N epoch MAEs (also used for ckpt pick).",
     )
+    parser.add_argument(
+        "--val-fraction",
+        type=float,
+        default=None,
+        help=(
+            "If set (e.g. 0.1), train/val-only delivery fit with no test set. "
+            "Default keeps the old 70/15/15 split."
+        ),
+    )
     parser.add_argument("--config-json", type=str, default=None)
     args = parser.parse_args()
 
@@ -452,6 +498,8 @@ def main() -> None:
     print(f"Device: {device}")
     print(f"Architecture: {args.architecture}")
     print(f"Config: {config}")
+    if args.val_fraction is not None:
+        print(f"Delivery fit val_fraction={args.val_fraction} (no test)")
 
     selected = _select_datasets(args.datasets)
     results: Dict[str, Dict] = {}
@@ -477,6 +525,7 @@ def main() -> None:
             target_mode=meta["target_mode"],
             checkpoint_path=ckpt,
             score_last_n=args.score_last_n,
+            val_fraction=args.val_fraction,
         )
         curves["dataset_path"] = path
         curves["num_graphs"] = len(dataset)
@@ -488,6 +537,7 @@ def main() -> None:
             "epochs": args.epochs,
             "seed": args.seed,
             "score_last_n": args.score_last_n,
+            "val_fraction": args.val_fraction,
             "model": (
                 "GraphTransformer"
                 if args.architecture == "graph"
@@ -498,8 +548,12 @@ def main() -> None:
             "datasets": results,
             "notes": (
                 "Transformer trained with the same grouped splits / per-graph MAE "
-                "protocol as CGCNN. Primary score = mean of last "
-                f"{args.score_last_n} epoch val/test MAEs."
+                "protocol as CGCNN. "
+                + (
+                    f"Delivery fit val_fraction={args.val_fraction} (no test)."
+                    if args.val_fraction is not None
+                    else f"Primary score = mean of last {args.score_last_n} epoch val/test MAEs."
+                )
             ),
         }
         with open(args.output_json, "w", encoding="utf-8") as fh:
@@ -509,10 +563,16 @@ def main() -> None:
     print(f"\nDone. Curves saved to {args.output_json}")
     print(f"\nSummary (mean last-{args.score_last_n} MAE):")
     for name, curves in results.items():
+        test_part = ""
+        if curves.get("last_n_test_mean") is not None:
+            test_part = (
+                f"  test={curves['last_n_test_mean']:.6f}"
+                f"±{curves['last_n_test_std']:.6f}"
+            )
         print(
             f"  {name:28s} "
-            f"val={curves['last_n_val_mean']:.6f}±{curves['last_n_val_std']:.6f}  "
-            f"test={curves['last_n_test_mean']:.6f}±{curves['last_n_test_std']:.6f}"
+            f"val={curves['last_n_val_mean']:.6f}±{curves['last_n_val_std']:.6f}"
+            f"{test_part}"
         )
 
 

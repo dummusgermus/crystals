@@ -24,7 +24,7 @@ import subprocess
 import sys
 import time
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import torch
 from torch_geometric.loader import DataLoader
@@ -33,6 +33,7 @@ from gnn_models import build_gated_model_from_dataset
 from train_single import (
     evaluate,
     grouped_split_indices,
+    grouped_train_val_indices,
     metric_value,
     per_graph_mae_loss,
     per_graph_mse_loss,
@@ -91,23 +92,42 @@ def _train_one(
     metric: str,
     seed: int,
     config: Dict,
+    val_fraction: Optional[float] = None,
 ) -> Dict:
     set_seed(seed)
 
-    train_idx, val_idx, test_idx = grouped_split_indices(dataset, seed)
-    train_set = [dataset[i] for i in train_idx]
-    val_set = [dataset[i] for i in val_idx]
-    test_set = [dataset[i] for i in test_idx]
+    if val_fraction is not None:
+        train_idx, val_idx = grouped_train_val_indices(
+            dataset, seed, val_fraction=val_fraction
+        )
+        train_set = [dataset[i] for i in train_idx]
+        val_set = [dataset[i] for i in val_idx]
+        test_set = []
+        print(
+            f"[{name}] delivery fit: train={len(train_set)} val={len(val_set)} "
+            f"(val_fraction={val_fraction}, no test)",
+            flush=True,
+        )
+    else:
+        train_idx, val_idx, test_idx = grouped_split_indices(dataset, seed)
+        train_set = [dataset[i] for i in train_idx]
+        val_set = [dataset[i] for i in val_idx]
+        test_set = [dataset[i] for i in test_idx]
 
     summarize_split(f"[{name}] Train", train_set)
     summarize_split(f"[{name}] Val", val_set)
-    summarize_split(f"[{name}] Test", test_set)
+    if test_set:
+        summarize_split(f"[{name}] Test", test_set)
 
     train_loader = DataLoader(
         train_set, batch_size=config["batch_size"], shuffle=True
     )
     val_loader = DataLoader(val_set, batch_size=config["batch_size"], shuffle=False)
-    test_loader = DataLoader(test_set, batch_size=config["batch_size"], shuffle=False)
+    test_loader = (
+        DataLoader(test_set, batch_size=config["batch_size"], shuffle=False)
+        if test_set
+        else None
+    )
 
     train_targets = torch.cat([d.y for d in train_set], dim=0).view(-1)
     target_mean = train_targets.mean().to(device)
@@ -154,31 +174,38 @@ def _train_one(
 
         train_m = evaluate(model, train_loader, device, target_mean, target_std)
         val_m = evaluate(model, val_loader, device, target_mean, target_std)
-        test_m = evaluate(model, test_loader, device, target_mean, target_std)
 
         train_curve.append(metric_value(train_m, metric))
         val_curve.append(metric_value(val_m, metric))
-        test_curve.append(metric_value(test_m, metric))
         scheduler.step(val_curve[-1])
 
         if val_curve[-1] < best_val:
             best_val = val_curve[-1]
             best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
 
+        test_msg = ""
+        if test_loader is not None:
+            test_m = evaluate(model, test_loader, device, target_mean, target_std)
+            test_curve.append(metric_value(test_m, metric))
+            test_msg = f" | test {metric.upper()} {test_curve[-1]:.4f}"
+
         if epoch % 10 == 0 or epoch == 1 or epoch == epochs:
             dt = time.time() - t0
             print(
                 f"[{name}] Epoch {epoch:03d} | "
                 f"train {metric.upper()} {train_curve[-1]:.4f} | "
-                f"val {metric.upper()} {val_curve[-1]:.4f} | "
-                f"test {metric.upper()} {test_curve[-1]:.4f} | {dt:.1f}s",
+                f"val {metric.upper()} {val_curve[-1]:.4f}"
+                f"{test_msg} | {dt:.1f}s",
                 flush=True,
             )
 
     assert best_state is not None
     model.load_state_dict({k: v.to(device) for k, v in best_state.items()})
     final_val = evaluate(model, val_loader, device, target_mean, target_std)
-    final_test = evaluate(model, test_loader, device, target_mean, target_std)
+    best_test = None
+    if test_loader is not None:
+        final_test = evaluate(model, test_loader, device, target_mean, target_std)
+        best_test = metric_value(final_test, metric)
 
     return {
         "train": train_curve,
@@ -186,14 +213,18 @@ def _train_one(
         "test": test_curve,
         "final_train": train_curve[-1],
         "final_val": val_curve[-1],
-        "final_test": test_curve[-1],
+        "final_test": test_curve[-1] if test_curve else None,
         "best_val": metric_value(final_val, metric),
-        "best_test": metric_value(final_test, metric),
+        "best_test": best_test,
         "target_mode": "residual",
         "best_state": best_state,
         "target_mean": float(target_mean.cpu()),
         "target_std": float(target_std.cpu()),
         "num_parameters": n_params,
+        "n_train": len(train_set),
+        "n_val": len(val_set),
+        "n_test": len(test_set),
+        "val_fraction": val_fraction,
     }
 
 
@@ -229,6 +260,15 @@ def main() -> None:
             "cgcnn_planar_residual_c14c15_model.pt)."
         ),
     )
+    parser.add_argument(
+        "--val-fraction",
+        type=float,
+        default=None,
+        help=(
+            "If set (e.g. 0.1), use a train/val-only delivery fit: no test set, "
+            "checkpoint by best val. Default keeps the old 70/15/15 split."
+        ),
+    )
     args = parser.parse_args()
 
     if not args.skip_build:
@@ -257,6 +297,7 @@ def main() -> None:
             metric=args.metric,
             seed=args.seed,
             config=DEFAULT_CONFIG,
+            val_fraction=args.val_fraction,
         )
         curves["dataset_path"] = path
         curves["num_graphs"] = len(dataset)
@@ -275,16 +316,20 @@ def main() -> None:
                     "target_mean": curves.pop("target_mean"),
                     "target_std": curves.pop("target_std"),
                     "best_val_mae": curves["best_val"],
-                    "test_mae": curves["best_test"],
+                    "test_mae": curves.get("best_test"),
                     "num_parameters": curves.pop("num_parameters"),
                     "epochs": args.epochs,
                     "seed": args.seed,
                     "dataset": path,
                     "target_mode": "residual",
+                    "val_fraction": args.val_fraction,
+                    "n_train": curves.get("n_train"),
+                    "n_val": curves.get("n_val"),
+                    "n_test": curves.get("n_test"),
                 },
                 ckpt_path,
             )
-            print(f"[{name}] Saved checkpoint → {ckpt_path}")
+            print(f"[{name}] Saved checkpoint -> {ckpt_path}")
             curves["checkpoint"] = ckpt_path
         else:
             curves.pop("best_state", None)
@@ -300,10 +345,15 @@ def main() -> None:
         "seed": args.seed,
         "model": "CGCNN",
         "config": DEFAULT_CONFIG,
+        "val_fraction": args.val_fraction,
         "datasets": results,
         "notes": (
             "Residual ΔPE targets for both point and planar defects. "
-            "Compare against absolute-target curves via plot_cgcnn_absolute_vs_residual.py."
+            + (
+                f"Delivery fit with val_fraction={args.val_fraction} (no test)."
+                if args.val_fraction is not None
+                else "Standard 70/15/15 grouped split."
+            )
         ),
     }
     with open(args.output_json, "w", encoding="utf-8") as fh:

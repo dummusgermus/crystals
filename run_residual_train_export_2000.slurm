@@ -25,6 +25,7 @@
 # Pipeline:
 #   1) Verify residual .pt files + particle_ids
 #   2) Train CGCNN + Graph Transformer (default 2000 epochs), save ckpts
+#      Delivery fit: ~90% train / ~10% val (grouped), no test; best-by-val ckpt
 #   3) Export per-crystal absolute PE + timings (4 combos)
 #
 # Submit:
@@ -33,6 +34,7 @@
 # Overrides:
 #   sbatch --export=ALL,SKIP_TRAIN=1 run_residual_train_export_2000.slurm   # export only
 #   sbatch --export=ALL,SKIP_EXPORT=1 run_residual_train_export_2000.slurm  # train only
+#   sbatch --export=ALL,VAL_FRACTION=0.1 run_residual_train_export_2000.slurm
 
 set -euo pipefail
 
@@ -63,9 +65,11 @@ DEVICE="${DEVICE:-auto}"
 POINT_PT="adv_datasets/cycle34_residual_dataset.pt"
 PLANAR_PT="planar_pyg_dataset_residual_c14c15.pt"
 
+VAL_FRACTION="${VAL_FRACTION:-0.1}"
+
 echo "============================================================"
 echo "[job] train ${EPOCHS}ep + crystal export (prebuilt datasets)"
-echo "[job] seed=${SEED} score_last_n=${SCORE_LAST_N}"
+echo "[job] seed=${SEED} score_last_n=${SCORE_LAST_N} val_fraction=${VAL_FRACTION}"
 echo "[job] skip_train=${SKIP_TRAIN} skip_export=${SKIP_EXPORT}"
 echo "[job] export_root=${EXPORT_ROOT}"
 echo "============================================================"
@@ -126,6 +130,7 @@ if [ "${SKIP_TRAIN}" != "1" ]; then
     --epochs "${EPOCHS}" \
     --seed "${SEED}" \
     --metric mae \
+    --val-fraction "${VAL_FRACTION}" \
     --save-checkpoints \
     --output-json "cgcnn_residual_both_curves_${EPOCHS}.json"
 
@@ -138,6 +143,7 @@ if [ "${SKIP_TRAIN}" != "1" ]; then
     --seed "${SEED}" \
     --metric mae \
     --score-last-n "${SCORE_LAST_N}" \
+    --val-fraction "${VAL_FRACTION}" \
     --save-checkpoints \
     --output-json "transformer_residual_curves_${EPOCHS}.json"
 

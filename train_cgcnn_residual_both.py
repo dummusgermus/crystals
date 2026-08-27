@@ -33,10 +33,10 @@ from gnn_models import build_gated_model_from_dataset
 from train_single import (
     evaluate,
     grouped_split_indices,
-    grouped_train_val_indices,
     metric_value,
     per_graph_mae_loss,
     per_graph_mse_loss,
+    random_train_val_indices,
     set_seed,
     summarize_split,
 )
@@ -97,15 +97,15 @@ def _train_one(
     set_seed(seed)
 
     if val_fraction is not None:
-        train_idx, val_idx = grouped_train_val_indices(
+        train_idx, val_idx = random_train_val_indices(
             dataset, seed, val_fraction=val_fraction
         )
         train_set = [dataset[i] for i in train_idx]
         val_set = [dataset[i] for i in val_idx]
         test_set = []
         print(
-            f"[{name}] delivery fit: train={len(train_set)} val={len(val_set)} "
-            f"(val_fraction={val_fraction}, no test)",
+            f"[{name}] delivery fit (random val): train={len(train_set)} "
+            f"val={len(val_set)} (val_fraction={val_fraction}, no test)",
             flush=True,
         )
     else:
@@ -265,8 +265,9 @@ def main() -> None:
         type=float,
         default=None,
         help=(
-            "If set (e.g. 0.1), use a train/val-only delivery fit: no test set, "
-            "checkpoint by best val. Default keeps the old 70/15/15 split."
+            "If set (e.g. 0.1), use a train/val-only delivery fit with a "
+            "random per-graph val split (no test); checkpoint by best val. "
+            "Default keeps the old grouped 70/15/15 split."
         ),
     )
     args = parser.parse_args()

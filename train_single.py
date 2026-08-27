@@ -189,9 +189,9 @@ def grouped_train_val_indices(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Grouped train/val split with no held-out test set.
 
-    Uses the same grouping key as :func:`grouped_split_indices`. Intended for
-    final delivery fits: train on most data, keep a small val only for LR /
-    checkpoint selection.
+    Uses the same grouping key as :func:`grouped_split_indices`. Prefer
+    :func:`random_train_val_indices` for delivery fits so entire defect
+    configurations are not excluded from training.
     """
     if not 0.0 < val_fraction < 1.0:
         raise ValueError(f"val_fraction must be in (0, 1), got {val_fraction}")
@@ -219,18 +219,38 @@ def grouped_train_val_indices(
             val_idx.extend(group_indices)
 
     if len(train_idx) == 0 or len(val_idx) == 0:
-        # Fallback: random split by sample.
-        indices = np.arange(n_samples)
-        rng.shuffle(indices)
-        n_val = max(1, min(n_samples - 1, int(round(val_fraction * n_samples))))
-        val_idx_arr = indices[:n_val]
-        train_idx_arr = indices[n_val:]
-        return train_idx_arr.astype(int), val_idx_arr.astype(int)
+        return random_train_val_indices(dataset, seed, val_fraction=val_fraction)
 
     return (
         np.array(train_idx, dtype=int),
         np.array(val_idx, dtype=int),
     )
+
+
+def random_train_val_indices(
+    dataset,
+    seed: int,
+    val_fraction: float = 0.1,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Per-graph random train/val split (no test).
+
+    Preferred for final delivery fits: every defect configuration / chemistry
+    can still appear in training; val is only for LR / checkpoint steering.
+    """
+    if not 0.0 < val_fraction < 1.0:
+        raise ValueError(f"val_fraction must be in (0, 1), got {val_fraction}")
+
+    n_samples = len(dataset)
+    if n_samples < 2:
+        raise ValueError("Need at least 2 graphs for a train/val split")
+
+    rng = np.random.default_rng(seed)
+    indices = np.arange(n_samples)
+    rng.shuffle(indices)
+    n_val = max(1, min(n_samples - 1, int(round(val_fraction * n_samples))))
+    val_idx = np.sort(indices[:n_val]).astype(int)
+    train_idx = np.sort(indices[n_val:]).astype(int)
+    return train_idx, val_idx
 
 
 def summarize_split(name: str, subset) -> None:

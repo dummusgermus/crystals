@@ -25,7 +25,8 @@
 # Pipeline:
 #   1) Verify residual .pt files + particle_ids
 #   2) Train CGCNN + Graph Transformer (default 2000 epochs), save ckpts
-#      Delivery fit: ~90% train / ~10% val (grouped), no test; best-by-val ckpt
+#      Delivery fit: ~90% train / ~10% random val (no test); best-by-val ckpt
+#      Random val so defect configs are not wholly excluded from training.
 #   3) Export per-crystal absolute PE + timings (4 combos)
 #
 # Submit:

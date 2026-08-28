@@ -1,0 +1,16 @@
+{
+  "cgcnn_timing": {
+    "t_preprocess_s": 0.0026615999959176406,
+    "t_predict_s": 0.0037101999987498857,
+    "t_postprocess_s": 0.001417700004822109,
+    "t_total_s": 0.007789499999489635,
+    "device": "cpu"
+  },
+  "transformer_timing": {
+    "t_preprocess_s": 0.0028336000032140873,
+    "t_predict_s": 0.004600000000209548,
+    "t_postprocess_s": 0.0013433999993139878,
+    "t_total_s": 0.008777000002737623,
+    "device": "cpu"
+  }
+}

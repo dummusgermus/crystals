@@ -35,7 +35,10 @@
 #   sbatch --export=ALL,SKIP_INFER=1 run_delivery_global_v2.slurm
 #
 # Resume interrupted training:
-#   sbatch --export=ALL,SKIP_BUILD=1,RESUME=1 run_delivery_global_v2.slurm
+#   sbatch --export=ALL,RESUME=1 run_delivery_global_v2.slurm
+#
+# Rebuild totals datasets on cluster (needs dump trees — usually avoid):
+#   sbatch --export=ALL,FORCE_BUILD=1 run_delivery_global_v2.slurm
 
 set -euo pipefail
 
@@ -56,7 +59,7 @@ export TORCHINDUCTOR_CACHE_DIR="${CACHE_ROOT}/inductor"
 mkdir -p "${TRITON_CACHE_DIR}" "${TORCHINDUCTOR_CACHE_DIR}"
 
 EPOCHS="${EPOCHS:-2000}"
-SKIP_BUILD="${SKIP_BUILD:-0}"
+FORCE_BUILD="${FORCE_BUILD:-0}"
 RESUME="${RESUME:-0}"
 SKIP_TRAIN="${SKIP_TRAIN:-0}"
 SKIP_INFER="${SKIP_INFER:-0}"
@@ -67,7 +70,7 @@ DEVICE="${DEVICE:-auto}"
 echo "============================================================"
 echo "[job] predictions_new: global-v2 delivery train + inference"
 echo "[job] epochs=${EPOCHS} split_json=${SPLIT_JSON}"
-echo "[job] skip_build=${SKIP_BUILD} resume=${RESUME}"
+echo "[job] force_build=${FORCE_BUILD} resume=${RESUME}"
 echo "[job] skip_train=${SKIP_TRAIN} skip_infer=${SKIP_INFER}"
 echo "============================================================"
 
@@ -106,16 +109,33 @@ for path in [
     print(f"[check] {path.name}: n={len(ds)} particle_ids={'yes' if has_ids else 'NO'}", flush=True)
     if not has_ids:
         raise SystemExit(f"Missing particle_ids on {path}")
+
+for path in [
+    Path("adv_datasets/cycle34_residual_totals_dataset.pt"),
+    Path("planar_pyg_dataset_residual_c14c15_totals.pt"),
+]:
+    ds = torch.load(path, weights_only=False)
+    g = ds[0]
+    has_delta = hasattr(g, "delta_total_eV") or (
+        hasattr(g, "meta") and g.meta is not None and "graph_delta_total_eV" in g.meta
+    )
+    print(
+        f"[check] {path.name}: n={len(ds)} totals={'yes' if has_delta else 'NO'}",
+        flush=True,
+    )
+    if not has_delta:
+        raise SystemExit(f"Missing total-energy fields on {path}; build locally and rsync.")
 PY
 
 TRAIN_CMD=(
   python -u train_delivery_global_v2.py
+  --skip-build
   --epochs "${EPOCHS}"
   --split-json "${SPLIT_JSON}"
   --model all
 )
-if [ "${SKIP_BUILD}" = "1" ]; then
-  TRAIN_CMD+=(--skip-build)
+if [ "${FORCE_BUILD}" = "1" ]; then
+  TRAIN_CMD=(python -u train_delivery_global_v2.py --force-build --epochs "${EPOCHS}" --split-json "${SPLIT_JSON}" --model all)
 fi
 if [ "${RESUME}" = "1" ]; then
   TRAIN_CMD+=(--resume)

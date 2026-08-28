@@ -1,0 +1,25 @@
+Train / validation split flags
+===============================
+
+Each crystal CSV has ``# split=train`` or ``# split=validation``.
+
+How this was determined
+-----------------------
+Stored explicitly in predictions_new/delivery_split_indices.json (train/val index lists).
+
+Recorded sizes:
+  point:  n_train=570, n_val=63
+  planar: n_train=1780, n_val=198
+
+What "validation" means here
+----------------------------
+Validation crystals were held out of the weight updates and used only for
+model selection (best-by-val R_tot median for global-v2 delivery models).
+They are the more honest estimate of error than training crystals.
+There was no separate test set.
+
+Caveats
+-------
+- Inference was still run on the full dataset (train + validation) for delivery.
+- Prefer metrics aggregated over split=validation when reporting generalization.
+- CGCNN and transformer share the same split indices.

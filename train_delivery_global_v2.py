@@ -26,6 +26,7 @@ from delivery_global_v2 import (
     DELIVERY_VAL_FRACTION,
     LAMBDA_BY_DOMAIN,
     SPLIT_JSON_DEFAULT,
+    TOTALS_DATASETS,
     build_or_update_split_json,
     save_delivery_split,
     train_delivery_global_v2,
@@ -42,6 +43,10 @@ ALL_MODELS = (
 )
 
 CURVES_JSON = os.path.join(ROOT, "delivery_global_v2_curves.json")
+
+
+def _totals_datasets_ready() -> bool:
+    return all(os.path.isfile(path) for path in TOTALS_DATASETS.values())
 
 
 def _parse_models(text: str) -> List[str]:
@@ -82,8 +87,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not args.skip_build:
+    should_build = not args.skip_build and (
+        args.force_build or not _totals_datasets_ready()
+    )
+    if should_build:
         build_datasets(force=args.force_build)
+    elif not args.skip_build:
+        print("Totals datasets already present; skipping build.", flush=True)
     if args.build_only:
         print("Build-only done.")
         return

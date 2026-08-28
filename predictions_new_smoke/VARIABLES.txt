@@ -1,0 +1,114 @@
+Variable guide for defect prediction outputs
+=============================================
+
+Deliverables live under predictions/point/ and predictions/planar/. Each
+crystal has a CSV (comment header + one row per atom) and a companion
+``*_timing.json`` with wall-clock seconds only.
+
+Point vs planar (only differences)
+----------------------------------
+File layout:
+  predictions/point/<folder>/<config>.csv     e.g. .../C15_Ag-Be/1-1-1-8a.csv
+  predictions/planar/<folder>/pe_table.csv    config equals folder name
+
+Data columns:
+  Point defects include in_graph (see below). Planar graphs cover the full
+  crystal — every atom is predicted; there is no in_graph column.
+
+Everything below applies to both domains unless noted.
+
+Header (identity / split)
+-------------------------
+domain, config
+  Crystal identifiers. The parent directory mirrors the crystal folder name.
+
+split
+  train or validation — which residual-training split this crystal belonged to.
+  Validation crystals were not used to update weights; prefer them when judging
+  generalization. See predictions/SPLIT_INFO.txt.
+
+Timings (*_timing.json)
+-----------------------
+Each CSV has a companion ``<stem>_timing.json`` with wall-clock seconds only
+(no error metrics). Three blocks:
+
+Local restore (dump I/O + CSV write on this machine):
+  t_preprocess_s
+    Read LAMMPS dumps and map graph predictions onto the full cell.
+  t_postprocess_s
+    Write the CSV (and this timing file).
+  t_total_s
+    t_preprocess_s + t_postprocess_s
+
+cgcnn_timing — cluster GPU inference for this crystal (batch size 1):
+  t_preprocess_s
+    Move graph batch to device.
+  t_predict_s
+    CGCNN forward pass (residual ΔPE).
+  t_postprocess_s
+    Save on-graph predictions to disk.
+  t_total_s
+    Sum of the three cluster phases above.
+  device
+    Hardware used for timed inference (usually cuda).
+
+transformer_timing
+  Same fields as cgcnn_timing, for the graph transformer on the cluster.
+
+Header (total system PE) — in the CSV only
+------------------------------------------
+pe_initial_total_eV
+  Sum of pe_initial over all atoms = total unrelaxed / initial system PE (eV).
+
+pe_true_total_eV
+  Sum of pe_true over all atoms = ground-truth total relaxed system PE (eV).
+
+pe_pred_cgcnn_total_eV
+  Sum of pe_pred_cgcnn over all atoms = CGCNN predicted total system PE (eV).
+
+pe_pred_transformer_total_eV
+  Sum of pe_pred_transformer over all atoms = transformer predicted total PE (eV).
+
+pe_error_cgcnn_total_eV
+  pe_pred_cgcnn_total_eV − pe_true_total_eV
+
+pe_error_transformer_total_eV
+  pe_pred_transformer_total_eV − pe_true_total_eV
+
+Header (prediction errors) — in the CSV only
+-------------------------------------------
+mae_cgcnn_abs_eV
+  Mean |pe_pred_cgcnn − pe_true| over all atoms (full cell).
+
+mae_transformer_abs_eV
+  Mean |pe_pred_transformer − pe_true| over all atoms (full cell).
+
+cgcnn_mae_residual_eV
+  Mean |ΔPE_pred − ΔPE_true| on graph atoms (CGCNN, cluster inference).
+
+transformer_mae_residual_eV
+  Mean |ΔPE_pred − ΔPE_true| on graph atoms (transformer, cluster inference).
+
+Data columns
+------------
+atom_id
+  LAMMPS atom id.
+
+pe_initial
+  Per-atom potential energy before relaxation (eV), from the initial/unrelaxed dump.
+
+pe_true
+  Per-atom ground-truth potential energy after relaxation (eV).
+
+pe_pred_cgcnn
+  Absolute PE from the residual CGCNN: pe_initial + ΔPE_pred (eV).
+
+pe_pred_transformer
+  Absolute PE from the residual graph transformer: pe_initial + ΔPE_pred (eV).
+
+in_graph  (point defects only)
+  1 if the atom was part of the defect subgraph used by the model;
+  0 otherwise. Atoms with in_graph=0 keep pe_pred = pe_initial (ΔPE=0).
+
+Units are eV throughout. Absolute predictions come from residual models trained
+on ΔPE = pe_true − pe_initial.

@@ -1,0 +1,52 @@
+{
+  "job": "planar_cgcnn",
+  "mode": "inference",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "dataset": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\planar_pyg_dataset_residual_c14c15.pt",
+  "checkpoint": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\cgcnn_planar_residual_global_v2_model.pt",
+  "identity_pred": false,
+  "inference_root": null,
+  "device": "cpu",
+  "n_requested": 2,
+  "n_ok": 2,
+  "n_failed": 0,
+  "mean_mae_residual_eV": 0.007516202051192522,
+  "mean_t_preprocess_s": 0.0020242499995219987,
+  "mean_t_predict_s": 0.0012436500001058448,
+  "mean_t_postprocess_s": 0.0014132999967841897,
+  "crystals": [
+    {
+      "folder": "Ag-Be_XY'",
+      "config": "Ag-Be_XY'",
+      "domain": "planar",
+      "architecture": "cgcnn",
+      "mode": "inference",
+      "n_atoms_graph": 12,
+      "identity_pred": false,
+      "pred_path": "predictions_new_inference_smoke\\planar_cgcnn\\Ag-Be_XY'\\pe_table_graph_pred.npz",
+      "mae_residual_eV": 0.008823507465422153,
+      "t_preprocess_s": 0.0023956000004545785,
+      "t_predict_s": 0.0013797999999951571,
+      "t_postprocess_s": 0.0011938999959966168,
+      "t_total_s": 0.0049692999964463525,
+      "device": "cpu"
+    },
+    {
+      "folder": "Ag-Be_XY'X",
+      "config": "Ag-Be_XY'X",
+      "domain": "planar",
+      "architecture": "cgcnn",
+      "mode": "inference",
+      "n_atoms_graph": 18,
+      "identity_pred": false,
+      "pred_path": "predictions_new_inference_smoke\\planar_cgcnn\\Ag-Be_XY'X\\pe_table_graph_pred.npz",
+      "mae_residual_eV": 0.006208896636962891,
+      "t_preprocess_s": 0.0016528999985894188,
+      "t_predict_s": 0.0011075000002165325,
+      "t_postprocess_s": 0.0016326999975717627,
+      "t_total_s": 0.004393099996377714,
+      "device": "cpu"
+    }
+  ]
+}

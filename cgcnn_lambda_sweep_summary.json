@@ -1,0 +1,60 @@
+{
+  "best_by_domain": {
+    "point": {
+      "run_key": "point_lambda_0.1",
+      "lambda_tot": 0.1,
+      "best_val_r_tot_median": 68.26234643574708,
+      "best_test_r_tot_median": 66.65059094512578,
+      "best_val_mae": 0.020186825477062388,
+      "best_test_mae": 0.01833885395899415
+    },
+    "planar": {
+      "run_key": "planar_lambda_0.1",
+      "lambda_tot": 0.1,
+      "best_val_r_tot_median": 59.43436642350291,
+      "best_test_r_tot_median": 53.977274910667745,
+      "best_val_mae": 0.02484933624195086,
+      "best_test_mae": 0.02842605711529719
+    }
+  },
+  "baseline_vs_best": {
+    "point": {
+      "baseline_run_key": "point_atom_only",
+      "best_lambda_run_key": "point_lambda_0.1",
+      "lambda_tot": 0.1,
+      "baseline": {
+        "best_val_mae": 0.009432225686280018,
+        "best_test_mae": 0.009293973135451475,
+        "best_val_r_tot_median": 21.69150396190123,
+        "best_test_r_tot_median": 18.555422510800682
+      },
+      "best_lambda": {
+        "best_val_mae": 0.020186825477062388,
+        "best_test_mae": 0.01833885395899415,
+        "best_val_r_tot_median": 68.26234643574708,
+        "best_test_r_tot_median": 66.65059094512578
+      },
+      "delta_test_r_tot_median_pct": 48.0951684343251,
+      "delta_test_mae_eV": 0.009044880823542675
+    },
+    "planar": {
+      "baseline_run_key": "planar_atom_only",
+      "best_lambda_run_key": "planar_lambda_0.1",
+      "lambda_tot": 0.1,
+      "baseline": {
+        "best_val_mae": 0.012286951016584361,
+        "best_test_mae": 0.010044721874014643,
+        "best_val_r_tot_median": 39.77753389467452,
+        "best_test_r_tot_median": 43.192904978621804
+      },
+      "best_lambda": {
+        "best_val_mae": 0.02484933624195086,
+        "best_test_mae": 0.02842605711529719,
+        "best_val_r_tot_median": 59.43436642350291,
+        "best_test_r_tot_median": 53.977274910667745
+      },
+      "delta_test_r_tot_median_pct": 10.78436993204594,
+      "delta_test_mae_eV": 0.018381335241282548
+    }
+  }
+}

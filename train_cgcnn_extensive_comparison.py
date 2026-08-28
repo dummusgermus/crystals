@@ -24,12 +24,18 @@ from torch_geometric.loader import DataLoader
 
 from gnn_models import build_gated_model_from_dataset
 from train_single import (
+    TotalLossConfig,
+    combine_atom_total_loss,
+    ensure_graph_delta_field,
     evaluate_with_total_energy,
     grouped_split_indices,
     metric_value,
     per_graph_mae_loss,
     per_graph_mse_loss,
+    per_graph_total_loss_weights,
+    per_graph_total_scaled_loss,
     per_graph_total_scaled_mse_loss,
+    select_total_targets,
     set_seed,
     summarize_split,
 )
@@ -84,12 +90,16 @@ def _train_one(
     lambda_tot: float,
     run_key: Optional[str] = None,
     checkpoint_metric: str = "mae",
+    total_loss_config: Optional[TotalLossConfig] = None,
+    legacy_total_loss: bool = False,
 ) -> Dict:
     loss_tag = "atom_plus_total" if use_total_loss else "atom_only"
     name = run_key or (
         f"{domain}_lambda_{lambda_tot:g}" if use_total_loss else f"{domain}_atom_only"
     )
     set_seed(seed)
+
+    ensure_graph_delta_field(dataset)
 
     train_idx, val_idx, test_idx = grouped_split_indices(dataset, seed)
     train_set = [dataset[i] for i in train_idx]
@@ -146,6 +156,14 @@ def _train_one(
     if ckpt_metric not in {"mae", "r_tot"}:
         raise ValueError("checkpoint_metric must be 'mae' or 'r_tot'")
 
+    eval_target_mode = "full"
+    if use_total_loss and total_loss_config is not None and not legacy_total_loss:
+        eval_target_mode = total_loss_config.target_mode
+    elif use_total_loss and legacy_total_loss:
+        eval_target_mode = "full"
+    else:
+        eval_target_mode = "graph"
+
     for epoch in range(1, epochs + 1):
         model.train()
         t0 = time.time()
@@ -161,23 +179,64 @@ def _train_one(
 
             if use_total_loss:
                 pred_denorm = pred * target_std + target_mean
-                tot_loss = per_graph_total_scaled_mse_loss(
-                    pred_denorm, batch.delta_total_eV, batch.batch
-                )
-                loss = atom_loss + lambda_tot * tot_loss
+                if legacy_total_loss or total_loss_config is None:
+                    tot_loss = per_graph_total_scaled_mse_loss(
+                        pred_denorm, batch.delta_total_eV, batch.batch
+                    )
+                    loss = atom_loss + lambda_tot * tot_loss
+                else:
+                    targets = select_total_targets(
+                        batch, target_mode=total_loss_config.target_mode
+                    )
+                    weights = per_graph_total_loss_weights(
+                        batch,
+                        targets,
+                        max_delta_eV=total_loss_config.outlier_max_delta_eV,
+                        max_mismatch_eV=total_loss_config.outlier_max_mismatch_eV,
+                    )
+                    tot_loss = per_graph_total_scaled_loss(
+                        pred_denorm,
+                        targets,
+                        batch.batch,
+                        scale_eps=total_loss_config.scale_eps,
+                        loss_type=total_loss_config.loss_type,
+                        huber_delta=total_loss_config.huber_delta,
+                        weights=weights,
+                    )
+                    loss = combine_atom_total_loss(
+                        atom_loss,
+                        tot_loss,
+                        lambda_tot=total_loss_config.lambda_tot,
+                        balance_losses=total_loss_config.balance_losses,
+                    )
             else:
                 loss = atom_loss
             loss.backward()
             optimizer.step()
 
         train_atom, train_tot = evaluate_with_total_energy(
-            model, train_loader, device, target_mean, target_std
+            model,
+            train_loader,
+            device,
+            target_mean,
+            target_std,
+            total_target_mode=eval_target_mode,
         )
         val_atom, val_tot = evaluate_with_total_energy(
-            model, val_loader, device, target_mean, target_std
+            model,
+            val_loader,
+            device,
+            target_mean,
+            target_std,
+            total_target_mode=eval_target_mode,
         )
         test_atom, test_tot = evaluate_with_total_energy(
-            model, test_loader, device, target_mean, target_std
+            model,
+            test_loader,
+            device,
+            target_mean,
+            target_std,
+            total_target_mode=eval_target_mode,
         )
 
         curves["train_mae"].append(metric_value(train_atom, metric))
@@ -218,13 +277,23 @@ def _train_one(
     assert best_state is not None
     model.load_state_dict({k: v.to(device) for k, v in best_state.items()})
     _, final_val_tot = evaluate_with_total_energy(
-        model, val_loader, device, target_mean, target_std
+        model,
+        val_loader,
+        device,
+        target_mean,
+        target_std,
+        total_target_mode=eval_target_mode,
     )
     _, final_test_tot = evaluate_with_total_energy(
-        model, test_loader, device, target_mean, target_std
+        model,
+        test_loader,
+        device,
+        target_mean,
+        target_std,
+        total_target_mode=eval_target_mode,
     )
 
-    return {
+    result = {
         **curves,
         "run_key": name,
         "domain": domain,
@@ -256,7 +325,12 @@ def _train_one(
         "n_train": len(train_set),
         "n_val": len(val_set),
         "n_test": len(test_set),
+        "total_target_mode": eval_target_mode,
+        "legacy_total_loss": legacy_total_loss,
     }
+    if total_loss_config is not None:
+        result["total_loss_config"] = total_loss_config.__dict__
+    return result
 
 
 def main() -> None:
@@ -306,6 +380,7 @@ def main() -> None:
                 config=DEFAULT_CONFIG,
                 use_total_loss=use_total,
                 lambda_tot=args.lambda_tot,
+                legacy_total_loss=use_total,
             )
             results[tag]["dataset_path"] = path
 

@@ -215,6 +215,7 @@ def main() -> None:
                 lambda_tot=0.0,
                 run_key=baseline_key,
                 checkpoint_metric="mae",
+                legacy_total_loss=True,
             )
             runs[baseline_key]["dataset_path"] = dataset_path
             payload = {
@@ -246,6 +247,7 @@ def main() -> None:
                 lambda_tot=lam,
                 run_key=run_key,
                 checkpoint_metric="r_tot",
+                legacy_total_loss=True,
             )
             runs[run_key]["dataset_path"] = dataset_path
             payload = {

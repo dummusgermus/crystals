@@ -4,7 +4,7 @@ import argparse
 import math
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -28,6 +28,20 @@ class TotalEnergyMetrics:
     median_rel_total_err_pct: float
     mean_rel_total_err_pct: float
     n_graphs: int
+
+
+@dataclass
+class TotalLossConfig:
+    """Options for atom + net-energy combined training."""
+
+    target_mode: str = "graph"
+    loss_type: str = "huber"
+    scale_eps: float = 0.05
+    huber_delta: float = 1.0
+    lambda_tot: float = 0.01
+    balance_losses: bool = True
+    outlier_max_delta_eV: float = 50.0
+    outlier_max_mismatch_eV: float = 5.0
 
 
 def set_seed(seed: int) -> None:
@@ -87,8 +101,84 @@ def per_graph_total_scaled_mse_loss(
     batch: torch.Tensor,
     *,
     scale_eps: float = 1e-2,
+    weights: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """MSE on $(\\sum \\hat{\\Delta\\mathrm{PE}} - \\Delta E_{\\mathrm{true}})/\\max(|\\Delta E|, \\epsilon)$."""
+    return per_graph_total_scaled_loss(
+        pred_denorm,
+        delta_total,
+        batch,
+        scale_eps=scale_eps,
+        loss_type="mse",
+        huber_delta=1.0,
+        weights=weights,
+    )
+
+
+def ensure_graph_delta_field(dataset) -> None:
+    """Attach ``graph_delta_total_eV`` tensor to each graph if missing."""
+    for data in dataset:
+        if hasattr(data, "graph_delta_total_eV"):
+            continue
+        graph_delta = data.meta.get("graph_delta_total_eV")
+        if graph_delta is None:
+            raise ValueError("Graph missing meta['graph_delta_total_eV'].")
+        data.graph_delta_total_eV = torch.tensor(
+            [float(graph_delta)], dtype=torch.float
+        )
+
+
+def select_total_targets(
+    batch,
+    *,
+    target_mode: str = "graph",
+) -> torch.Tensor:
+    if target_mode == "full":
+        if not hasattr(batch, "delta_total_eV"):
+            raise ValueError("Batch missing delta_total_eV.")
+        return batch.delta_total_eV.view(-1)
+    if target_mode == "graph":
+        if not hasattr(batch, "graph_delta_total_eV"):
+            raise ValueError(
+                "Batch missing graph_delta_total_eV; call ensure_graph_delta_field()."
+            )
+        return batch.graph_delta_total_eV.view(-1)
+    raise ValueError(f"Unsupported target_mode: {target_mode}")
+
+
+def per_graph_total_loss_weights(
+    batch,
+    targets: torch.Tensor,
+    *,
+    max_delta_eV: float = 0.0,
+    max_mismatch_eV: float = 0.0,
+) -> torch.Tensor:
+    weights = torch.ones_like(targets)
+    if max_delta_eV > 0.0:
+        weights = weights * (targets.abs() <= max_delta_eV).to(weights.dtype)
+    if (
+        max_mismatch_eV > 0.0
+        and hasattr(batch, "delta_total_eV")
+        and hasattr(batch, "graph_delta_total_eV")
+    ):
+        mismatch = (
+            batch.delta_total_eV.view(-1) - batch.graph_delta_total_eV.view(-1)
+        ).abs()
+        weights = weights * (mismatch <= max_mismatch_eV).to(weights.dtype)
+    return weights
+
+
+def per_graph_total_scaled_loss(
+    pred_denorm: torch.Tensor,
+    delta_total: torch.Tensor,
+    batch: torch.Tensor,
+    *,
+    scale_eps: float = 0.05,
+    loss_type: str = "huber",
+    huber_delta: float = 1.0,
+    weights: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """Scaled net-energy loss on relative error, with optional Huber and weights."""
     batch = batch.view(-1)
     num_graphs = int(batch.max().item()) + 1 if batch.numel() > 0 else 0
     if num_graphs == 0:
@@ -97,7 +187,34 @@ def per_graph_total_scaled_mse_loss(
     target = delta_total.view(-1)
     scale = target.abs().clamp(min=scale_eps)
     rel = (pred_sum - target) / scale
-    return (rel * rel).mean()
+    if loss_type == "mse":
+        per_graph = rel * rel
+    elif loss_type == "huber":
+        abs_rel = rel.abs()
+        per_graph = torch.where(
+            abs_rel <= huber_delta,
+            0.5 * rel * rel,
+            huber_delta * (abs_rel - 0.5 * huber_delta),
+        )
+    else:
+        raise ValueError(f"Unsupported loss_type: {loss_type}")
+    if weights is None:
+        return per_graph.mean()
+    w = weights.view(-1).to(per_graph.dtype)
+    return (per_graph * w).sum() / w.sum().clamp(min=1.0)
+
+
+def combine_atom_total_loss(
+    atom_loss: torch.Tensor,
+    tot_loss: torch.Tensor,
+    *,
+    lambda_tot: float,
+    balance_losses: bool,
+) -> torch.Tensor:
+    if not balance_losses:
+        return atom_loss + lambda_tot * tot_loss
+    scale = atom_loss.detach() / tot_loss.detach().clamp(min=1e-8)
+    return atom_loss + lambda_tot * tot_loss * scale
 
 
 def evaluate_with_total_energy(
@@ -108,6 +225,7 @@ def evaluate_with_total_energy(
     target_std: torch.Tensor,
     *,
     min_delta_eV: float = 1e-6,
+    total_target_mode: str = "graph",
 ) -> Tuple[Metrics, TotalEnergyMetrics]:
     model.eval()
     total_mse = 0.0
@@ -136,7 +254,9 @@ def evaluate_with_total_energy(
             pred_sum = _per_graph_pred_sums(
                 pred_denorm, batch.batch, num_graphs
             ).cpu()
-            target = batch.delta_total_eV.view(-1).cpu()
+            target = select_total_targets(
+                batch, target_mode=total_target_mode
+            ).cpu()
             for g in range(num_graphs):
                 err = float(abs(pred_sum[g] - target[g]))
                 abs_total_errs.append(err)

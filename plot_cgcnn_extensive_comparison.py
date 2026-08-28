@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from typing import Optional
 
 import matplotlib.pyplot as plt
 
@@ -22,9 +23,18 @@ def main() -> None:
     domains = ("point", "planar")
     fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex="col")
 
+    def _global_key(domain: str) -> Optional[str]:
+        for candidate in (f"{domain}_global_v2", f"{domain}_atom_plus_total"):
+            if candidate in runs:
+                return candidate
+        for key in runs:
+            if key.startswith(f"{domain}_") and key.endswith("_global_v2"):
+                return key
+        return None
+
     for row, domain in enumerate(domains):
         atom_key = f"{domain}_atom_only"
-        tot_key = f"{domain}_atom_plus_total"
+        tot_key = _global_key(domain)
         for col, metric_key, ylabel in (
             (0, "mae", f"{payload.get('metric', 'MAE').upper()} (eV/atom)"),
             (1, "r_tot_median", r"$R_{\mathrm{tot}}$ median (%)"),
@@ -46,14 +56,15 @@ def main() -> None:
                     alpha=0.7,
                 )
             if tot_key in runs:
+                global_label = "global v2" if tot_key.endswith("_global_v2") else "atom+total"
                 ax.plot(
                     runs[tot_key][curve_suffix],
-                    label="atom+total (val)",
+                    label=f"{global_label} (val)",
                     color="C1",
                 )
                 ax.plot(
                     runs[tot_key][test_suffix],
-                    label="atom+total (test)",
+                    label=f"{global_label} (test)",
                     color="C1",
                     linestyle="--",
                     alpha=0.7,
@@ -66,8 +77,11 @@ def main() -> None:
 
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", ncol=4, bbox_to_anchor=(0.5, 1.02))
+    title_suffix = payload.get("version", "")
+    if title_suffix:
+        title_suffix = f" [{title_suffix}]"
     fig.suptitle(
-        "CGCNN: per-atom MAE vs net system error (70/15/15 split)",
+        f"CGCNN: per-atom MAE vs net system error (70/15/15 split){title_suffix}",
         y=1.06,
         fontsize=12,
     )

@@ -117,7 +117,10 @@ pyg_dataset.pt.graphview.json
 !cgcnn_lambda_sweep_curves.json
 !cgcnn_lambda_sweep_summary.json
 !cgcnn_extensive_comparison_curves.json
+!cgcnn_global_v2_curves.json
+!cgcnn_global_v2_summary.json
 
 # Sweep / comparison plots (exceptions after *.png)
 !cgcnn_lambda_sweep_*.png
 !cgcnn_extensive_comparison_curves.png
+!cgcnn_global_v2_curves.png

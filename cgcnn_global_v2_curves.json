@@ -1,0 +1,213 @@
+{
+  "version": "global_v2",
+  "metric": "mae",
+  "epochs": 2,
+  "seed": 42,
+  "split": "grouped 70/15/15",
+  "lambda_tot": 0.01,
+  "total_loss_config": {
+    "target_mode": "graph",
+    "loss_type": "huber",
+    "scale_eps": 0.05,
+    "huber_delta": 1.0,
+    "lambda_tot": 0.01,
+    "balance_losses": true,
+    "outlier_max_delta_eV": 50.0,
+    "outlier_max_mismatch_eV": 5.0
+  },
+  "config": {
+    "hidden_dim": 128,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "use_batch_norm": false,
+    "activation": "silu",
+    "bidirectional": true,
+    "lr": 0.002,
+    "weight_decay": 0.0,
+    "batch_size": 8
+  },
+  "runs": {
+    "point_atom_only": {
+      "train_mae": [
+        0.027409727275203365,
+        0.02453174496712857
+      ],
+      "val_mae": [
+        0.02385757823890828,
+        0.020980432629585266
+      ],
+      "test_mae": [
+        0.022791516734287143,
+        0.019657277036458254
+      ],
+      "train_r_tot_median": [
+        44.41540069182702,
+        63.012214106630424
+      ],
+      "val_r_tot_median": [
+        52.65849819397229,
+        62.15821317846764
+      ],
+      "test_r_tot_median": [
+        37.45614878984084,
+        57.60619589812608
+      ],
+      "train_r_tot_mean": [
+        159.50570665603541,
+        84.27905696462226
+      ],
+      "val_r_tot_mean": [
+        155.26099708481053,
+        80.92800072868826
+      ],
+      "test_r_tot_mean": [
+        196.84663371771808,
+        113.87546021210375
+      ],
+      "train_abs_total_err_eV": [
+        1.030680192495711,
+        0.888353767651333
+      ],
+      "val_abs_total_err_eV": [
+        0.6844915937870106,
+        0.5236477934299631
+      ],
+      "test_abs_total_err_eV": [
+        0.80010303016752,
+        0.6282656177257498
+      ],
+      "run_key": "point_atom_only",
+      "domain": "point",
+      "loss_mode": "atom_only",
+      "use_total_loss": false,
+      "lambda_tot": 0.0,
+      "checkpoint_metric": "mae",
+      "best_val_score": 0.020980432629585266,
+      "best_val_mae": 0.020980432629585266,
+      "best_val_r_tot_median": 52.65849819397229,
+      "best_val_r_tot_mean": 80.92800072868826,
+      "best_test_mae": 0.019657277036458254,
+      "best_test_r_tot_median": 37.45614878984084,
+      "best_test_r_tot_mean": 113.87546021210375,
+      "final_val_mae": 0.020980432629585266,
+      "final_val_r_tot_median": 62.15821317846764,
+      "final_test_mae": 0.019657277036458254,
+      "final_test_r_tot_median": 57.60619589812608,
+      "final_val_abs_total_err_eV": 0.5236477934299631,
+      "final_test_abs_total_err_eV": 0.6282656177257498,
+      "n_train": 443,
+      "n_val": 94,
+      "n_test": 96,
+      "total_target_mode": "graph",
+      "legacy_total_loss": false,
+      "dataset_path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_dataset.pt"
+    },
+    "point_global_v2": {
+      "train_mae": [
+        0.027496564977762393,
+        0.024018850933306305
+      ],
+      "val_mae": [
+        0.024104454812217267,
+        0.020493984697981082
+      ],
+      "test_mae": [
+        0.022700920856247347,
+        0.018859343137592077
+      ],
+      "train_r_tot_median": [
+        43.88074521547587,
+        108.07287983613108
+      ],
+      "val_r_tot_median": [
+        47.52681492482881,
+        107.03696980190901
+      ],
+      "test_r_tot_median": [
+        35.6306421402222,
+        103.09748290039764
+      ],
+      "train_r_tot_mean": [
+        160.89348969229468,
+        122.0294288687003
+      ],
+      "val_r_tot_mean": [
+        166.867013522394,
+        122.95260374940302
+      ],
+      "test_r_tot_mean": [
+        189.18426013931892,
+        122.30901387556656
+      ],
+      "train_abs_total_err_eV": [
+        1.0284854274571076,
+        1.024639631541652
+      ],
+      "val_abs_total_err_eV": [
+        0.6979921745493057,
+        0.6541116001044817
+      ],
+      "test_abs_total_err_eV": [
+        0.7978867534548044,
+        0.696577359107323
+      ],
+      "run_key": "point_global_v2",
+      "domain": "point",
+      "loss_mode": "atom_plus_total",
+      "use_total_loss": true,
+      "lambda_tot": 0.01,
+      "checkpoint_metric": "mae",
+      "best_val_score": 0.020493984697981082,
+      "best_val_mae": 0.020493984697981082,
+      "best_val_r_tot_median": 47.52681492482881,
+      "best_val_r_tot_mean": 122.95260374940302,
+      "best_test_mae": 0.018859343137592077,
+      "best_test_r_tot_median": 35.6306421402222,
+      "best_test_r_tot_mean": 122.30901387556656,
+      "final_val_mae": 0.020493984697981082,
+      "final_val_r_tot_median": 107.03696980190901,
+      "final_test_mae": 0.018859343137592077,
+      "final_test_r_tot_median": 103.09748290039764,
+      "final_val_abs_total_err_eV": 0.6541116001044817,
+      "final_test_abs_total_err_eV": 0.696577359107323,
+      "n_train": 443,
+      "n_val": 94,
+      "n_test": 96,
+      "total_target_mode": "graph",
+      "legacy_total_loss": false,
+      "total_loss_config": {
+        "target_mode": "graph",
+        "loss_type": "huber",
+        "scale_eps": 0.05,
+        "huber_delta": 1.0,
+        "lambda_tot": 0.01,
+        "balance_losses": true,
+        "outlier_max_delta_eV": 50.0,
+        "outlier_max_mismatch_eV": 5.0
+      },
+      "dataset_path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_dataset.pt"
+    }
+  },
+  "summary": {
+    "baseline_vs_global_v2": {
+      "point": {
+        "baseline_run_key": "point_atom_only",
+        "global_run_key": "point_global_v2",
+        "lambda_tot": 0.01,
+        "baseline": {
+          "final_test_mae": 0.019657277036458254,
+          "final_test_r_tot_median": 57.60619589812608,
+          "final_test_abs_total_err_eV": 0.6282656177257498
+        },
+        "global_v2": {
+          "final_test_mae": 0.018859343137592077,
+          "final_test_r_tot_median": 103.09748290039764,
+          "final_test_abs_total_err_eV": 0.696577359107323
+        },
+        "delta_test_r_tot_median_pct": 45.491287002271555,
+        "delta_test_mae_eV": -0.0007979338988661766,
+        "delta_test_abs_total_err_eV": 0.06831174138157314
+      }
+    }
+  }
+}

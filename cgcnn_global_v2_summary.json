@@ -1,0 +1,22 @@
+{
+  "baseline_vs_global_v2": {
+    "point": {
+      "baseline_run_key": "point_atom_only",
+      "global_run_key": "point_global_v2",
+      "lambda_tot": 0.01,
+      "baseline": {
+        "final_test_mae": 0.019657277036458254,
+        "final_test_r_tot_median": 57.60619589812608,
+        "final_test_abs_total_err_eV": 0.6282656177257498
+      },
+      "global_v2": {
+        "final_test_mae": 0.018859343137592077,
+        "final_test_r_tot_median": 103.09748290039764,
+        "final_test_abs_total_err_eV": 0.696577359107323
+      },
+      "delta_test_r_tot_median_pct": 45.491287002271555,
+      "delta_test_mae_eV": -0.0007979338988661766,
+      "delta_test_abs_total_err_eV": 0.06831174138157314
+    }
+  }
+}

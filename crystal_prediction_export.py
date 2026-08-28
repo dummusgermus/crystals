@@ -108,6 +108,39 @@ JOBS: Dict[str, Dict[str, str]] = {
     },
 }
 
+GLOBAL_V2_JOBS: Dict[str, Dict[str, str]] = {
+    "point_cgcnn": {
+        **JOBS["point_cgcnn"],
+        "checkpoint": os.path.join(ROOT, "cgcnn_defect_residual_global_v2_model.pt"),
+    },
+    "point_transformer": {
+        **JOBS["point_transformer"],
+        "checkpoint": os.path.join(
+            ROOT, "transformer_graph_defect_residual_global_v2_model.pt"
+        ),
+    },
+    "planar_cgcnn": {
+        **JOBS["planar_cgcnn"],
+        "checkpoint": os.path.join(
+            ROOT, "cgcnn_planar_residual_global_v2_model.pt"
+        ),
+    },
+    "planar_transformer": {
+        **JOBS["planar_transformer"],
+        "checkpoint": os.path.join(
+            ROOT, "transformer_graph_planar_residual_global_v2_model.pt"
+        ),
+    },
+}
+
+
+def get_jobs(profile: str) -> Dict[str, Dict[str, str]]:
+    if profile in {"default", "legacy"}:
+        return JOBS
+    if profile == "global_v2":
+        return GLOBAL_V2_JOBS
+    raise ValueError(f"Unknown job profile: {profile}")
+
 
 @dataclass
 class CrystalTiming:
@@ -824,8 +857,17 @@ def write_split_info(
     point_n_val: int,
     planar_n_train: int,
     planar_n_val: int,
+    split_json: Optional[str] = None,
 ) -> str:
-    """Document how train/validation flags were reconstructed."""
+    """Document how train/validation flags were assigned."""
+    split_source = (
+        f"Stored explicitly in {split_json} (train/val index lists)."
+        if split_json
+        else (
+            "Recomputed locally with train_single.within_group_train_val_indices "
+            f"(seed={seed}, val_fraction={val_fraction})."
+        )
+    )
     text = f"""Train / validation split flags
 ===============================
 
@@ -833,34 +875,24 @@ Each crystal CSV has ``# split=train`` or ``# split=validation``.
 
 How this was determined
 -----------------------
-Residual CGCNN and transformer jobs used the same delivery split protocol:
-  seed = {seed}
-  val_fraction = {val_fraction}
-  splitter = train_single.within_group_train_val_indices
+{split_source}
 
-Indices were not stored inside the weight checkpoints, but the split is
-deterministic given the dataset order, seed, and splitter. Recomputing it
-locally reproduces the sizes recorded in the training curve JSONs:
-
+Recorded sizes:
   point:  n_train={point_n_train}, n_val={point_n_val}
   planar: n_train={planar_n_train}, n_val={planar_n_val}
-
-(verified against cgcnn_residual_both_curves_2000.json /
- transformer_residual_curves_2000.json).
 
 What "validation" means here
 ----------------------------
 Validation crystals were held out of the weight updates and used only for
-model selection (best-by-val). They are the more honest estimate of error
-than training crystals. There was no separate test set.
+model selection (best-by-val R_tot median for global-v2 delivery models).
+They are the more honest estimate of error than training crystals.
+There was no separate test set.
 
 Caveats
 -------
 - Inference was still run on the full dataset (train + validation) for delivery.
-- Prefer metrics / totals aggregated over split=validation when reporting
-  generalization to partners.
-- CGCNN and transformer used the same split protocol and seed, so a crystal
-  flagged validation for one model is validation for both.
+- Prefer metrics aggregated over split=validation when reporting generalization.
+- CGCNN and transformer share the same split indices.
 """
     os.makedirs(predictions_root, exist_ok=True)
     path = os.path.join(predictions_root, "SPLIT_INFO.txt")
@@ -1264,10 +1296,12 @@ def restore_merged_one_crystal(
     out_root: str,
     inference_root: str,
     split: str,
+    jobs: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> Dict:
     """Restore one crystal using both CGCNN and Transformer inference outputs."""
-    cgcnn_job = JOBS[f"{domain}_cgcnn"]
-    xf_job = JOBS[f"{domain}_transformer"]
+    job_map = jobs or JOBS
+    cgcnn_job = job_map[f"{domain}_cgcnn"]
+    xf_job = job_map[f"{domain}_transformer"]
     folder, config_key, rel_dir, stem = crystal_path_info(data, domain)
 
     cgcnn_dir = os.path.join(inference_root, cgcnn_job["output_subdir"], rel_dir)
@@ -1372,10 +1406,14 @@ def run_merged_restore(
     output_root: str,
     inference_root: str,
     limit: Optional[int],
+    *,
+    split_json: Optional[str] = None,
+    jobs: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> Dict:
     if domain not in {"point", "planar"}:
         raise SystemExit(f"Unknown domain {domain!r}")
-    job = JOBS[f"{domain}_cgcnn"]
+    job_map = jobs or JOBS
+    job = job_map[f"{domain}_cgcnn"]
     dataset_path = job["dataset"]
     if not os.path.isfile(dataset_path):
         raise SystemExit(f"Dataset not found: {dataset_path}")
@@ -1385,17 +1423,31 @@ def run_merged_restore(
     print(f"[{domain}] inference_root={inference_root}")
 
     dataset: List[Data] = torch.load(dataset_path, weights_only=False)
-    train_idx, val_idx = within_group_train_val_indices(
-        dataset,
-        seed=DELIVERY_SPLIT_SEED,
-        val_fraction=DELIVERY_VAL_FRACTION,
-    )
-    val_set = set(int(i) for i in val_idx.tolist())
-    print(
-        f"[{domain}] reconstructed split seed={DELIVERY_SPLIT_SEED} "
-        f"val_fraction={DELIVERY_VAL_FRACTION}: "
-        f"train={len(train_idx)} val={len(val_idx)}"
-    )
+    if split_json and os.path.isfile(split_json):
+        from delivery_global_v2 import load_delivery_split, val_index_set
+
+        split_payload = load_delivery_split(split_json)
+        val_set = val_index_set(split_payload, domain)
+        train_n = int(split_payload[domain]["n_train"])
+        val_n = int(split_payload[domain]["n_val"])
+        print(
+            f"[{domain}] split from {split_json}: train={train_n} val={val_n}",
+            flush=True,
+        )
+        train_idx = split_payload[domain]["train_indices"]
+        val_idx = split_payload[domain]["val_indices"]
+    else:
+        train_idx, val_idx = within_group_train_val_indices(
+            dataset,
+            seed=DELIVERY_SPLIT_SEED,
+            val_fraction=DELIVERY_VAL_FRACTION,
+        )
+        val_set = set(int(i) for i in val_idx.tolist())
+        print(
+            f"[{domain}] reconstructed split seed={DELIVERY_SPLIT_SEED} "
+            f"val_fraction={DELIVERY_VAL_FRACTION}: "
+            f"train={len(train_idx)} val={len(val_idx)}"
+        )
 
     if limit is not None:
         dataset = dataset[: max(0, int(limit))]
@@ -1415,6 +1467,7 @@ def run_merged_restore(
                 out_root=out_root,
                 inference_root=inference_root,
                 split=split,
+                jobs=jobs,
             )
         except Exception as err:
             print(
@@ -1457,8 +1510,9 @@ def run_merged_restore(
                 "inference_root": inference_root,
                 "split_seed": DELIVERY_SPLIT_SEED,
                 "val_fraction": DELIVERY_VAL_FRACTION,
-                "n_train_split": int(len(train_idx)),
-                "n_val_split": int(len(val_idx)),
+                "split_json": split_json,
+                "n_train_split": int(len(train_idx) if isinstance(train_idx, list) else len(train_idx)),
+                "n_val_split": int(len(val_idx) if isinstance(val_idx, list) else len(val_idx)),
                 "n_requested": len(dataset),
                 "n_ok": len(ok),
                 "n_ok_train": len(ok_train),
@@ -1509,8 +1563,8 @@ def run_merged_restore(
     print(f"[{domain}] wrote {len(ok)} crystals -> {out_root}")
     print(f"[{domain}] summary -> {summary_path}")
     return {
-        "n_train": int(len(train_idx)),
-        "n_val": int(len(val_idx)),
+        "n_train": int(len(train_idx) if isinstance(train_idx, list) else len(train_idx)),
+        "n_val": int(len(val_idx) if isinstance(val_idx, list) else len(val_idx)),
     }
 
 
@@ -1620,15 +1674,17 @@ def run_job(
     device_str: str,
     write_pt: bool,
     skip_missing_checkpoint: bool,
+    jobs: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> None:
-    if job_name not in JOBS:
-        raise SystemExit(f"Unknown job {job_name!r}; choose from {list(JOBS)}")
+    job_map = jobs or JOBS
+    if job_name not in job_map:
+        raise SystemExit(f"Unknown job {job_name!r}; choose from {list(job_map)}")
     if mode not in {"export", "inference", "restore"}:
         raise SystemExit(f"Unknown mode {mode!r}")
     if mode == "restore" and not inference_root:
         raise SystemExit("--mode restore requires --inference-root")
 
-    job = dict(JOBS[job_name])
+    job = dict(job_map[job_name])
     if checkpoint:
         job["checkpoint"] = checkpoint
 
@@ -1854,16 +1910,33 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip jobs whose default checkpoint file is absent.",
     )
+    parser.add_argument(
+        "--job-profile",
+        type=str,
+        default="default",
+        choices=["default", "global_v2"],
+        help="Checkpoint set: default=original delivery, global_v2=predictions_new.",
+    )
+    parser.add_argument(
+        "--split-json",
+        type=str,
+        default=None,
+        help=(
+            "Path to delivery_split_indices.json for restore-merged split flags "
+            "(avoids recomputing val indices)."
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    jobs = args.job or ["all"]
-    if "all" in jobs:
-        selected = list(JOBS)
+    jobs = get_jobs(args.job_profile)
+    jobs_arg = args.job or ["all"]
+    if "all" in jobs_arg:
+        selected = list(jobs)
     else:
-        selected = list(dict.fromkeys(jobs))
+        selected = list(dict.fromkeys(jobs_arg))
 
     if args.checkpoint and len(selected) != 1:
         raise SystemExit("--checkpoint requires exactly one --job")
@@ -1873,7 +1946,7 @@ def main() -> None:
     if args.mode == "restore-merged":
         domains: List[str] = []
         for name in selected:
-            domain = JOBS[name]["domain"]
+            domain = jobs[name]["domain"]
             if domain not in domains:
                 domains.append(domain)
         split_stats: Dict[str, Dict[str, int]] = {}
@@ -1883,6 +1956,8 @@ def main() -> None:
                 output_root=args.output_root,
                 inference_root=args.inference_root,
                 limit=args.limit,
+                split_json=args.split_json,
+                jobs=jobs,
             )
         point = split_stats.get("point", {"n_train": 0, "n_val": 0})
         planar = split_stats.get("planar", {"n_train": 0, "n_val": 0})
@@ -1894,6 +1969,7 @@ def main() -> None:
             point_n_val=int(point["n_val"]),
             planar_n_train=int(planar["n_train"]),
             planar_n_val=int(planar["n_val"]),
+            split_json=args.split_json,
         )
         readme_path = write_variables_readme(args.output_root)
         print(f"[restore-merged] variables -> {readme_path}")
@@ -1912,6 +1988,7 @@ def main() -> None:
             device_str=args.device,
             write_pt=args.write_pt,
             skip_missing_checkpoint=args.skip_missing_checkpoint,
+            jobs=jobs,
         )
 
 

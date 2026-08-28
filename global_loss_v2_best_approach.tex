@@ -1,0 +1,309 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+\usepackage{geometry}
+\usepackage{parskip}
+\usepackage{hyperref}
+
+\geometry{margin=2.2cm}
+
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
+\title{\textbf{Internal note:} global-loss v2 --- best training setup and baseline comparison}
+\author{CGCNN residual training sweep (August 2026)}
+\date{\today}
+
+\newcommand{\dPE}{\Delta\mathrm{PE}}
+\newcommand{\dPEhat}{\widehat{\Delta\mathrm{PE}}}
+\newcommand{\dEtrue}{\Delta E_{\mathrm{true}}}
+\newcommand{\dEhat}{\widehat{\Delta E}}
+
+\begin{document}
+\maketitle
+
+\section*{Goal}
+
+Primary objective: predict \emph{net defect formation energy}
+\begin{equation}
+  \dEtrue = \sum_i \dPE_i,
+  \qquad
+  \dEhat = \sum_i \dPEhat_i,
+\end{equation}
+not merely minimise per-atom magnitude errors. Secondary objective: keep local per-atom predictions useful for PE maps.
+
+\medskip
+\noindent\textbf{Metric for net energy.} Median relative total error over crystals with $|\dEtrue|\ge 10^{-6}$~eV:
+\begin{equation}
+  R_{\mathrm{tot}}
+  = 100\,\frac{\bigl|\sum_i(\dPEhat_i-\dPE_i)\bigr|}{|\dEtrue|}.
+\end{equation}
+Per-atom quality: MAE $=\frac{1}{N}\sum_i|\dPEhat_i-\dPE_i|$.
+
+\section*{Why better net energy can coexist with worse per-atom MAE}
+
+These metrics measure \textbf{different things}.
+
+\paragraph{MAE treats atoms independently and unsigned.}
+Each atom is penalised on $|\dPEhat_i-\dPE_i|$. Opposite-sign errors both \emph{increase} MAE even if they cancel in the sum.
+
+\paragraph{$R_{\mathrm{tot}}$ depends only on the signed sum.}
+Only $\dEhat-\dEtrue$ matters. The model can \emph{redistribute} per-atom predictions---making some atoms slightly more wrong---if that moves the sum toward $\dEtrue$.
+
+\paragraph{Toy example (two atoms, $\dEtrue=-0.04$~eV).}
+True shifts: $(-0.03,\,-0.01)$.
+Predictions~A: $(-0.01,\,-0.01)$ $\Rightarrow$ $\dEhat=-0.02$, MAE${}=0.01$~eV, $R_{\mathrm{tot}}=50\%$.
+Predictions~B: $(-0.025,\,-0.025)$ $\Rightarrow$ $\dEhat=-0.05$, MAE${}=0.015$~eV, $R_{\mathrm{tot}}=25\%$.
+The global term rewards~B; per-atom MAE alone prefers~A.
+
+\paragraph{Planar cancellation amplifies this.}
+When $A=\sum_i|\dPE_i|/|\dEtrue|\gg 1$, per-atom MAE can stay small while $\dEhat\approx 0$ and $R_{\mathrm{tot}}\approx 100\%$. A global term fixes formation energy by accepting modest local $|errors|$.
+
+\paragraph{Not every atom gets worse.}
+Point defects ($\lambda=0.01$): test MAE \emph{improves} slightly while $R_{\mathrm{tot}}$ improves. Planar: average MAE worsens by ${\sim}0.002$~eV, but median $R_{\mathrm{tot}}$ improves by ${\sim}10$~pp.
+
+\section*{Evolution of the global-loss experiments}
+
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}l Y Y@{}}
+  \toprule
+  Experiment & Outcome & Issue / fix \\
+  \midrule
+  Sweep~v1 (legacy) &
+  All $\lambda\in\{0.1,\ldots,2\}$ worse than baseline on MAE and $R_{\mathrm{tot}}$ &
+  Full-cell target vs.\ subgraph sum (point); unbalanced scale; $\lambda$ too large \\
+  Sanity v2 (100~ep, $\lambda=0.01$, MAE ckpt) &
+  Planar $R_{\mathrm{tot}}$: $64.7\%\to 46.2\%$ &
+  Planar baseline under-trained at 100~ep \\
+  Follow-up v2 (300~ep, $\lambda\in\{0.01,0.005\}$, $R_{\mathrm{tot}}$ ckpt) &
+  Converged comparison; domain-specific best $\lambda$ &
+  Current recommendation (below) \\
+  \bottomrule
+\end{tabularx}
+}
+
+\medskip
+\noindent All runs: CGCNN, grouped 70/15/15 split, seed~42, hidden dim~128, 2~layers, batch~8, lr $2\times10^{-3}$.
+
+\section*{Current best approach (global-loss v2)}
+
+\subsection*{Training setup (summary)}
+
+\begin{itemize}
+  \item Atom term: per-graph MAE on \textbf{normalised} residuals (baseline unchanged).
+  \item Global term: Huber loss on scaled relative net error; target = sum of true residuals over \textbf{graph atoms} (\texttt{graph\_delta\_total\_eV}).
+  \item Loss balancing each step; outlier graphs down-weighted ($|\dEtrue|>50$~eV or full/graph mismatch $>5$~eV).
+  \item Full loss definition: Appendix~\ref{app:loss}.
+\end{itemize}
+
+\subsection*{Checkpointing}
+
+\begin{itemize}
+  \item \textbf{Baseline} (atom-only): best validation MAE.
+  \item \textbf{Global v2:} best validation $R_{\mathrm{tot}}$ median.
+\end{itemize}
+
+\subsection*{Recommended $\lambda$ (300-epoch follow-up)}
+
+\begin{itemize}
+  \item \textbf{Point:} $\lambda=0.01$. Beats baseline on test MAE and $R_{\mathrm{tot}}$. Avoid $\lambda=0.005$ (val $R_{\mathrm{tot}}$ overfits; test rises to ${\sim}40\%$).
+  \item \textbf{Planar:} $\lambda=0.005$. Best test $R_{\mathrm{tot}}$ ($45.6\%$ vs.\ $55.1\%$ baseline). $\lambda=0.01$ is close (${\sim}3$~pp worse on $R_{\mathrm{tot}}$).
+\end{itemize}
+
+\section*{Results: baseline vs.\ best global v2 (test, 300~ep)}
+
+From \texttt{cgcnn\_global\_v2\_followup\_summary.json} (checkpoint models).
+
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}llcrrr@{}}
+  \toprule
+  Domain & Model & $\lambda$ & MAE & $R_{\mathrm{tot}}$ & $|\Delta E|_{\mathrm{mean}}$ \\
+  & & & (eV/at.) & med.\ (\%) & (eV) \\
+  \midrule
+  Point  & baseline   & ---   & 0.01020 & 25.19 & 0.330 \\
+  Point  & global v2  & 0.01  & 0.00972 & 24.07 & 0.288 \\
+  Planar & baseline   & ---   & 0.01044 & 55.11 & 0.192 \\
+  Planar & global v2  & 0.005 & 0.01284 & 45.58 & 0.281 \\
+  \bottomrule
+\end{tabularx}
+}
+
+\subsection*{Changes vs.\ baseline}
+
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}lrrr@{}}
+  \toprule
+  Configuration & $\Delta$MAE (eV) & $\Delta R_{\mathrm{tot}}$ (pp) &
+  $\Delta|\Delta E|_{\mathrm{mean}}$ (eV) \\
+  \midrule
+  Point,  $\lambda=0.01$  & $-0.00048$ & $-1.12$  & $-0.042$ \\
+  Point,  $\lambda=0.005$ & $-0.00012$ & $+14.96$ & $-0.021$ \\
+  Planar, $\lambda=0.01$  & $+0.00202$ & $-6.81$  & $+0.125$ \\
+  Planar, $\lambda=0.005$ & $+0.00240$ & $-9.52$  & $+0.089$ \\
+  \bottomrule
+\end{tabularx}
+}
+
+\paragraph{Planar trade-off.}
+Global v2 lowers median $R_{\mathrm{tot}}$ while raising MAE by ${\sim}0.002$~eV/atom. Mean $|\dEhat-\dEtrue|$ in eV can rise even when $R_{\mathrm{tot}}$ falls, because $R_{\mathrm{tot}}$ is normalised per crystal by $|\dEtrue|$; fixing small-$|\dEtrue|$ high-amplification configs drives the median.
+
+\section*{Comparison to failed sweep v1 (legacy, 300~ep)}
+
+Legacy: scaled MSE on full-cell $\dEtrue$, $\lambda\ge 0.1$, no balancing (\texttt{cgcnn\_lambda\_sweep\_summary.json}).
+
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}llrr@{}}
+  \toprule
+  Domain & Model & Test MAE & Test $R_{\mathrm{tot}}$ med. \\
+  \midrule
+  Point  & baseline           & 0.00929 & 18.56 \\
+  Point  & legacy ($\lambda=0.1$) & 0.01834 & 66.65 \\
+  Planar & baseline           & 0.01004 & 43.19 \\
+  Planar & legacy ($\lambda=0.1$) & 0.02843 & 53.98 \\
+  \bottomrule
+\end{tabularx}
+}
+
+\noindent Legacy global loss \textbf{increased} point $R_{\mathrm{tot}}$ by $+48$~pp. v2 reversed the effect. Legacy and v2 $R_{\mathrm{tot}}$ on point used different eval.\ targets (full-cell vs.\ graph sum); use the v2 follow-up table for production decisions.
+
+\section*{Sanity check (100~ep, $\lambda=0.01$, MAE ckpt)}
+
+From \texttt{cgcnn\_global\_v2\_summary.json}:
+
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}lrr@{}}
+  \toprule
+  Domain & Test MAE (base / global) & Test $R_{\mathrm{tot}}$ (base / global) \\
+  \midrule
+  Point  & 0.00978 / 0.00996 & 30.55 / 22.67 \\
+  Planar & 0.02566 / 0.02231 & 64.66 / 46.24 \\
+  \bottomrule
+\end{tabularx}
+}
+
+\noindent At 100~ep the planar baseline was still at MAE ${\sim}0.026$~eV; after 300~ep it reaches ${\sim}0.010$~eV. The $R_{\mathrm{tot}}$ benefit of global v2 persists ($-9.5$~pp at $\lambda=0.005$).
+
+\section*{Summary recommendation}
+
+\begin{enumerate}
+  \item Deploy global-loss v2: point $\lambda=0.01$, planar $\lambda=0.005$.
+  \item Checkpoint global runs on val.\ $R_{\mathrm{tot}}$ median; baseline on val.\ MAE.
+  \item Expect planar trade-off: ${\sim}0.002$~eV/atom worse MAE for ${\sim}10$~pp better $R_{\mathrm{tot}}$.
+  \item Do not use legacy v1 loss or $\lambda=0.005$ on point with $R_{\mathrm{tot}}$ checkpointing.
+\end{enumerate}
+
+\section*{Implementation}
+
+\texttt{train\_single.py}, \texttt{train\_cgcnn\_global\_v2\_followup.py}, \texttt{cgcnn\_global\_v2\_followup\_*.json}.
+
+\appendix
+\section{Full training loss (global v2, as implemented)}
+\label{app:loss}
+
+Consider one training mini-batch containing graphs $g=1,\ldots,|B|$. Graph $g$ has $N_g$ atoms indexed $i\in g$.
+
+\paragraph{Target normalisation (from training split).}
+Let $\mu$ and $\sigma$ be the mean and std of all per-atom residual targets in the training set ($\sigma\ge 10^{-6}$). True normalised targets and denormalised predictions:
+\begin{equation}
+  \tilde y_{g,i}=\frac{\dPE_{g,i}-\mu}{\sigma},
+  \qquad
+  \dPEhat_{g,i}=\sigma\,\hat z_{g,i}+\mu,
+\end{equation}
+where $\hat z_{g,i}$ is the raw model output on atom~$i$.
+
+\paragraph{Atom loss (per-graph MAE, then batch mean).}
+\begin{equation}
+  \mathcal{L}_{\mathrm{atom}}
+  = \frac{1}{|B|}\sum_{g=1}^{|B|}
+    \frac{1}{N_g}\sum_{i\in g}
+    \bigl|\hat z_{g,i}-\tilde y_{g,i}\bigr|.
+\end{equation}
+
+\paragraph{Graph net-energy target and prediction.}
+\begin{equation}
+  \dEtrue_g
+  = \sum_{i\in g}\dPE_{g,i}
+  \quad\text{(stored as \texttt{graph\_delta\_total\_eV})},
+  \qquad
+  \dEhat_g = \sum_{i\in g}\dPEhat_{g,i}.
+\end{equation}
+
+\paragraph{Outlier weight.}
+\begin{equation}
+  w_g =
+  \begin{cases}
+    0 & \text{if } |\dEtrue_g|>50~\text{eV},\\[2pt]
+    0 & \text{if } \bigl|\Delta E_{\mathrm{full},g}-\dEtrue_g\bigr|>5~\text{eV},\\[2pt]
+    1 & \text{otherwise,}
+  \end{cases}
+\end{equation}
+where $\Delta E_{\mathrm{full},g}$ is the full-cell total from \texttt{delta\_total\_eV} (point defects only; planar: $\Delta E_{\mathrm{full},g}=\dEtrue_g$).
+
+\paragraph{Scaled relative error and Huber loss.}
+\begin{equation}
+  s_g = \max\!\bigl(|\dEtrue_g|,\,0.05~\text{eV}\bigr),
+  \qquad
+  r_g = \frac{\dEhat_g-\dEtrue_g}{s_g}.
+\end{equation}
+With Huber threshold $\delta=1$:
+\begin{equation}
+  H(r_g)=
+  \begin{cases}
+    \dfrac{1}{2}\,r_g^2
+    & \text{if } |r_g|\le\delta,\\[6pt]
+    \delta\,\bigl(|r_g|-\tfrac{1}{2}\delta\bigr)
+    & \text{if } |r_g|>\delta.
+  \end{cases}
+\end{equation}
+\begin{equation}
+  \mathcal{L}_{\mathrm{tot,raw}}
+  = \frac{\displaystyle\sum_{g=1}^{|B|} w_g\,H(r_g)}
+         {\displaystyle\sum_{g=1}^{|B|} w_g + \varepsilon},
+  \qquad \varepsilon=10^{-8}.
+\end{equation}
+
+\paragraph{Loss balancing and combined objective.}
+Each backward pass uses detached magnitudes to balance terms:
+\begin{equation}
+  \mathcal{L}_{\mathrm{tot}}
+  = \mathcal{L}_{\mathrm{tot,raw}}\,
+    \frac{\mathcal{L}_{\mathrm{atom}}}{\mathcal{L}_{\mathrm{tot,raw}}+\varepsilon}
+    \Big|_{\text{stop-grad on ratio}},
+\end{equation}
+i.e.\ in code: \texttt{atom\_loss + lambda\_tot * tot\_loss * (atom\_loss.detach() / tot\_loss.detach())}.
+
+\begin{equation}
+  \boxed{
+  \mathcal{L}
+  = \mathcal{L}_{\mathrm{atom}}
+  + \lambda\,\mathcal{L}_{\mathrm{tot}}
+  }
+\end{equation}
+
+\paragraph{Hyperparameters (production).}
+\begin{center}
+\small
+\begin{tabular}{@{}ll@{}}
+  \toprule
+  Parameter & Value \\
+  \midrule
+  $\lambda$ (point)  & $0.01$ \\
+  $\lambda$ (planar) & $0.005$ \\
+  $\sigma_{\min}$ in $s_g$ & $0.05$~eV \\
+  Huber $\delta$ & $1$ (on $r_g$) \\
+  Outlier $|\dEtrue|$ cutoff & $50$~eV \\
+  Full/graph mismatch cutoff & $5$~eV \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Checkpoint criterion.}
+Atom-only: minimise validation $\mathcal{L}_{\mathrm{atom}}$ (reported as MAE in eV/atom after denormalisation). Global v2: minimise validation median $R_{\mathrm{tot}}$ over graphs.
+
+\end{document}

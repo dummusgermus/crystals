@@ -127,3 +127,6 @@ pyg_dataset.pt.graphview.json
 !cgcnn_extensive_comparison_curves.png
 !cgcnn_global_v2_curves.png
 !cgcnn_global_v2_followup_*.png
+!delivery_global_v2_curves.json
+!predictions_new/delivery_split_indices.json
+!*_global_v2_model.pt

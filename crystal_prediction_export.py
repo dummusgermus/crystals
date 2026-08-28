@@ -46,8 +46,13 @@ from gnn_models import (
     build_gated_model_from_dataset,
     build_graph_transformer_from_dataset,
 )
+from train_single import within_group_train_val_indices
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# Must match residual delivery training (see curves JSONs / SLURM).
+DELIVERY_SPLIT_SEED = 42
+DELIVERY_VAL_FRACTION = 0.1
 
 # Keep in sync with graph_maker / planar_graph_maker.
 DEFECT_CUTOFF_K = 8
@@ -554,20 +559,45 @@ def write_pe_csv(path: str, table: CrystalPETable, include_in_graph: bool) -> No
             writer.writerow(row)
 
 
-def _format_runtime_header(prefix: str, timing: Dict) -> List[str]:
+def _cluster_timing_only(timing: Dict) -> Dict:
+    """Keep only cluster inference wall-clock fields."""
     keys = (
         "t_preprocess_s",
         "t_predict_s",
         "t_postprocess_s",
         "t_total_s",
         "device",
-        "mae_residual_eV",
     )
-    lines = []
-    for key in keys:
-        if key in timing and timing[key] is not None:
-            lines.append(f"# {prefix}_{key}={timing[key]}")
-    return lines
+    return {k: timing[k] for k in keys if k in timing and timing[k] is not None}
+
+
+def write_merged_timing_json(
+    path: str,
+    *,
+    cgcnn_timing: Dict,
+    xf_timing: Dict,
+) -> None:
+    """Write per-crystal timing JSON (cluster inference wall-clock only)."""
+    entries: List[Tuple[str, object]] = [
+        ("cgcnn_timing", _cluster_timing_only(cgcnn_timing)),
+        ("transformer_timing", _cluster_timing_only(xf_timing)),
+    ]
+
+    lines: List[str] = ["{"]
+    for i, (key, val) in enumerate(entries):
+        comma = "," if i < len(entries) - 1 else ""
+        if isinstance(val, dict):
+            lines.append(f'  "{key}": {{')
+            dict_items = list(val.items())
+            for j, (sub_key, sub_val) in enumerate(dict_items):
+                sub_comma = "," if j < len(dict_items) - 1 else ""
+                lines.append(f'    "{sub_key}": {json.dumps(sub_val)}{sub_comma}')
+            lines.append(f"  }}{comma}")
+        else:
+            lines.append(f'  "{key}": {json.dumps(val)}{comma}')
+    lines.append("}")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
 
 
 def write_merged_pe_csv(
@@ -580,14 +610,44 @@ def write_merged_pe_csv(
     in_graph: np.ndarray,
     *,
     domain: str,
-    folder: str,
     config: str,
-    cgcnn_timing: Dict,
-    transformer_timing: Dict,
     include_in_graph: bool,
-) -> None:
-    """Write one crystal CSV with both model predictions and runtime header."""
+    split: str = "train",
+    mae_cgcnn_abs_eV: float,
+    mae_transformer_abs_eV: float,
+    cgcnn_mae_residual_eV: Optional[float],
+    transformer_mae_residual_eV: Optional[float],
+) -> Dict[str, float]:
+    """Write one crystal CSV with error metrics in the header (no runtimes).
+
+    Wall-clock timings live in the companion ``*_timing.json`` file.
+    """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    pe_true_total = float(np.sum(pe_true))
+    pe_initial_total = float(np.sum(pe_initial))
+    pe_cgcnn_total = float(np.sum(pe_pred_cgcnn))
+    pe_xf_total = float(np.sum(pe_pred_transformer))
+    totals = {
+        "pe_initial_total_eV": pe_initial_total,
+        "pe_true_total_eV": pe_true_total,
+        "pe_pred_cgcnn_total_eV": pe_cgcnn_total,
+        "pe_pred_transformer_total_eV": pe_xf_total,
+        "pe_error_cgcnn_total_eV": pe_cgcnn_total - pe_true_total,
+        "pe_error_transformer_total_eV": pe_xf_total - pe_true_total,
+    }
+    errors = {
+        "mae_cgcnn_abs_eV": float(mae_cgcnn_abs_eV),
+        "mae_transformer_abs_eV": float(mae_transformer_abs_eV),
+        "cgcnn_mae_residual_eV": float(cgcnn_mae_residual_eV)
+        if cgcnn_mae_residual_eV is not None
+        else None,
+        "transformer_mae_residual_eV": float(transformer_mae_residual_eV)
+        if transformer_mae_residual_eV is not None
+        else None,
+    }
+    if split not in {"train", "validation"}:
+        raise ValueError(f"split must be 'train' or 'validation', got {split!r}")
+
     fieldnames = [
         "atom_id",
         "pe_initial",
@@ -599,12 +659,18 @@ def write_merged_pe_csv(
         fieldnames.append("in_graph")
     with open(path, "w", newline="", encoding="utf-8") as fh:
         fh.write(f"# domain={domain}\n")
-        fh.write(f"# folder={folder}\n")
         fh.write(f"# config={config}\n")
-        for line in _format_runtime_header("cgcnn", cgcnn_timing):
-            fh.write(line + "\n")
-        for line in _format_runtime_header("transformer", transformer_timing):
-            fh.write(line + "\n")
+        fh.write(f"# split={split}\n")
+        fh.write("\n")
+        fh.write("# --- total system PE (sum over all atoms, eV) ---\n")
+        for key, val in totals.items():
+            fh.write(f"# {key}={val}\n")
+        fh.write("\n")
+        fh.write("# --- prediction errors (eV) ---\n")
+        for key, val in errors.items():
+            if val is not None:
+                fh.write(f"# {key}={val}\n")
+        fh.write("\n")
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
         writer.writeheader()
         for i in range(len(atom_ids)):
@@ -618,6 +684,189 @@ def write_merged_pe_csv(
             if include_in_graph:
                 row["in_graph"] = int(in_graph[i])
             writer.writerow(row)
+    return {**totals, **{k: v for k, v in errors.items() if v is not None}}
+
+
+def write_variables_readme(predictions_root: str) -> str:
+    """Write a single variable glossary for point + planar deliveries."""
+    text = """Variable guide for defect prediction outputs
+=============================================
+
+Deliverables live under predictions/point/ and predictions/planar/. Each
+crystal has a CSV (comment header + one row per atom) and a companion
+``*_timing.json`` with wall-clock seconds only.
+
+Point vs planar (only differences)
+----------------------------------
+File layout:
+  predictions/point/<folder>/<config>.csv     e.g. .../C15_Ag-Be/1-1-1-8a.csv
+  predictions/planar/<folder>/pe_table.csv    config equals folder name
+
+Data columns:
+  Point defects include in_graph (see below). Planar graphs cover the full
+  crystal — every atom is predicted; there is no in_graph column.
+
+Everything below applies to both domains unless noted.
+
+Header (identity / split)
+-------------------------
+domain, config
+  Crystal identifiers. The parent directory mirrors the crystal folder name.
+
+split
+  train or validation — which residual-training split this crystal belonged to.
+  Validation crystals were not used to update weights; prefer them when judging
+  generalization. See predictions/SPLIT_INFO.txt.
+
+Timings (*_timing.json)
+-----------------------
+Each CSV has a companion ``<stem>_timing.json`` with wall-clock seconds only
+(no error metrics). Three blocks:
+
+Local restore (dump I/O + CSV write on this machine):
+  t_preprocess_s
+    Read LAMMPS dumps and map graph predictions onto the full cell.
+  t_postprocess_s
+    Write the CSV (and this timing file).
+  t_total_s
+    t_preprocess_s + t_postprocess_s
+
+cgcnn_timing — cluster GPU inference for this crystal (batch size 1):
+  t_preprocess_s
+    Move graph batch to device.
+  t_predict_s
+    CGCNN forward pass (residual ΔPE).
+  t_postprocess_s
+    Save on-graph predictions to disk.
+  t_total_s
+    Sum of the three cluster phases above.
+  device
+    Hardware used for timed inference (usually cuda).
+
+transformer_timing
+  Same fields as cgcnn_timing, for the graph transformer on the cluster.
+
+Header (total system PE) — in the CSV only
+------------------------------------------
+pe_initial_total_eV
+  Sum of pe_initial over all atoms = total unrelaxed / initial system PE (eV).
+
+pe_true_total_eV
+  Sum of pe_true over all atoms = ground-truth total relaxed system PE (eV).
+
+pe_pred_cgcnn_total_eV
+  Sum of pe_pred_cgcnn over all atoms = CGCNN predicted total system PE (eV).
+
+pe_pred_transformer_total_eV
+  Sum of pe_pred_transformer over all atoms = transformer predicted total PE (eV).
+
+pe_error_cgcnn_total_eV
+  pe_pred_cgcnn_total_eV − pe_true_total_eV
+
+pe_error_transformer_total_eV
+  pe_pred_transformer_total_eV − pe_true_total_eV
+
+Header (prediction errors) — in the CSV only
+-------------------------------------------
+mae_cgcnn_abs_eV
+  Mean |pe_pred_cgcnn − pe_true| over all atoms (full cell).
+
+mae_transformer_abs_eV
+  Mean |pe_pred_transformer − pe_true| over all atoms (full cell).
+
+cgcnn_mae_residual_eV
+  Mean |ΔPE_pred − ΔPE_true| on graph atoms (CGCNN, cluster inference).
+
+transformer_mae_residual_eV
+  Mean |ΔPE_pred − ΔPE_true| on graph atoms (transformer, cluster inference).
+
+Data columns
+------------
+atom_id
+  LAMMPS atom id.
+
+pe_initial
+  Per-atom potential energy before relaxation (eV), from the initial/unrelaxed dump.
+
+pe_true
+  Per-atom ground-truth potential energy after relaxation (eV).
+
+pe_pred_cgcnn
+  Absolute PE from the residual CGCNN: pe_initial + ΔPE_pred (eV).
+
+pe_pred_transformer
+  Absolute PE from the residual graph transformer: pe_initial + ΔPE_pred (eV).
+
+in_graph  (point defects only)
+  1 if the atom was part of the defect subgraph used by the model;
+  0 otherwise. Atoms with in_graph=0 keep pe_pred = pe_initial (ΔPE=0).
+
+Units are eV throughout. Absolute predictions come from residual models trained
+on ΔPE = pe_true − pe_initial.
+"""
+    os.makedirs(predictions_root, exist_ok=True)
+    path = os.path.join(predictions_root, "VARIABLES.txt")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    for legacy in ("VARIABLES_point.txt", "VARIABLES_planar.txt"):
+        legacy_path = os.path.join(predictions_root, legacy)
+        if os.path.isfile(legacy_path):
+            os.remove(legacy_path)
+    return path
+
+
+def write_split_info(
+    predictions_root: str,
+    *,
+    seed: int,
+    val_fraction: float,
+    point_n_train: int,
+    point_n_val: int,
+    planar_n_train: int,
+    planar_n_val: int,
+) -> str:
+    """Document how train/validation flags were reconstructed."""
+    text = f"""Train / validation split flags
+===============================
+
+Each crystal CSV has ``# split=train`` or ``# split=validation``.
+
+How this was determined
+-----------------------
+Residual CGCNN and transformer jobs used the same delivery split protocol:
+  seed = {seed}
+  val_fraction = {val_fraction}
+  splitter = train_single.within_group_train_val_indices
+
+Indices were not stored inside the weight checkpoints, but the split is
+deterministic given the dataset order, seed, and splitter. Recomputing it
+locally reproduces the sizes recorded in the training curve JSONs:
+
+  point:  n_train={point_n_train}, n_val={point_n_val}
+  planar: n_train={planar_n_train}, n_val={planar_n_val}
+
+(verified against cgcnn_residual_both_curves_2000.json /
+ transformer_residual_curves_2000.json).
+
+What "validation" means here
+----------------------------
+Validation crystals were held out of the weight updates and used only for
+model selection (best-by-val). They are the more honest estimate of error
+than training crystals. There was no separate test set.
+
+Caveats
+-------
+- Inference was still run on the full dataset (train + validation) for delivery.
+- Prefer metrics / totals aggregated over split=validation when reporting
+  generalization to partners.
+- CGCNN and transformer used the same split protocol and seed, so a crystal
+  flagged validation for one model is validation for both.
+"""
+    os.makedirs(predictions_root, exist_ok=True)
+    path = os.path.join(predictions_root, "SPLIT_INFO.txt")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    return path
 
 
 def graph_pred_paths(crystal_dir: str, stem: str) -> List[str]:
@@ -1014,6 +1263,7 @@ def restore_merged_one_crystal(
     domain: str,
     out_root: str,
     inference_root: str,
+    split: str,
 ) -> Dict:
     """Restore one crystal using both CGCNN and Transformer inference outputs."""
     cgcnn_job = JOBS[f"{domain}_cgcnn"]
@@ -1064,7 +1314,9 @@ def restore_merged_one_crystal(
     )
     crystal_dir = os.path.join(out_root, rel_dir)
     csv_path = os.path.join(crystal_dir, f"{stem}.csv")
-    write_merged_pe_csv(
+    mae_cgcnn = float(np.mean(np.abs(table_c.pe_pred - table_c.pe_true)))
+    mae_xf = float(np.mean(np.abs(table_t.pe_pred - table_t.pe_true)))
+    totals = write_merged_pe_csv(
         csv_path,
         atom_ids=atom_ids,
         pe_initial=pe_initial,
@@ -1073,11 +1325,13 @@ def restore_merged_one_crystal(
         pe_pred_transformer=table_t.pe_pred,
         in_graph=table_c.in_graph,
         domain=domain,
-        folder=folder,
         config=config_key,
-        cgcnn_timing=cgcnn_timing,
-        transformer_timing=xf_timing,
         include_in_graph=(domain == "point"),
+        split=split,
+        mae_cgcnn_abs_eV=mae_cgcnn,
+        mae_transformer_abs_eV=mae_xf,
+        cgcnn_mae_residual_eV=cgcnn_timing.get("mae_residual_eV"),
+        transformer_mae_residual_eV=xf_timing.get("mae_residual_eV"),
     )
     t_postprocess = time.perf_counter() - t_post0
 
@@ -1085,7 +1339,7 @@ def restore_merged_one_crystal(
         "folder": folder,
         "config": config_key,
         "domain": domain,
-        "mode": "restore-merged",
+        "split": split,
         "n_atoms_full": int(len(atom_ids)),
         "n_atoms_graph": int(data.num_nodes),
         "n_atoms_in_graph_flag": int(table_c.in_graph.sum()),
@@ -1099,25 +1353,17 @@ def restore_merged_one_crystal(
         "t_total_s": t_preprocess + t_postprocess,
         "cgcnn_t_predict_s": cgcnn_timing.get("t_predict_s"),
         "transformer_t_predict_s": xf_timing.get("t_predict_s"),
-        "mae_cgcnn_abs_eV": float(
-            np.mean(np.abs(table_c.pe_pred - table_c.pe_true))
-        ),
-        "mae_transformer_abs_eV": float(
-            np.mean(np.abs(table_t.pe_pred - table_t.pe_true))
-        ),
+        "mae_cgcnn_abs_eV": mae_cgcnn,
+        "mae_transformer_abs_eV": mae_xf,
+        "cgcnn_mae_residual_eV": cgcnn_timing.get("mae_residual_eV"),
+        "transformer_mae_residual_eV": xf_timing.get("mae_residual_eV"),
+        **totals,
     }
-    with open(
-        os.path.join(crystal_dir, f"{stem}_timing.json"), "w", encoding="utf-8"
-    ) as fh:
-        json.dump(
-            {
-                **meta,
-                "cgcnn_timing": cgcnn_timing,
-                "transformer_timing": xf_timing,
-            },
-            fh,
-            indent=2,
-        )
+    write_merged_timing_json(
+        os.path.join(crystal_dir, f"{stem}_timing.json"),
+        cgcnn_timing=cgcnn_timing,
+        xf_timing=xf_timing,
+    )
     return meta
 
 
@@ -1126,7 +1372,7 @@ def run_merged_restore(
     output_root: str,
     inference_root: str,
     limit: Optional[int],
-) -> None:
+) -> Dict:
     if domain not in {"point", "planar"}:
         raise SystemExit(f"Unknown domain {domain!r}")
     job = JOBS[f"{domain}_cgcnn"]
@@ -1139,21 +1385,36 @@ def run_merged_restore(
     print(f"[{domain}] inference_root={inference_root}")
 
     dataset: List[Data] = torch.load(dataset_path, weights_only=False)
+    train_idx, val_idx = within_group_train_val_indices(
+        dataset,
+        seed=DELIVERY_SPLIT_SEED,
+        val_fraction=DELIVERY_VAL_FRACTION,
+    )
+    val_set = set(int(i) for i in val_idx.tolist())
+    print(
+        f"[{domain}] reconstructed split seed={DELIVERY_SPLIT_SEED} "
+        f"val_fraction={DELIVERY_VAL_FRACTION}: "
+        f"train={len(train_idx)} val={len(val_idx)}"
+    )
+
     if limit is not None:
         dataset = dataset[: max(0, int(limit))]
     print(f"[{domain}] crystals={len(dataset)}")
 
     out_root = os.path.join(output_root, domain)
     os.makedirs(out_root, exist_ok=True)
+    variables_readme = os.path.join(output_root, "VARIABLES.txt")
 
     summaries: List[Dict] = []
     for i, data in enumerate(dataset):
+        split = "validation" if i in val_set else "train"
         try:
             meta = restore_merged_one_crystal(
                 data=data,
                 domain=domain,
                 out_root=out_root,
                 inference_root=inference_root,
+                split=split,
             )
         except Exception as err:
             print(
@@ -1164,6 +1425,7 @@ def run_merged_restore(
                 {
                     "folder": str(getattr(data, "folder", "")),
                     "error": str(err),
+                    "split": split,
                 }
             )
             continue
@@ -1171,15 +1433,21 @@ def run_merged_restore(
         if (i + 1) % 25 == 0 or i == 0 or i + 1 == len(dataset):
             print(
                 f"  [{i + 1}/{len(dataset)}] {meta['folder']}/{meta['config']} "
+                f"split={meta['split']} "
                 f"MAE_c={meta['mae_cgcnn_abs_eV']:.4e} "
                 f"MAE_t={meta['mae_transformer_abs_eV']:.4e} "
-                f"t_restore={meta['t_total_s'] * 1000:.1f} ms "
-                f"(cluster pred c={meta.get('cgcnn_t_predict_s')} / "
-                f"t={meta.get('transformer_t_predict_s')})"
+                f"t_restore={meta['t_total_s'] * 1000:.1f} ms"
             )
 
     ok = [s for s in summaries if "error" not in s]
+    ok_val = [s for s in ok if s.get("split") == "validation"]
+    ok_train = [s for s in ok if s.get("split") == "train"]
     summary_path = os.path.join(out_root, "restore_merged_summary.json")
+
+    def _mean_key(rows: List[Dict], key: str) -> Optional[float]:
+        vals = [s[key] for s in rows if s.get(key) is not None]
+        return float(np.mean(vals)) if vals else None
+
     with open(summary_path, "w", encoding="utf-8") as fh:
         json.dump(
             {
@@ -1187,41 +1455,52 @@ def run_merged_restore(
                 "mode": "restore-merged",
                 "dataset": dataset_path,
                 "inference_root": inference_root,
+                "split_seed": DELIVERY_SPLIT_SEED,
+                "val_fraction": DELIVERY_VAL_FRACTION,
+                "n_train_split": int(len(train_idx)),
+                "n_val_split": int(len(val_idx)),
                 "n_requested": len(dataset),
                 "n_ok": len(ok),
+                "n_ok_train": len(ok_train),
+                "n_ok_validation": len(ok_val),
                 "n_failed": len(summaries) - len(ok),
-                "mean_mae_cgcnn_abs_eV": float(
-                    np.mean([s["mae_cgcnn_abs_eV"] for s in ok])
+                "mean_mae_cgcnn_abs_eV": _mean_key(ok, "mae_cgcnn_abs_eV"),
+                "mean_mae_transformer_abs_eV": _mean_key(
+                    ok, "mae_transformer_abs_eV"
+                ),
+                "mean_mae_cgcnn_abs_eV_validation": _mean_key(
+                    ok_val, "mae_cgcnn_abs_eV"
+                ),
+                "mean_mae_transformer_abs_eV_validation": _mean_key(
+                    ok_val, "mae_transformer_abs_eV"
+                ),
+                "mean_abs_pe_error_cgcnn_total_eV": float(
+                    np.mean([abs(s["pe_error_cgcnn_total_eV"]) for s in ok])
                 )
                 if ok
                 else None,
-                "mean_mae_transformer_abs_eV": float(
-                    np.mean([s["mae_transformer_abs_eV"] for s in ok])
+                "mean_abs_pe_error_transformer_total_eV": float(
+                    np.mean([abs(s["pe_error_transformer_total_eV"]) for s in ok])
                 )
                 if ok
                 else None,
-                "mean_cgcnn_t_predict_s": float(
+                "mean_abs_pe_error_cgcnn_total_eV_validation": float(
+                    np.mean([abs(s["pe_error_cgcnn_total_eV"]) for s in ok_val])
+                )
+                if ok_val
+                else None,
+                "mean_abs_pe_error_transformer_total_eV_validation": float(
                     np.mean(
-                        [
-                            s["cgcnn_t_predict_s"]
-                            for s in ok
-                            if s.get("cgcnn_t_predict_s") is not None
-                        ]
+                        [abs(s["pe_error_transformer_total_eV"]) for s in ok_val]
                     )
                 )
-                if ok
+                if ok_val
                 else None,
-                "mean_transformer_t_predict_s": float(
-                    np.mean(
-                        [
-                            s["transformer_t_predict_s"]
-                            for s in ok
-                            if s.get("transformer_t_predict_s") is not None
-                        ]
-                    )
-                )
-                if ok
-                else None,
+                "mean_cgcnn_t_predict_s": _mean_key(ok, "cgcnn_t_predict_s"),
+                "mean_transformer_t_predict_s": _mean_key(
+                    ok, "transformer_t_predict_s"
+                ),
+                "variables_readme": variables_readme,
                 "crystals": summaries,
             },
             fh,
@@ -1229,6 +1508,10 @@ def run_merged_restore(
         )
     print(f"[{domain}] wrote {len(ok)} crystals -> {out_root}")
     print(f"[{domain}] summary -> {summary_path}")
+    return {
+        "n_train": int(len(train_idx)),
+        "n_val": int(len(val_idx)),
+    }
 
 
 def export_one_crystal(
@@ -1593,13 +1876,28 @@ def main() -> None:
             domain = JOBS[name]["domain"]
             if domain not in domains:
                 domains.append(domain)
+        split_stats: Dict[str, Dict[str, int]] = {}
         for domain in domains:
-            run_merged_restore(
+            split_stats[domain] = run_merged_restore(
                 domain=domain,
                 output_root=args.output_root,
                 inference_root=args.inference_root,
                 limit=args.limit,
             )
+        point = split_stats.get("point", {"n_train": 0, "n_val": 0})
+        planar = split_stats.get("planar", {"n_train": 0, "n_val": 0})
+        info_path = write_split_info(
+            args.output_root,
+            seed=DELIVERY_SPLIT_SEED,
+            val_fraction=DELIVERY_VAL_FRACTION,
+            point_n_train=int(point["n_train"]),
+            point_n_val=int(point["n_val"]),
+            planar_n_train=int(planar["n_train"]),
+            planar_n_val=int(planar["n_val"]),
+        )
+        readme_path = write_variables_readme(args.output_root)
+        print(f"[restore-merged] variables -> {readme_path}")
+        print(f"[restore-merged] split info -> {info_path}")
         return
 
     for name in selected:

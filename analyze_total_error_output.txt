@@ -1,0 +1,94 @@
+﻿Total system error vs true net energy change
+================================================
+Predictions root: D:\Uni\Faecher\Hiwi\Projekte\jara\code\predictions
+Metric: 100 * |pe_error_total| / |pe_true_total - pe_initial_total|
+Baseline (predict pe_initial, zero delta): 100% exactly
+Skipped (|delta| < 1e-06 eV): 211
+
+All crystals (point + planar)
+-----------------------------
+  n = 2400
+      mean: CGCNN   70.70%   Transformer  101.62%
+    median: CGCNN   28.96%   Transformer   46.74%
+       p10: CGCNN    3.73%   Transformer    6.65%
+       p90: CGCNN  128.10%   Transformer  219.68%
+       min: CGCNN    0.02%   Transformer    0.04%
+       max: CGCNN 13269.16%   Transformer 9354.02%
+     <100%: CGCNN   86.4% of crystals   Transformer   72.6% of crystals
+      <50%: CGCNN   66.8% of crystals   Transformer   51.9% of crystals
+
+point ù all
+-----------
+  n = 422
+      mean: CGCNN   72.26%   Transformer   44.84%
+    median: CGCNN   20.28%   Transformer   25.03%
+       p10: CGCNN    3.14%   Transformer    5.16%
+       p90: CGCNN   93.79%   Transformer   98.27%
+       min: CGCNN    0.06%   Transformer    0.08%
+       max: CGCNN 13269.16%   Transformer 1327.47%
+     <100%: CGCNN   94.5% of crystals   Transformer   94.3% of crystals
+      <50%: CGCNN   72.5% of crystals   Transformer   70.6% of crystals
+
+point ù train
+-------------
+  n = 380
+      mean: CGCNN   73.43%   Transformer   44.15%
+    median: CGCNN   19.68%   Transformer   24.80%
+       p10: CGCNN    3.14%   Transformer    5.13%
+       p90: CGCNN   94.09%   Transformer   96.83%
+       min: CGCNN    0.06%   Transformer    0.08%
+       max: CGCNN 13269.16%   Transformer 1327.47%
+     <100%: CGCNN   94.7% of crystals   Transformer   94.5% of crystals
+      <50%: CGCNN   72.1% of crystals   Transformer   71.3% of crystals
+
+point ù validation
+------------------
+  n = 42
+      mean: CGCNN   61.64%   Transformer   51.09%
+    median: CGCNN   28.00%   Transformer   26.03%
+       p10: CGCNN    6.75%   Transformer    6.12%
+       p90: CGCNN   79.14%   Transformer   99.97%
+       min: CGCNN    0.83%   Transformer    0.11%
+       max: CGCNN  769.66%   Transformer  375.08%
+     <100%: CGCNN   92.9% of crystals   Transformer   92.9% of crystals
+      <50%: CGCNN   76.2% of crystals   Transformer   64.3% of crystals
+
+planar ù all
+------------
+  n = 1978
+      mean: CGCNN   70.37%   Transformer  113.73%
+    median: CGCNN   31.40%   Transformer   53.66%
+       p10: CGCNN    3.83%   Transformer    7.37%
+       p90: CGCNN  142.87%   Transformer  240.21%
+       min: CGCNN    0.02%   Transformer    0.04%
+       max: CGCNN 11313.06%   Transformer 9354.02%
+     <100%: CGCNN   84.7% of crystals   Transformer   68.0% of crystals
+      <50%: CGCNN   65.6% of crystals   Transformer   47.9% of crystals
+
+planar ù train
+--------------
+  n = 1780
+      mean: CGCNN   58.80%   Transformer  111.15%
+    median: CGCNN   30.04%   Transformer   53.89%
+       p10: CGCNN    3.69%   Transformer    7.41%
+       p90: CGCNN  129.16%   Transformer  242.88%
+       min: CGCNN    0.02%   Transformer    0.04%
+       max: CGCNN 1167.86%   Transformer 9354.02%
+     <100%: CGCNN   86.0% of crystals   Transformer   68.3% of crystals
+      <50%: CGCNN   66.9% of crystals   Transformer   47.6% of crystals
+
+planar ù validation
+-------------------
+  n = 198
+      mean: CGCNN  174.39%   Transformer  136.89%
+    median: CGCNN   45.76%   Transformer   50.55%
+       p10: CGCNN    6.59%   Transformer    6.33%
+       p90: CGCNN  339.82%   Transformer  221.05%
+       min: CGCNN    0.26%   Transformer    0.10%
+       max: CGCNN 11313.06%   Transformer 8446.83%
+     <100%: CGCNN   72.7% of crystals   Transformer   65.2% of crystals
+      <50%: CGCNN   53.5% of crystals   Transformer   50.0% of crystals
+
+Examples (CGCNN relative error)
+  best:  0.02%  planar/U-Mn_XY'XYZXY
+  worst: 13269.16%  point/1-1-2-8a

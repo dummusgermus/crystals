@@ -20,6 +20,16 @@ class Metrics:
     mae: float
 
 
+@dataclass
+class TotalEnergyMetrics:
+    """Graph-level net residual energy errors (denormalized eV)."""
+
+    mean_abs_total_err_eV: float
+    median_rel_total_err_pct: float
+    mean_rel_total_err_pct: float
+    n_graphs: int
+
+
 def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -59,6 +69,105 @@ def per_graph_mae_loss(pred: torch.Tensor, target: torch.Tensor, batch: torch.Te
     abs_err = torch.abs(pred - target)
     per_graph_mae = _per_graph_reduction(abs_err, batch, num_graphs)
     return per_graph_mae.mean()
+
+
+def _per_graph_pred_sums(
+    pred: torch.Tensor, batch: torch.Tensor, num_graphs: int
+) -> torch.Tensor:
+    pred = pred.view(-1)
+    batch = batch.view(-1)
+    sums = torch.zeros(num_graphs, device=pred.device)
+    sums.index_add_(0, batch, pred)
+    return sums
+
+
+def per_graph_total_scaled_mse_loss(
+    pred_denorm: torch.Tensor,
+    delta_total: torch.Tensor,
+    batch: torch.Tensor,
+    *,
+    scale_eps: float = 1e-2,
+) -> torch.Tensor:
+    """MSE on $(\\sum \\hat{\\Delta\\mathrm{PE}} - \\Delta E_{\\mathrm{true}})/\\max(|\\Delta E|, \\epsilon)$."""
+    batch = batch.view(-1)
+    num_graphs = int(batch.max().item()) + 1 if batch.numel() > 0 else 0
+    if num_graphs == 0:
+        return torch.tensor(0.0, device=pred_denorm.device)
+    pred_sum = _per_graph_pred_sums(pred_denorm, batch, num_graphs)
+    target = delta_total.view(-1)
+    scale = target.abs().clamp(min=scale_eps)
+    rel = (pred_sum - target) / scale
+    return (rel * rel).mean()
+
+
+def evaluate_with_total_energy(
+    model,
+    loader: DataLoader,
+    device: torch.device,
+    target_mean: torch.Tensor,
+    target_std: torch.Tensor,
+    *,
+    min_delta_eV: float = 1e-6,
+) -> Tuple[Metrics, TotalEnergyMetrics]:
+    model.eval()
+    total_mse = 0.0
+    total_rmse = 0.0
+    total_mae = 0.0
+    total_graphs = 0
+    abs_total_errs: List[float] = []
+    rel_total_errs: List[float] = []
+
+    with torch.no_grad():
+        for batch in loader:
+            batch = batch.to(device)
+            if not hasattr(batch, "delta_total_eV"):
+                raise ValueError(
+                    "Batch missing delta_total_eV; rebuild totals datasets first."
+                )
+            pred = model(batch)
+            pred_denorm = pred * target_std + target_mean
+            m = compute_metrics(pred_denorm, batch.y, batch.batch)
+            total_mse += m.mse * batch.num_graphs
+            total_rmse += m.rmse * batch.num_graphs
+            total_mae += m.mae * batch.num_graphs
+            total_graphs += batch.num_graphs
+
+            num_graphs = int(batch.batch.max().item()) + 1
+            pred_sum = _per_graph_pred_sums(
+                pred_denorm, batch.batch, num_graphs
+            ).cpu()
+            target = batch.delta_total_eV.view(-1).cpu()
+            for g in range(num_graphs):
+                err = float(abs(pred_sum[g] - target[g]))
+                abs_total_errs.append(err)
+                td = float(abs(target[g]))
+                if td >= min_delta_eV:
+                    rel_total_errs.append(100.0 * err / td)
+
+    if total_graphs == 0:
+        atom = Metrics(mse=0.0, rmse=0.0, mae=0.0)
+        total = TotalEnergyMetrics(0.0, 0.0, 0.0, 0)
+        return atom, total
+
+    atom = Metrics(
+        mse=total_mse / total_graphs,
+        rmse=total_rmse / total_graphs,
+        mae=total_mae / total_graphs,
+    )
+    if not abs_total_errs:
+        total = TotalEnergyMetrics(0.0, 0.0, 0.0, 0)
+    else:
+        rel_arr = np.array(rel_total_errs, dtype=float)
+        abs_arr = np.array(abs_total_errs, dtype=float)
+        total = TotalEnergyMetrics(
+            mean_abs_total_err_eV=float(abs_arr.mean()),
+            median_rel_total_err_pct=float(np.median(rel_arr))
+            if rel_arr.size
+            else 0.0,
+            mean_rel_total_err_pct=float(rel_arr.mean()) if rel_arr.size else 0.0,
+            n_graphs=int(abs_arr.size),
+        )
+    return atom, total
 
 
 def compute_metrics(pred: torch.Tensor, target: torch.Tensor, batch: torch.Tensor) -> Metrics:

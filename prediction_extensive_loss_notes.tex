@@ -1,0 +1,179 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{geometry}
+\usepackage{parskip}
+\usepackage{hyperref}
+
+\geometry{margin=2.5cm}
+
+\title{\textbf{Internal note:} fixing net energy vs.\ per-atom MAE}
+\date{August 2026}
+
+\newcommand{\dPE}{\Delta\mathrm{PE}}
+\newcommand{\dPEhat}{\widehat{\Delta\mathrm{PE}}}
+\newcommand{\dEtrue}{\Delta E_{\mathrm{true}}}
+
+\begin{document}
+\maketitle
+
+\section*{Background}
+
+Residual models predict per-atom shifts
+\begin{equation}
+  \dPE_i = \mathrm{PE}_{\mathrm{true},i}-\mathrm{PE}_{\mathrm{initial},i},
+  \qquad
+  \dPEhat_i \approx \dPE_i,
+\end{equation}
+and delivered absolute PE is $\mathrm{PE}_{\mathrm{pred},i}=\mathrm{PE}_{\mathrm{initial},i}+\dPEhat_i$.
+
+Training minimises a \emph{per-atom} loss (MSE or MAE). That measures local quality. Net defect energy is an \emph{extensive} quantity:
+\begin{equation}
+  \dEtrue = \sum_i \dPE_i.
+\end{equation}
+In many planar configs, individual $|\dPE_i|$ are much larger than $|\dEtrue|$ because positive and negative shifts cancel (amplification $A=\sum_i|\dPE_i|/|\dEtrue|\gg 1$).
+
+\medskip
+\noindent\textbf{Failure mode.} Low per-atom MAE can coexist with $R_{\mathrm{tot}}\approx 100\%$ when the model predicts $\sum_i \dPEhat_i \approx 0$ while $\dEtrue\neq 0$. This is mainly a \textbf{loss mismatch}, not the model being unable to see symmetric patterns in the data.
+
+\section*{What the current objective does \emph{not} enforce}
+
+Per-atom loss does not require
+\begin{equation}
+  \sum_i \dPEhat_i = \dEtrue.
+\end{equation}
+Signed errors cancel in the sum:
+\begin{equation}
+  \sum_i(\dPEhat_i-\dPE_i)
+  \;\neq\;
+  \sum_i|\dPEhat_i-\dPE_i|.
+\end{equation}
+So good MAE does not imply good net formation energy.
+
+\section*{Proposal 1: Crystal-level (extensive) loss}
+
+Add a penalty on the predicted net shift. For one crystal (graph) with $N$ atoms:
+\begin{equation}
+  \mathcal{L}_{\mathrm{atom}}
+  = \frac{1}{N}\sum_{i=1}^{N}
+    \bigl(\dPEhat_i-\dPE_i\bigr)^2
+  \quad\text{(or MAE instead of MSE).}
+\end{equation}
+\begin{equation}
+  \mathcal{L}_{\mathrm{tot}}
+  = \left(\sum_{i=1}^{N}\dPEhat_i-\sum_{i=1}^{N}\dPE_i\right)^2
+  = \bigl(\dEhat-\dEtrue\bigr)^2,
+  \qquad
+  \dEhat=\sum_i \dPEhat_i.
+\end{equation}
+Combined loss:
+\begin{equation}
+  \mathcal{L}
+  = \mathcal{L}_{\mathrm{atom}}+\lambda\,\mathcal{L}_{\mathrm{tot}}.
+\end{equation}
+
+\paragraph{Intention.} Keep local accuracy, but stop the model from collapsing to ``almost no net relaxation'' when $\dEtrue$ is small yet non-zero.
+
+\paragraph{Tuning $\lambda$.} Too small: no improvement in $R_{\mathrm{tot}}$. Too large: local MAE may worsen. Tune on planar \emph{validation} using median $R_{\mathrm{tot}}$, not MAE alone.
+
+\paragraph{Scope.} Decide whether the sum runs over graph atoms only (as in training) or over the full cell if full-cell labels exist at train time.
+
+\section*{Proposal 2: Auxiliary formation-energy head}
+
+Keep per-atom outputs, but add a graph-level scalar head. After the GNN / transformer, pool node embeddings (mean, sum, or attention) and pass through an MLP:
+\begin{equation}
+  \widehat{E}_{\mathrm{form}} = f_{\mathrm{graph}}\bigl(\{\mathbf{h}_i\}\bigr).
+\end{equation}
+Train with
+\begin{equation}
+  \mathcal{L}
+  = \mathcal{L}_{\mathrm{atom}}
+  + \lambda_{\mathrm{form}}\bigl(\widehat{E}_{\mathrm{form}}-\dEtrue\bigr)^2.
+\end{equation}
+Optional consistency term so the head agrees with the sum of per-atom predictions:
+\begin{equation}
+  \mathcal{L}_{\mathrm{consist}}
+  = \left(\widehat{E}_{\mathrm{form}}-\sum_i \dPEhat_i\right)^2,
+  \qquad
+  \mathcal{L}
+  = \mathcal{L}_{\mathrm{atom}}
+  + \lambda_{\mathrm{form}}\mathcal{L}_{\mathrm{form}}
+  + \lambda_{\mathrm{c}}\mathcal{L}_{\mathrm{consist}}.
+\end{equation}
+
+\paragraph{Intention.} Predict the one extensive number (formation energy) directly from global context, instead of hoping it emerges from independent per-atom errors.
+
+\paragraph{Use at inference.}
+\begin{itemize}
+  \item Report $\widehat{E}_{\mathrm{form}}$ as the defect energy prediction.
+  \item Keep $\dPEhat_i$ for local PE maps.
+  \item Optionally renormalise per-atom outputs so their sum matches $\widehat{E}_{\mathrm{form}}$ (see Proposal~3).
+\end{itemize}
+
+\section*{Proposal 3: Post-hoc correction (inference only, no retrain)}
+
+Given per-atom predictions $\dPEhat_i$, compute $\dEhat=\sum_i\dPEhat_i$. If a target net energy $\dEtarget$ is available (from an auxiliary model or external estimate), redistribute the mismatch.
+
+\paragraph{Uniform shift.}
+\begin{equation}
+  \dPEhat_i{}^{\mathrm{corr}}
+  = \dPEhat_i+\frac{\dEtarget-\dEhat}{N}.
+\end{equation}
+
+\paragraph{Proportional scaling} (if $\dEhat\neq 0$).
+\begin{equation}
+  \dPEhat_i{}^{\mathrm{corr}}
+  = \dPEhat_i\cdot\frac{\dEtarget}{\dEhat}.
+\end{equation}
+
+\paragraph{Limitation.} Fixes the total ad hoc; does not improve the learned local physics unless the correction is small. Redistribution can be unphysical if applied blindly.
+
+\section*{Stronger ``symmetry awareness'' (optional, heavier)}
+
+The cancellation problem does not strictly require explicit symmetry machinery. If correlated partner sites matter, further options include:
+
+\begin{itemize}
+  \item \textbf{Equivariant architectures:} predictions transform consistently under known site symmetries.
+  \item \textbf{Sublattice / Wyckoff labels:} encode which atoms are symmetry partners.
+  \item \textbf{Symmetry-averaged targets:} average $\dPE_i$ over equivalent sites before training.
+  \item \textbf{Extra physics constraints:} e.g.\ consistency with forces or stress (much more work).
+\end{itemize}
+
+These are research-grade extensions. For the current delivery issue, Proposal~1 or~2 is the practical starting point.
+
+\section*{Comparison}
+
+\begin{center}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}p{3.8cm}@{}}
+  \toprule
+  Approach & Fixes net energy? & Needs retrain? & Main risk \\
+  \midrule
+  Per-atom loss only (current) & No & --- & $R_{\mathrm{tot}}\approx 100\%$ when $A\gg 1$ \\
+  $\mathcal{L}_{\mathrm{tot}}$ (Prop.~1) & Yes & Yes & $\lambda$ hurts MAE if too large \\
+  Formation head (Prop.~2) & Yes & Yes & head vs.\ sum inconsistency \\
+  Post-hoc correction (Prop.~3) & Partly & No & unphysical redistribution \\
+  Symmetry-aware model & Maybe & Yes & high implementation cost \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Recommended path for this project}
+
+\begin{enumerate}
+  \item \textbf{Analysis (done):} report MAE, $R_{\mathrm{tot}}$, and amplification $A$ together.
+  \item \textbf{One retrain:} add $\mathcal{L}_{\mathrm{tot}}$ with tunable $\lambda$; select checkpoint on planar validation $R_{\mathrm{tot}}$.
+  \item \textbf{If partners need formation energy:} add $\widehat{E}_{\mathrm{form}}$ head (Proposal~2) and optionally $\mathcal{L}_{\mathrm{consist}}$.
+  \item \textbf{Expect a trade-off:} better net energy may slightly increase per-atom MAE; that is acceptable if the use case is defect energy.
+\end{enumerate}
+
+\section*{One-line summary}
+
+Models are tuned for local $\dPEhat_i$ accuracy; net defect energy needs explicit extensive supervision (sum loss or formation-energy head), because physical cancellation makes the sum much harder than the mean absolute error suggests.
+
+\end{document}

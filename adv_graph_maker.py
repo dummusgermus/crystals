@@ -220,7 +220,7 @@ def build_adv_datasets(
             json.dump(stats, f, indent=2)
 
         saved[variant] = ds_path
-        print(f"  [{variant}] {len(variant_ds)} graphs → {ds_path}")
+        print(f"  [{variant}] {len(variant_ds)} graphs -> {ds_path}")
         print(f"  [{variant}] stats → {stats_path}")
 
     return saved

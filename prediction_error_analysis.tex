@@ -1,0 +1,250 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{geometry}
+\usepackage{parskip}
+
+\geometry{margin=2cm, landscape}
+
+
+
+\begin{document}
+
+
+\medskip
+\noindent\textbf{Problem.} Per-atom MAE $\sim$0.005--0.01~eV looks excellent, but total system error can reach $\sim$100\% of the true net energy change when local relaxations cancel. Training optimises per-atom $\Delta\mathrm{PE}$; nothing enforces $\sum_i\widehat{\Delta\mathrm{PE}}_i=\Delta E_{\mathrm{true}}$.
+
+\medskip
+\noindent\textbf{Metrics.}
+\begin{itemize}
+  \item $\mathrm{MAE}=\frac{1}{N}\sum_i|\mathrm{PE}_{\mathrm{pred},i}-\mathrm{PE}_{\mathrm{true},i}|$
+  \item $R_{\mathrm{tot}}=100\,|\sum_i(\mathrm{PE}_{\mathrm{pred},i}-\mathrm{PE}_{\mathrm{true},i})|\;/\;|\Delta E_{\mathrm{true}}|$
+  \item Cancellation $C=1-|\Delta E_{\mathrm{true}}|/\sum_i|\Delta\mathrm{PE}_i|$
+  \item Amplification $A=\sum_i|\Delta\mathrm{PE}_i|/|\Delta E_{\mathrm{true}}|$
+  \item Blind baseline ($\widehat{\Delta\mathrm{PE}}=0$): $R_{\mathrm{tot}}=100\%$; $\mathrm{MAE}_{\mathrm{blind}}=\text{mean}_i|\Delta\mathrm{PE}_i|$
+\end{itemize}
+
+\section*{Table 1 | Per-atom MAE (eV/atom)}
+
+
+
+\begin{center}
+\small
+\begin{tabular}{llrr}
+  \toprule
+  Domain & Split & CGCNN & Transformer \\
+  \midrule
+  Point  & all        & 0.00565 & 0.00556 \\
+  Point  & validation & 0.00324 & 0.00326 \\
+  Planar & all        & 0.00894 & 0.00871 \\
+  Planar & validation & 0.01750 & 0.01361 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Table 2 | Absolute total system error (eV)}
+
+Mean $|\mathrm{PE}_{\mathrm{pred}}^{\mathrm{tot}}-\mathrm{PE}_{\mathrm{true}}^{\mathrm{tot}}|$ over crystals (from summary JSON).
+
+\begin{center}
+\small
+\begin{tabular}{llrr}
+  \toprule
+  Domain & Split & CGCNN & Transformer \\
+  \midrule
+  Point  & all        & 10.999 & 10.854 \\
+  Point  & validation &  1.644 &  1.720 \\
+  Planar & all        &  0.225 &  0.141 \\
+  Planar & validation &  0.626 &  0.348 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Note that point crystals are large ($N\gg 18$); planar cells are small. These absolute totals are not directly comparable across domains.
+
+\section*{Table 3 | Relative total error $R_{\mathrm{tot}}$ (\%)}
+
+Crystals with $|\Delta E_{\mathrm{true}}|\ge10^{-6}$~eV ($n=2400$; 211 skipped, essentially all point configs with zero net change). Baseline $R_{\mathrm{tot}}=100\%$.
+
+\subsection*{3a. All crystals (point + planar), $n=2400$}
+
+\begin{center}
+\small
+\begin{tabular}{lrrrr}
+  \toprule
+  & \multicolumn{2}{c}{CGCNN} & \multicolumn{2}{c}{Transformer} \\
+  \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+  Statistic & mean & median & mean & median \\
+  \midrule
+  $R_{\mathrm{tot}}$ (\%)     & 70.70 & 28.96 & 101.62 & 46.74 \\
+  10th percentile             &  3.73 &       &   6.65 & \\
+  90th percentile             & 128.10 &       & 219.68 & \\
+  min                         &  0.02 &       &   0.04 & \\
+  max                         & 13269.16 &    & 9354.02 & \\
+  fraction $R_{\mathrm{tot}}<100\%$ & \multicolumn{2}{c}{86.4\%} & \multicolumn{2}{c}{72.6\%} \\
+  fraction $R_{\mathrm{tot}}<50\%$  & \multicolumn{2}{c}{66.8\%} & \multicolumn{2}{c}{51.9\%} \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{3b. By domain and split}
+
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llr rr rr rr}
+  \toprule
+  Domain & Split & $n$ &
+  \multicolumn{2}{c}{CGCNN (\%)} &
+  \multicolumn{2}{c}{Transformer (\%)} &
+  \multicolumn{2}{c}{$R_{\mathrm{tot}}<100\%$} \\
+  \cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+  & & & mean & med. & mean & med. & CGCNN & Trans. \\
+  \midrule
+  Point  & all        & 422 & 72.26 & 20.28 &  44.84 &  25.03 & 94.5 & 94.3 \\
+  Point  & train      & 380 & 73.43 & 19.68 &  44.15 &  24.80 & 94.7 & 94.5 \\
+  Point  & validation &  42 & 61.64 & 28.00 &  51.09 &  26.03 & 92.9 & 92.9 \\
+  Planar & all        & 1978 & 70.37 & 31.40 & 113.73 &  53.66 & 84.7 & 68.0 \\
+  Planar & train      & 1780 & 58.80 & 30.04 & 111.15 &  53.89 & 86.0 & 68.3 \\
+  Planar & validation &  198 & 174.39 & 45.76 & 136.89 &  50.55 & 72.7 & 65.2 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{3b2. Fraction $R_{\mathrm{tot}}<50\%$ by domain and split (\%)}
+
+\begin{center}
+\small
+\begin{tabular}{llrr}
+  \toprule
+  Domain & Split & CGCNN & Transformer \\
+  \midrule
+  Point  & all        & 72.5 & 70.6 \\
+  Point  & train      & 72.1 & 71.3 \\
+  Point  & validation & 76.2 & 64.3 \\
+  Planar & all        & 65.6 & 47.9 \\
+  Planar & train      & 66.9 & 47.6 \\
+  Planar & validation & 53.5 & 50.0 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{3c. Percentiles and extrema by domain (all split)}
+
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}ll *{8}{r} @{}}
+  \toprule
+  Domain & $n$ & \multicolumn{4}{c}{CGCNN (\%)} & \multicolumn{4}{c}{Transformer (\%)} \\
+  \cmidrule(lr){3-6}\cmidrule(lr){7-10}
+  & & p10 & p90 & min & max & p10 & p90 & min & max \\
+  \midrule
+  Point  & 422  & 3.14 & 93.79 & 0.06 & 13269.16 & 5.16 & 98.27 & 0.08 & 1327.47 \\
+  Planar & 1978 & 3.83 & 142.87 & 0.02 & 11313.06 & 7.37 & 240.21 & 0.04 & 9354.02 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Best was 0.02\% (\texttt{planar/U-Mn\_XY'XYZXY}), worst was 13269.16\% (\texttt{point/1-1-2-8a}).
+
+\section*{Table 4 | Sum of atom residuals vs.\ net system change}
+
+Per crystal: $A=\sum_i|\Delta\mathrm{PE}_i|\;/\;|\Delta E_{\mathrm{true}}|$.
+Only crystals with $|\Delta E_{\mathrm{true}}|>10^{-6}$~eV ($n=2400$).
+
+\subsection*{4a. Amplification factor $A$ (distribution over crystals)}
+
+\begin{center}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.6cm} *{5}{r} @{}}
+  \toprule
+  Subset & $n$ & mean $A$ & median $A$ & p10 & p90 \\
+  \midrule
+  All (point + planar) & 2400 & 5.89 & 4.20 & 1.71 & 13.01 \\
+  Point                &  422 & 6.02 & 4.71 & 3.02 &  8.18 \\
+  Planar               & 1978 & 5.86 & 3.83 & 1.63 & 13.54 \\
+  Planar, $|\Delta E|<0.05$~eV & 796 & 9.27 & 8.79 & 2.06 & 17.69 \\
+  All, $|\Delta E|<0.05$~eV   &  809 & 9.57 & 8.83 & 2.07 & 17.84 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Typical planar small-net-change case: per-atom activity is $\sim$9$\times$ the net change (median $\sim$8.8$\times$).
+
+\subsection*{4b. By $|\Delta E_{\mathrm{true}}|$ bucket (mean quantities over crystals in bucket)}
+
+All 2611 delivery CSVs for means of $|\Delta E|$, $\sum|\Delta\mathrm{PE}_i|$; $A$ and $R_{\mathrm{tot}}$ from crystals with $|\Delta E|>10^{-6}$~eV.
+
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}l *{10}{r} @{}}
+  \toprule
+  $|\Delta E|$ bucket & $n$ & mean $|\Delta E|$ & mean $\sum|\Delta\mathrm{PE}_i|$ & ratio & mean $A$ & med.\ $A$ & mean $C$ & MAE & CGCNN $R_{\mathrm{tot}}$ mean & CGCNN $R_{\mathrm{tot}}$ med. \\
+  \midrule
+  $<0.05$~eV       & 1020 & 0.0184 & 0.144 & 7.83 & 9.57 & 8.83 & 63.9 & 0.0024 & 138.5 & 57.2 \\
+  $0.05$--$0.2$~eV & 1047 & 0.101  & 0.372 & 3.68 & 3.92 & 3.29 & 64.8 & 0.0037 &  38.0 & 20.1 \\
+  $0.2$--$1$~eV    &  315 & 0.521  & 2.498 & 4.79 & 4.53 & 4.38 & 70.9 & 0.0056 &  28.4 & 18.5 \\
+  $>1$~eV          &  229 & 37.86  & 53.55 & 1.41 & 3.77 & 3.56 & 52.5 & 0.0574 &  38.7 & 23.7 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\noindent ratio $=$ (mean $\sum|\Delta\mathrm{PE}_i|$)\,/\,(mean $|\Delta E|$); mean/med.\ $A$ $=$ per-crystal amplification statistics.
+
+\subsection*{4c. Planar subset with $|\Delta E_{\mathrm{true}}|<0.05$~eV ($n=796$)}
+
+\begin{center}
+\begin{tabular}{lr}
+  \toprule
+  Quantity & Value \\
+  \midrule
+  Mean cancellation $C$ & 80.4\% \\
+  Mean amplification $A$ & 9.27 \\
+  Median amplification $A$ & 8.79 \\
+  Mean per-atom $|\Delta\mathrm{PE}|$ & 0.00568~eV \\
+  Mean $|\Delta E_{\mathrm{true}}|$ & 0.0184~eV (bucket overall) \\
+  Mean MAE on $\Delta\mathrm{PE}$ (CGCNN) & 0.00307~eV \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Table 5 | Example: Ag-Be\_XY'X (planar, train, $N=18$)}
+
+\begin{center}
+\small
+\begin{tabular}{lr}
+  \toprule
+  Quantity & Value \\
+  \midrule
+  $\Delta E_{\mathrm{true}}$ (net) & $-0.03598$~eV \\
+  $\sum_i|\Delta\mathrm{PE}_i|$ & 0.11492~eV \\
+  Amplification $A=\sum|\Delta\mathrm{PE}|/|\Delta E|$ & 3.19 \\
+  Mean per-atom $|\Delta\mathrm{PE}_i|$ & 0.00638~eV \\
+  Max per-atom $|\Delta\mathrm{PE}_i|$ & 0.02243~eV \\
+  Cancellation $C$ & 68.7\% \\
+  CGCNN per-atom MAE & 0.00458~eV \\
+  CGCNN predicted net $\Delta E$ & $+0.00037$~eV \\
+  CGCNN total error & $+0.03635$~eV \\
+  CGCNN $R_{\mathrm{tot}}$ & 101.0\% \\
+  Transformer total error & $-0.05431$~eV \\
+  Transformer $R_{\mathrm{tot}}$ & 150.9\% \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Bottom-line}
+
+\begin{itemize}
+  \item We have a very low per-atom MAE, but not necessarily a low total system MAE. 
+  \item $R_{\mathrm{tot}}\approx 100\%$ with MAE $\sim$0.005~eV happens when $\Delta E_{\mathrm{true}}$ is small and per-atom changes cancel ($C\sim 60$--80\%, amplification $A\sim 4$--10$\times$).
+  \item Point: median $R_{\mathrm{tot}}\sim 20$--25\%. Planar validation: median $\sim 46$--51\%, mean inflated by small-$|\Delta E|$ outliers.
+\end{itemize}
+
+\end{document}

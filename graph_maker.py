@@ -268,6 +268,18 @@ def _build_subgraph(
             relaxed_targets.append([pe_relaxed])
     y_node = torch.tensor(relaxed_targets, dtype=torch.float)
 
+    pe_initial_total = float(np.sum(per_atom_pe))
+    pe_true_total = 0.0
+    for idx, pid in enumerate(particle_ids):
+        pid_int = int(pid)
+        if pid_int not in relaxed_pe_by_id:
+            raise ValueError(
+                f"Missing relaxed per-atom PE for full-cell particle id {pid_int}"
+            )
+        pe_true_total += relaxed_pe_by_id[pid_int]
+    delta_total = pe_true_total - pe_initial_total
+    graph_delta_total = float(y_node.sum().item())
+
     subset_count = len(subset_indices)
     dist_matrix = np.zeros((subset_count, subset_count), dtype=float)
     for i in range(subset_count):
@@ -329,6 +341,10 @@ def _build_subgraph(
         "cutoff_distance": float(cutoff_dist),
         "cutoff_mode": cutoff_mode,
         "target_mode": target_mode,
+        "pe_initial_total_eV": pe_initial_total,
+        "pe_true_total_eV": pe_true_total,
+        "delta_total_eV": delta_total,
+        "graph_delta_total_eV": graph_delta_total,
     }
     particle_ids_subset = torch.tensor(
         [int(particle_ids[orig]) for orig in subset_indices],
@@ -464,6 +480,7 @@ def build_pyg_dataset(
             data.meta = meta
             data.particle_ids = particle_ids_subset
             data.orig_indices = orig_indices
+            data.delta_total_eV = torch.tensor([meta["delta_total_eV"]], dtype=torch.float)
             dataset.append(data)
 
     return dataset

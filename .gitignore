@@ -35,6 +35,10 @@ plots/
 # Large raw simulation data
 # -----------------------------
 SIMULATIONS/
+predictions/
+predictions_inference/
+predictions_validate/
+predictions_validation_model/
 Laves_Screen/
 Laves_Screen_new/
 Laves_Planar_Defects/
@@ -72,8 +76,10 @@ uae_embeddings/
 # Needed datasets for CGCNN / transformer benchmarks
 !adv_datasets/cycle34_dataset.pt
 !adv_datasets/cycle34_residual_dataset.pt
+!adv_datasets/cycle34_residual_totals_dataset.pt
 !planar_pyg_dataset_c14c15.pt
 !planar_pyg_dataset_residual_c14c15.pt
+!planar_pyg_dataset_residual_c14c15_totals.pt
 
 # Cluster inference ΔPE preds (needed for local restore-merged)
 !predictions_inference/**/*_graph_pred.pt
@@ -104,3 +110,14 @@ cgcnn_inference_benchmark.json
 planar_dataset_stats.json
 *_stats.json
 pyg_dataset.pt.graphview.json
+
+# Totals-dataset stats + lambda-sweep deliverables (exceptions after broad rules)
+!adv_datasets/cycle34_residual_totals_stats.json
+!planar_pyg_dataset_residual_c14c15_totals_stats.json
+!cgcnn_lambda_sweep_curves.json
+!cgcnn_lambda_sweep_summary.json
+!cgcnn_extensive_comparison_curves.json
+
+# Sweep / comparison plots (exceptions after *.png)
+!cgcnn_lambda_sweep_*.png
+!cgcnn_extensive_comparison_curves.png

@@ -1,0 +1,54 @@
+﻿=== Ag-Be_XY'X ===
+  n: 18
+  delta_total: -0.03598
+  sum_abs_delta_true: 0.11492
+  mean_abs_delta_true: 0.00638444
+  max_abs_delta_true: 0.02243
+  cancel_true: 0.686913
+  mae: 0.00458284
+  mae_delta_pred: 0.00458284
+  delta_pred_total: 0.000371952
+  ec: 0.036352
+
+=== Buckets (all deliveries) ===
+
+|net delta| < 0.05 eV  n=1020
+  mean |net delta|:           0.01835 eV
+  mean sum|atom delta|:       0.1436 eV
+  mean per-atom |delta|:      0.004436 eV
+  mean cancellation:         63.9%
+  mean MAE (abs PE):         0.0024 eV/atom
+  mean MAE (delta):          0.0024 eV/atom
+  mean |total err|/|delta|:  138.5%  median 57.2%
+
+0.05 û 0.2 eV  n=1047
+  mean |net delta|:           0.1012 eV
+  mean sum|atom delta|:       0.3717 eV
+  mean per-atom |delta|:      0.0105 eV
+  mean cancellation:         64.8%
+  mean MAE (abs PE):         0.003697 eV/atom
+  mean MAE (delta):          0.003697 eV/atom
+  mean |total err|/|delta|:  38.0%  median 20.1%
+
+0.2 û 1 eV  n=315
+  mean |net delta|:           0.521 eV
+  mean sum|atom delta|:       2.498 eV
+  mean per-atom |delta|:      0.0105 eV
+  mean cancellation:         70.9%
+  mean MAE (abs PE):         0.005647 eV/atom
+  mean MAE (delta):          0.005647 eV/atom
+  mean |total err|/|delta|:  28.4%  median 18.5%
+
+> 1 eV  n=229
+  mean |net delta|:           37.86 eV
+  mean sum|atom delta|:       53.55 eV
+  mean per-atom |delta|:      0.1876 eV
+  mean cancellation:         52.5%
+  mean MAE (abs PE):         0.05743 eV/atom
+  mean MAE (delta):          0.05743 eV/atom
+  mean |total err|/|delta|:  38.7%  median 23.7%
+
+=== Planar small-net-change (|delta|<0.05), n=796 ===
+  mean cancellation: 80.4%
+  mean per-atom |delta|: 0.005682 eV
+  mean MAE on delta: 0.00307 eV

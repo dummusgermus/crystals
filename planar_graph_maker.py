@@ -464,6 +464,11 @@ def _build_full_graph(
     pos = torch.tensor(positions, dtype=torch.float)
     y_node = torch.tensor(targets, dtype=torch.float)
 
+    pe_initial_total = float(np.sum(per_atom_pe))
+    pe_true_total = pe_initial_total + float(y_node.sum().item())
+    delta_total = pe_true_total - pe_initial_total
+    graph_delta_total = float(y_node.sum().item())
+
     dist_matrix = np.zeros((n_atoms, n_atoms), dtype=float)
     for i in range(n_atoms):
         for j in range(i + 1, n_atoms):
@@ -519,6 +524,10 @@ def _build_full_graph(
         "num_defect_atoms": len(defect_indices),
         "defect_ids": list(defect_ids) if defect_ids else [],
         "target_mode": target_mode,
+        "pe_initial_total_eV": pe_initial_total,
+        "pe_true_total_eV": pe_true_total,
+        "delta_total_eV": delta_total,
+        "graph_delta_total_eV": graph_delta_total,
     }
     particle_ids_tensor = torch.tensor(
         [int(pid) for pid in particle_ids],
@@ -682,6 +691,7 @@ def build_planar_pyg_dataset(
         data.target_mode = target_mode
         data.meta = meta
         data.particle_ids = particle_ids
+        data.delta_total_eV = torch.tensor([meta["delta_total_eV"]], dtype=torch.float)
         if defect_ids is not None:
             data.defect_ids = list(defect_ids)
         dataset.append(data)

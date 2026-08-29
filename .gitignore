@@ -124,15 +124,20 @@ pyg_dataset.pt.graphview.json
 !cgcnn_global_v2_summary.json
 !cgcnn_global_v2_followup_curves.json
 !cgcnn_global_v2_followup_summary.json
+!transformer_global_v2_lambda_sweep_curves.json
+!transformer_global_v2_lambda_sweep_summary.json
 
 # Sweep / comparison plots (exceptions after *.png)
 !cgcnn_lambda_sweep_*.png
 !cgcnn_extensive_comparison_curves.png
 !cgcnn_global_v2_curves.png
 !cgcnn_global_v2_followup_*.png
+!transformer_global_v2_lambda_sweep_*.png
 !delivery_global_v2_curves.json
 !predictions_new/delivery_split_indices.json
 !*_global_v2_model.pt
+!transformer_*_global_v2_lambda_*_model.pt
+!transformer_graph_*_global_v2_best_model.pt
 !cgcnn_graph_total_curves.json
 !cgcnn_graph_total_summary.json
 !cgcnn_graph_total_*.png

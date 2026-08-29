@@ -1,0 +1,140 @@
+{
+  "checkpoint_metric": "r_tot",
+  "selection_metric": "final_test_r_tot_median",
+  "delivery_reference_lambda": {
+    "point": 0.01,
+    "planar": 0.005
+  },
+  "best_by_domain": {
+    "point": {
+      "run_key": "point_transformer_global_v2_lambda_0.02",
+      "lambda_tot": 0.02,
+      "final_test_mae": 0.010452133681004247,
+      "final_test_r_tot_median": 17.111650553034067,
+      "final_test_abs_total_err_eV": 0.34048678226342116,
+      "best_val_score": 15.307945109993193,
+      "source_checkpoint": "/work/log1/erik.mueller/code/transformer_point_global_v2_lambda_0.02_model.pt",
+      "best_checkpoint": "/work/log1/erik.mueller/code/transformer_graph_defect_residual_global_v2_best_model.pt",
+      "config": {
+        "hidden_dim": 128,
+        "num_layers": 4,
+        "num_heads": 4,
+        "dropout": 0.1,
+        "attention_dropout": 0.1,
+        "activation": "gelu",
+        "lr": 0.001,
+        "weight_decay": 1e-05,
+        "batch_size": 8,
+        "warmup_iters": 20,
+        "min_lr": 0.0,
+        "gradient_norm": 1.0,
+        "scheduler": "cosine_warmup"
+      },
+      "total_loss_config": {
+        "target_mode": "graph",
+        "loss_type": "huber",
+        "scale_eps": 0.05,
+        "huber_delta": 1.0,
+        "lambda_tot": 0.02,
+        "balance_losses": true,
+        "outlier_max_delta_eV": 50.0,
+        "outlier_max_mismatch_eV": 5.0
+      }
+    },
+    "planar": {
+      "run_key": "planar_transformer_global_v2_lambda_0.01",
+      "lambda_tot": 0.01,
+      "final_test_mae": 0.010715681112577652,
+      "final_test_r_tot_median": 41.93230971081343,
+      "final_test_abs_total_err_eV": 0.25198843524652226,
+      "best_val_score": 45.85621246091462,
+      "source_checkpoint": "/work/log1/erik.mueller/code/transformer_planar_global_v2_lambda_0.01_model.pt",
+      "best_checkpoint": "/work/log1/erik.mueller/code/transformer_graph_planar_residual_global_v2_best_model.pt",
+      "config": {
+        "hidden_dim": 128,
+        "num_layers": 4,
+        "num_heads": 4,
+        "dropout": 0.1,
+        "attention_dropout": 0.1,
+        "activation": "gelu",
+        "lr": 0.001,
+        "weight_decay": 1e-05,
+        "batch_size": 8,
+        "warmup_iters": 20,
+        "min_lr": 0.0,
+        "gradient_norm": 1.0,
+        "scheduler": "cosine_warmup"
+      },
+      "total_loss_config": {
+        "target_mode": "graph",
+        "loss_type": "huber",
+        "scale_eps": 0.05,
+        "huber_delta": 1.0,
+        "lambda_tot": 0.01,
+        "balance_losses": true,
+        "outlier_max_delta_eV": 50.0,
+        "outlier_max_mismatch_eV": 5.0
+      }
+    }
+  },
+  "all_runs_by_domain": {
+    "point": {
+      "lambda_0.005": {
+        "run_key": "point_transformer_global_v2_lambda_0.005",
+        "lambda_tot": 0.005,
+        "checkpoint": "/work/log1/erik.mueller/code/transformer_point_global_v2_lambda_0.005_model.pt",
+        "final_test_mae": 0.010194187906260291,
+        "final_test_r_tot_median": 30.54731671037215,
+        "final_test_abs_total_err_eV": 0.32017739314081456,
+        "best_val_score": 17.830039906216385
+      },
+      "lambda_0.01": {
+        "run_key": "point_transformer_global_v2_lambda_0.01",
+        "lambda_tot": 0.01,
+        "checkpoint": "/work/log1/erik.mueller/code/transformer_point_global_v2_lambda_0.01_model.pt",
+        "final_test_mae": 0.010903762886300683,
+        "final_test_r_tot_median": 27.80252143116289,
+        "final_test_abs_total_err_eV": 0.3169975779698386,
+        "best_val_score": 14.410812895243142
+      },
+      "lambda_0.02": {
+        "run_key": "point_transformer_global_v2_lambda_0.02",
+        "lambda_tot": 0.02,
+        "checkpoint": "/work/log1/erik.mueller/code/transformer_point_global_v2_lambda_0.02_model.pt",
+        "final_test_mae": 0.010452133681004247,
+        "final_test_r_tot_median": 17.111650553034067,
+        "final_test_abs_total_err_eV": 0.34048678226342116,
+        "best_val_score": 15.307945109993193
+      }
+    },
+    "planar": {
+      "lambda_0.0025": {
+        "run_key": "planar_transformer_global_v2_lambda_0.0025",
+        "lambda_tot": 0.0025,
+        "checkpoint": "/work/log1/erik.mueller/code/transformer_planar_global_v2_lambda_0.0025_model.pt",
+        "final_test_mae": 0.010904952680579567,
+        "final_test_r_tot_median": 44.838509670236675,
+        "final_test_abs_total_err_eV": 0.2189427750941441,
+        "best_val_score": 51.68527601824813
+      },
+      "lambda_0.005": {
+        "run_key": "planar_transformer_global_v2_lambda_0.005",
+        "lambda_tot": 0.005,
+        "checkpoint": "/work/log1/erik.mueller/code/transformer_planar_global_v2_lambda_0.005_model.pt",
+        "final_test_mae": 0.01192666514582882,
+        "final_test_r_tot_median": 58.76909499462727,
+        "final_test_abs_total_err_eV": 0.2731800926454684,
+        "best_val_score": 51.13991241673874
+      },
+      "lambda_0.01": {
+        "run_key": "planar_transformer_global_v2_lambda_0.01",
+        "lambda_tot": 0.01,
+        "checkpoint": "/work/log1/erik.mueller/code/transformer_planar_global_v2_lambda_0.01_model.pt",
+        "final_test_mae": 0.010715681112577652,
+        "final_test_r_tot_median": 41.93230971081343,
+        "final_test_abs_total_err_eV": 0.25198843524652226,
+        "best_val_score": 45.85621246091462
+      }
+    }
+  }
+}

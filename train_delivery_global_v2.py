@@ -24,7 +24,7 @@ from delivery_global_v2 import (
     CHECKPOINTS,
     DELIVERY_SEED,
     DELIVERY_VAL_FRACTION,
-    LAMBDA_BY_DOMAIN,
+    LAMBDA_BY_MODEL,
     SPLIT_JSON_DEFAULT,
     TOTALS_DATASETS,
     build_or_update_split_json,
@@ -102,7 +102,7 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
     print(f"Delivery split seed={DELIVERY_SEED} val_fraction={DELIVERY_VAL_FRACTION}")
-    print(f"Lambdas: {LAMBDA_BY_DOMAIN}")
+    print(f"Lambdas: {LAMBDA_BY_MODEL}")
 
     split_payload = build_or_update_split_json(
         path=args.split_json, force=args.force_split
@@ -137,7 +137,7 @@ def main() -> None:
             "seed": DELIVERY_SEED,
             "val_fraction": DELIVERY_VAL_FRACTION,
             "split_json": args.split_json,
-            "lambda_by_domain": LAMBDA_BY_DOMAIN,
+            "lambda_by_model": LAMBDA_BY_MODEL,
             "loss": "global_v2",
             "checkpoint_metric": "val_r_tot_median",
             "runs": results,

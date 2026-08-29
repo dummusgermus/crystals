@@ -1,0 +1,21 @@
+{
+  "tag": "k22",
+  "cutoff_k": 22,
+  "cutoff_mode": "shell",
+  "built_from_copy": false,
+  "path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_size_k22.pt",
+  "num_graphs": 633,
+  "subset_size_mean": 500.1611374407583,
+  "subset_size_median": 596.0,
+  "subset_size_min": 51,
+  "subset_size_max": 605,
+  "cutoff_distance_mean": 12.951266882654016,
+  "cutoff_distance_median": 13.324319959446896,
+  "full_cell_size_mean": 3000.0,
+  "subset_fraction_actual_mean": 0.16672037914691945,
+  "subset_fraction_actual_median": 0.19866666666666666,
+  "delta_total_mean_eV": -11.447878065044282,
+  "graph_delta_mean_eV": -2.1792533460969183,
+  "full_graph_delta_mismatch_mean_eV": 9.289125311792255,
+  "full_graph_delta_mismatch_median_eV": 0.007189929485321045
+}

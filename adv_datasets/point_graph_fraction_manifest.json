@@ -1,0 +1,62 @@
+{
+  "domain": "point",
+  "tiers": [
+    {
+      "tag": "baseline",
+      "subset_fraction_target": null,
+      "dataset": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_baseline.pt",
+      "stats": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_baseline_stats.json"
+    },
+    {
+      "tag": "p16",
+      "subset_fraction_target": 0.16,
+      "dataset": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p16.pt",
+      "stats": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p16_stats.json"
+    },
+    {
+      "tag": "p32",
+      "subset_fraction_target": 0.32,
+      "dataset": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p32.pt",
+      "stats": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p32_stats.json"
+    },
+    {
+      "tag": "p48",
+      "subset_fraction_target": 0.48,
+      "dataset": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p48.pt",
+      "stats": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p48_stats.json"
+    },
+    {
+      "tag": "p64",
+      "subset_fraction_target": 0.64,
+      "dataset": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p64.pt",
+      "stats": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p64_stats.json"
+    },
+    {
+      "tag": "p80",
+      "subset_fraction_target": 0.8,
+      "dataset": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p80.pt",
+      "stats": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_p80_stats.json"
+    }
+  ],
+  "summaries": {
+    "baseline": {
+      "tag": "baseline",
+      "subset_fraction_target": null,
+      "path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_frac_baseline.pt",
+      "num_graphs": 633,
+      "subset_size_mean": 92.1090047393365,
+      "subset_size_median": 106.0,
+      "subset_size_min": 13,
+      "subset_size_max": 110,
+      "full_cell_size_mean": 3000.0,
+      "subset_fraction_actual_mean": 0.03070300157977883,
+      "subset_fraction_actual_median": 0.035333333333333335,
+      "subset_fraction_actual_min": 0.004333333333333333,
+      "subset_fraction_actual_max": 0.03666666666666667,
+      "delta_total_mean_eV": -11.447878065044282,
+      "graph_delta_mean_eV": -0.806759200180994,
+      "full_graph_delta_mismatch_mean_eV": 10.70690603392029,
+      "full_graph_delta_mismatch_median_eV": 0.014909982681274414
+    }
+  }
+}

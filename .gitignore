@@ -116,6 +116,12 @@ pyg_dataset.pt.graphview.json
 
 # Totals-dataset stats + lambda-sweep deliverables (exceptions after broad rules)
 !adv_datasets/cycle34_residual_totals_stats.json
+!adv_datasets/cycle34_residual_totals_size_*.pt
+!adv_datasets/cycle34_residual_totals_size_*_stats.json
+!adv_datasets/point_graph_size_manifest.json
+!cgcnn_graph_size_sweep_curves.json
+!cgcnn_graph_size_sweep_summary.json
+!cgcnn_graph_size_sweep_*.png
 !planar_pyg_dataset_residual_c14c15_totals_stats.json
 !cgcnn_lambda_sweep_curves.json
 !cgcnn_lambda_sweep_summary.json
@@ -133,6 +139,7 @@ pyg_dataset.pt.graphview.json
 !cgcnn_global_v2_curves.png
 !cgcnn_global_v2_followup_*.png
 !transformer_global_v2_lambda_sweep_*.png
+!cgcnn_graph_size_sweep_*.png
 !delivery_global_v2_curves.json
 !predictions_new/delivery_split_indices.json
 !*_global_v2_model.pt

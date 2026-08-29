@@ -1,0 +1,21 @@
+{
+  "tag": "k11",
+  "cutoff_k": 11,
+  "cutoff_mode": "shell",
+  "built_from_copy": false,
+  "path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_size_k11.pt",
+  "num_graphs": 633,
+  "subset_size_mean": 154.33333333333334,
+  "subset_size_median": 176.0,
+  "subset_size_min": 19,
+  "subset_size_max": 183,
+  "cutoff_distance_mean": 8.791956746781613,
+  "cutoff_distance_median": 8.84980343762527,
+  "full_cell_size_mean": 3000.0,
+  "subset_fraction_actual_mean": 0.05144444444444445,
+  "subset_fraction_actual_median": 0.058666666666666666,
+  "delta_total_mean_eV": -11.447878065044282,
+  "graph_delta_mean_eV": -1.0206532120935643,
+  "full_graph_delta_mismatch_mean_eV": 10.456148866190222,
+  "full_graph_delta_mismatch_median_eV": 0.017280012369155884
+}

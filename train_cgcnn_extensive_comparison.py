@@ -92,6 +92,7 @@ def _train_one(
     checkpoint_metric: str = "mae",
     total_loss_config: Optional[TotalLossConfig] = None,
     legacy_total_loss: bool = False,
+    extra_total_eval_modes: Optional[Tuple[str, ...]] = None,
 ) -> Dict:
     loss_tag = "atom_plus_total" if use_total_loss else "atom_only"
     name = run_key or (
@@ -330,6 +331,36 @@ def _train_one(
     }
     if total_loss_config is not None:
         result["total_loss_config"] = total_loss_config.__dict__
+    if extra_total_eval_modes:
+        for mode in extra_total_eval_modes:
+            if mode == eval_target_mode:
+                continue
+            _, val_tot_extra = evaluate_with_total_energy(
+                model,
+                val_loader,
+                device,
+                target_mean,
+                target_std,
+                total_target_mode=mode,
+            )
+            _, test_tot_extra = evaluate_with_total_energy(
+                model,
+                test_loader,
+                device,
+                target_mean,
+                target_std,
+                total_target_mode=mode,
+            )
+            suffix = mode.replace("-", "_")
+            result[f"final_val_r_tot_{suffix}_median"] = (
+                val_tot_extra.median_rel_total_err_pct
+            )
+            result[f"final_test_r_tot_{suffix}_median"] = (
+                test_tot_extra.median_rel_total_err_pct
+            )
+            result[f"final_test_abs_total_err_{suffix}_eV"] = (
+                test_tot_extra.mean_abs_total_err_eV
+            )
     return result
 
 

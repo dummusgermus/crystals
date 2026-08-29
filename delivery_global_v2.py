@@ -39,10 +39,27 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DELIVERY_SEED = 42
 DELIVERY_VAL_FRACTION = 0.1
 
-LAMBDA_BY_DOMAIN = {
+# Best λ from grouped 70/15/15 sweeps (CGCNN follow-up 300 ep; Transformer 1000 ep).
+LAMBDA_CGCNN_BY_DOMAIN = {
     "point": 0.01,
     "planar": 0.005,
 }
+LAMBDA_TRANSFORMER_BY_DOMAIN = {
+    "point": 0.02,
+    "planar": 0.01,
+}
+LAMBDA_BY_MODEL = {
+    "cgcnn": LAMBDA_CGCNN_BY_DOMAIN,
+    "transformer": LAMBDA_TRANSFORMER_BY_DOMAIN,
+}
+
+
+def lambda_tot_for(model_kind: str, domain: str) -> float:
+    if model_kind not in LAMBDA_BY_MODEL:
+        raise ValueError(f"Unknown model_kind: {model_kind}")
+    if domain not in ("point", "planar"):
+        raise ValueError(f"Unknown domain: {domain}")
+    return LAMBDA_BY_MODEL[model_kind][domain]
 
 TOTALS_DATASETS = {
     "point": os.path.join(ROOT, "adv_datasets", "cycle34_residual_totals_dataset.pt"),
@@ -180,7 +197,7 @@ def build_or_update_split_json(
         "splitter": "within_group_train_val_indices",
         "loss": "global_v2",
         "checkpoint_metric": "val_r_tot_median",
-        "lambda_by_domain": LAMBDA_BY_DOMAIN,
+        "lambda_by_model": LAMBDA_BY_MODEL,
     }
     for domain in ("point", "planar"):
         ds_path = TOTALS_DATASETS[domain]
@@ -244,14 +261,14 @@ def train_delivery_global_v2(
 
     print(
         f"\n=== {name} | delivery global v2 | train={len(train_set)} "
-        f"val={len(val_set)} lambda={LAMBDA_BY_DOMAIN[domain]:g} ===",
+        f"val={len(val_set)} lambda={lambda_tot_for(model_kind, domain):g} ===",
         flush=True,
     )
     summarize_split(f"[{name}] Train", train_set)
     summarize_split(f"[{name}] Val", val_set)
 
     config = dict(CGCNN_CONFIG if model_kind == "cgcnn" else TRANSFORMER_CONFIG)
-    lambda_tot = LAMBDA_BY_DOMAIN[domain]
+    lambda_tot = lambda_tot_for(model_kind, domain)
     total_cfg = default_total_loss_config(lambda_tot)
 
     train_loader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True)

@@ -97,9 +97,20 @@ def count_cycles_per_node(
     Returns an array of shape ``[num_nodes, max_cycle_len - 2]``.  Column
     *i* holds the number of simple cycles of length ``i + 3`` passing
     through each node.
+
+    For large graphs (``num_nodes > 256``) only 3-cycles are counted exactly
+    via ``networkx.triangles``; higher-length columns are left at zero to
+    keep build time tractable for expanded subgraphs.
     """
-    G = _edge_index_to_nx(edge_index, num_nodes)
     n_cols = max_cycle_len - 2
+    if num_nodes > 256:
+        G = _edge_index_to_nx(edge_index, num_nodes)
+        counts = np.zeros((num_nodes, n_cols), dtype=np.float32)
+        for node, tri in nx.triangles(G).items():
+            counts[int(node), 0] = float(tri)
+        return counts
+
+    G = _edge_index_to_nx(edge_index, num_nodes)
     counts = np.zeros((num_nodes, n_cols), dtype=np.int64)
 
     for start in range(num_nodes):
@@ -123,6 +134,7 @@ def build_adv_datasets(
     cutoff_mode: str = "shell",
     variants: Optional[List[str]] = None,
     target_mode: str = "absolute",
+    subset_fraction: Optional[float] = None,
 ) -> Dict[str, str]:
     """Build the base dataset, compute cycle features, and save variants.
 
@@ -155,6 +167,7 @@ def build_adv_datasets(
         edge_radius=edge_radius,
         cutoff_mode=cutoff_mode,
         target_mode=target_mode,
+        subset_fraction=subset_fraction,
     )
     if not dataset:
         raise RuntimeError("No graphs were built – check the simulations directory.")

@@ -1,0 +1,21 @@
+{
+  "tag": "k13",
+  "cutoff_k": 13,
+  "cutoff_mode": "shell",
+  "built_from_copy": false,
+  "path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_size_k13.pt",
+  "num_graphs": 633,
+  "subset_size_mean": 215.0126382306477,
+  "subset_size_median": 252.0,
+  "subset_size_min": 27,
+  "subset_size_max": 258,
+  "cutoff_distance_mean": 9.88015636095084,
+  "cutoff_distance_median": 10.017327235449322,
+  "full_cell_size_mean": 3000.0,
+  "subset_fraction_actual_mean": 0.07167087941021591,
+  "subset_fraction_actual_median": 0.084,
+  "delta_total_mean_eV": -11.447878065044282,
+  "graph_delta_mean_eV": -1.1778922727122596,
+  "full_graph_delta_mismatch_mean_eV": 10.295461367332308,
+  "full_graph_delta_mismatch_median_eV": 0.019199997186660767
+}

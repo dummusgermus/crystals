@@ -114,6 +114,7 @@ def _build_subgraph(
     edge_radius: float,
     cutoff_mode: str,
     target_mode: str = "absolute",
+    subset_fraction: Optional[float] = None,
 ) -> Tuple[
     torch.Tensor,
     torch.Tensor,
@@ -218,26 +219,43 @@ def _build_subgraph(
         cutoff_idx = min(k_shells, len(shell_distances)) - 1
         return shell_distances[cutoff_idx]
 
-    if cutoff_mode == "shell":
-        non_self = np.array([d for d in all_dist_to_defect if d > 0.0])
-        if len(non_self) > 0:
-            sorted_dist = np.sort(non_self)
-            cutoff_dist = _shell_threshold(sorted_dist, cutoff_k)
-        else:
-            cutoff_dist = 0.0
-    elif cutoff_mode == "radius":
-        cutoff_dist = float(cutoff_radius)
+    n_full = len(positions)
+    if subset_fraction is not None:
+        if not 0.0 < subset_fraction <= 1.0:
+            raise ValueError(
+                f"subset_fraction must be in (0, 1], got {subset_fraction}"
+            )
+        n_target = max(1, int(np.ceil(subset_fraction * n_full)))
+        ranked = np.argsort(all_dist_to_defect)
+        subset_indices = ranked[:n_target].tolist()
+        if defect_index not in subset_indices:
+            subset_indices.append(defect_index)
+        subset_indices = sorted(set(subset_indices))
+        cutoff_dist = float(max(all_dist_to_defect[i] for i in subset_indices))
+        selection_mode = "fraction"
     else:
-        raise ValueError(f"Unsupported cutoff_mode: {cutoff_mode}")
+        if cutoff_mode == "shell":
+            non_self = np.array([d for d in all_dist_to_defect if d > 0.0])
+            if len(non_self) > 0:
+                sorted_dist = np.sort(non_self)
+                cutoff_dist = _shell_threshold(sorted_dist, cutoff_k)
+            else:
+                cutoff_dist = 0.0
+        elif cutoff_mode == "radius":
+            cutoff_dist = float(cutoff_radius)
+        else:
+            raise ValueError(f"Unsupported cutoff_mode: {cutoff_mode}")
 
-    subset_indices = [
-        idx
-        for idx, dist in enumerate(all_dist_to_defect)
-        if dist <= cutoff_dist + tol
-    ]
-    if defect_index not in subset_indices:
-        subset_indices.append(defect_index)
-    subset_indices = sorted(set(subset_indices))
+        subset_indices = [
+            idx
+            for idx, dist in enumerate(all_dist_to_defect)
+            if dist <= cutoff_dist + tol
+        ]
+        if defect_index not in subset_indices:
+            subset_indices.append(defect_index)
+        subset_indices = sorted(set(subset_indices))
+        selection_mode = cutoff_mode
+
     dist_to_defect = {idx: all_dist_to_defect[idx] for idx in subset_indices}
 
     subset_indices = sorted(subset_indices)
@@ -335,11 +353,16 @@ def _build_subgraph(
         edge_index_tensor = torch.zeros((2, 0), dtype=torch.long)
         edge_attr_tensor = torch.zeros((0, 3), dtype=torch.float)
 
+    actual_fraction = len(subset_indices) / max(n_full, 1)
     meta = {
         "defect_index": defect_index,
         "subset_size": len(subset_indices),
+        "full_cell_size": n_full,
+        "subset_fraction_actual": actual_fraction,
+        "subset_fraction_target": subset_fraction,
         "cutoff_distance": float(cutoff_dist),
         "cutoff_mode": cutoff_mode,
+        "subset_selection_mode": selection_mode,
         "target_mode": target_mode,
         "pe_initial_total_eV": pe_initial_total,
         "pe_true_total_eV": pe_true_total,
@@ -372,6 +395,7 @@ def build_pyg_dataset(
     edge_radius: float = EDGE_CUTOFF_RADIUS,
     cutoff_mode: str = "shell",
     target_mode: str = "absolute",
+    subset_fraction: Optional[float] = None,
 ) -> List[Data]:
     if target_mode not in TARGET_MODES:
         raise ValueError(
@@ -448,6 +472,7 @@ def build_pyg_dataset(
                 edge_radius=edge_radius,
                 cutoff_mode=cutoff_mode,
                 target_mode=target_mode,
+                subset_fraction=subset_fraction,
             )
 
             # Per-node atomic numbers (0 = vacancy) for ct-UAE embeddings.
@@ -476,12 +501,16 @@ def build_pyg_dataset(
             data.cutoff_radius = cutoff_radius
             data.edge_radius = edge_radius
             data.cutoff_mode = cutoff_mode
+            if subset_fraction is not None:
+                data.subset_fraction = subset_fraction
             data.folder = folder
             data.meta = meta
             data.particle_ids = particle_ids_subset
             data.orig_indices = orig_indices
             data.delta_total_eV = torch.tensor([meta["delta_total_eV"]], dtype=torch.float)
             dataset.append(data)
+            if len(dataset) % 50 == 0:
+                print(f"  [build_pyg_dataset] {len(dataset)} graphs …", flush=True)
 
     return dataset
 

@@ -109,7 +109,10 @@ def _build_summary(
     summary = {
         "checkpoint_metric": "r_tot",
         "selection_metric": "final_test_r_tot_median",
-        "delivery_reference_lambda": {"point": 0.01, "planar": 0.005},
+        "optimal_lambda_by_model": {
+            "cgcnn": {"point": 0.01, "planar": 0.005},
+            "transformer": {"point": 0.02, "planar": 0.01},
+        },
         "best_by_domain": {},
         "all_runs_by_domain": {},
     }

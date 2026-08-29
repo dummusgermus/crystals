@@ -1,0 +1,21 @@
+{
+  "tag": "k12",
+  "cutoff_k": 12,
+  "cutoff_mode": "shell",
+  "built_from_copy": false,
+  "path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_size_k12.pt",
+  "num_graphs": 633,
+  "subset_size_mean": 176.11058451816746,
+  "subset_size_median": 200.0,
+  "subset_size_min": 26,
+  "subset_size_max": 206,
+  "cutoff_distance_mean": 9.187876760764546,
+  "cutoff_distance_median": 9.331465815667418,
+  "full_cell_size_mean": 3000.0,
+  "subset_fraction_actual_mean": 0.05870352817272249,
+  "subset_fraction_actual_median": 0.06666666666666667,
+  "delta_total_mean_eV": -11.447878065044282,
+  "graph_delta_mean_eV": -1.0885302365991458,
+  "full_graph_delta_mismatch_mean_eV": 10.389341168419614,
+  "full_graph_delta_mismatch_median_eV": 0.015929967164993286
+}

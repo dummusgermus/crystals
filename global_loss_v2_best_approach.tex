@@ -109,11 +109,18 @@ Point defects ($\lambda=0.01$): test MAE \emph{improves} slightly while $R_{\mat
   \item \textbf{Global v2:} best validation $R_{\mathrm{tot}}$ median.
 \end{itemize}
 
-\subsection*{Recommended $\lambda$ (300-epoch follow-up)}
+\subsection*{Recommended $\lambda$ (grouped 70/15/15 sweeps)}
 
+\paragraph{CGCNN} (300-epoch follow-up):
 \begin{itemize}
   \item \textbf{Point:} $\lambda=0.01$. Beats baseline on test MAE and $R_{\mathrm{tot}}$. Avoid $\lambda=0.005$ (val $R_{\mathrm{tot}}$ overfits; test rises to ${\sim}40\%$).
   \item \textbf{Planar:} $\lambda=0.005$. Best test $R_{\mathrm{tot}}$ ($45.6\%$ vs.\ $55.1\%$ baseline). $\lambda=0.01$ is close (${\sim}3$~pp worse on $R_{\mathrm{tot}}$).
+\end{itemize}
+
+\paragraph{Graph Transformer} (1000-epoch $\lambda$ sweep, Mar.~2026):
+\begin{itemize}
+  \item \textbf{Point:} $\lambda=0.02$ (was $0.01$ at delivery). Test $R_{\mathrm{tot}}$ $17.1\%$ vs.\ $27.8\%$ at $\lambda=0.01$.
+  \item \textbf{Planar:} $\lambda=0.01$ (was $0.005$). Test $R_{\mathrm{tot}}$ $41.9\%$ vs.\ $58.8\%$ at $\lambda=0.005$.
 \end{itemize}
 
 \section*{Results: baseline vs.\ best global v2 (test, 300~ep)}
@@ -192,10 +199,12 @@ From \texttt{cgcnn\_global\_v2\_summary.json}:
 \section*{Summary recommendation}
 
 \begin{enumerate}
-  \item Deploy global-loss v2: point $\lambda=0.01$, planar $\lambda=0.005$.
+  \item Deploy global-loss v2 with model-specific $\lambda$:
+    CGCNN point $0.01$ / planar $0.005$;
+    Transformer point $0.02$ / planar $0.01$.
   \item Checkpoint global runs on val.\ $R_{\mathrm{tot}}$ median; baseline on val.\ MAE.
-  \item Expect planar trade-off: ${\sim}0.002$~eV/atom worse MAE for ${\sim}10$~pp better $R_{\mathrm{tot}}$.
-  \item Do not use legacy v1 loss or $\lambda=0.005$ on point with $R_{\mathrm{tot}}$ checkpointing.
+  \item Expect planar CGCNN trade-off: ${\sim}0.002$~eV/atom worse MAE for ${\sim}10$~pp better $R_{\mathrm{tot}}$.
+  \item Do not use legacy v1 loss or $\lambda=0.005$ on point CGCNN with $R_{\mathrm{tot}}$ checkpointing.
 \end{enumerate}
 
 \section*{Implementation}
@@ -293,8 +302,10 @@ i.e.\ in code: \texttt{atom\_loss + lambda\_tot * tot\_loss * (atom\_loss.detach
   \toprule
   Parameter & Value \\
   \midrule
-  $\lambda$ (point)  & $0.01$ \\
-  $\lambda$ (planar) & $0.005$ \\
+  $\lambda$ (point, CGCNN)  & $0.01$ \\
+  $\lambda$ (planar, CGCNN) & $0.005$ \\
+  $\lambda$ (point, Transformer)  & $0.02$ \\
+  $\lambda$ (planar, Transformer) & $0.01$ \\
   $\sigma_{\min}$ in $s_g$ & $0.05$~eV \\
   Huber $\delta$ & $1$ (on $r_g$) \\
   Outlier $|\dEtrue|$ cutoff & $50$~eV \\

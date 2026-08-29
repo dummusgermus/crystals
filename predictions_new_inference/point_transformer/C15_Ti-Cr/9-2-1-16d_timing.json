@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Ti-Cr",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Ti-Cr/9-2-1-16d_graph_pred.npz",
+  "mae_residual_eV": 0.004302932880818844,
+  "t_preprocess_s": 0.0023434848990291357,
+  "t_predict_s": 0.0028984961099922657,
+  "t_postprocess_s": 0.0019117200281471014,
+  "t_total_s": 0.007153701037168503,
+  "device": "cuda"
+}

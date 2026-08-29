@@ -1,0 +1,16 @@
+{
+  "folder": "Co-Ti_XYZ'Y'X'",
+  "config": "Co-Ti_XYZ'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 30,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Co-Ti_XYZ'Y'X'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.680027425289154,
+  "t_preprocess_s": 0.0018510899972170591,
+  "t_predict_s": 0.0028361729346215725,
+  "t_postprocess_s": 0.0024109322112053633,
+  "t_total_s": 0.007098195143043995,
+  "device": "cuda"
+}

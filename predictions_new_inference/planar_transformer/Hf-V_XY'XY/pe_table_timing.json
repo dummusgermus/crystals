@@ -1,0 +1,16 @@
+{
+  "folder": "Hf-V_XY'XY",
+  "config": "Hf-V_XY'XY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Hf-V_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.01950557716190815,
+  "t_preprocess_s": 0.001785975182428956,
+  "t_predict_s": 0.002794058993458748,
+  "t_postprocess_s": 0.0025677201338112354,
+  "t_total_s": 0.007147754309698939,
+  "device": "cuda"
+}

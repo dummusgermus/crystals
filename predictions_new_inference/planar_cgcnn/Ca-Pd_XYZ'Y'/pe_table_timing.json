@@ -1,0 +1,16 @@
+{
+  "folder": "Ca-Pd_XYZ'Y'",
+  "config": "Ca-Pd_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Ca-Pd_XYZ'Y'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0030083805322647095,
+  "t_preprocess_s": 0.0018846048042178154,
+  "t_predict_s": 0.001151030184701085,
+  "t_postprocess_s": 0.002521529793739319,
+  "t_total_s": 0.005557164782658219,
+  "device": "cuda"
+}

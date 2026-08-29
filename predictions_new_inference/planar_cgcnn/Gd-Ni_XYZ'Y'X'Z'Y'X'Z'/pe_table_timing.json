@@ -1,0 +1,16 @@
+{
+  "folder": "Gd-Ni_XYZ'Y'X'Z'Y'X'Z'",
+  "config": "Gd-Ni_XYZ'Y'X'Z'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 54,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Gd-Ni_XYZ'Y'X'Z'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0028577076736837626,
+  "t_preprocess_s": 0.001786740031093359,
+  "t_predict_s": 0.000934345182031393,
+  "t_postprocess_s": 0.0022551200818270445,
+  "t_total_s": 0.0049762052949517965,
+  "device": "cuda"
+}

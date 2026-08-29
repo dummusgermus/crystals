@@ -1,0 +1,16 @@
+{
+  "folder": "Bi-Au_XY'X",
+  "config": "Bi-Au_XY'X",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Bi-Au_XY'X/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.003633808810263872,
+  "t_preprocess_s": 0.00213635410182178,
+  "t_predict_s": 0.0009754449129104614,
+  "t_postprocess_s": 0.0022085148375481367,
+  "t_total_s": 0.005320313852280378,
+  "device": "cuda"
+}

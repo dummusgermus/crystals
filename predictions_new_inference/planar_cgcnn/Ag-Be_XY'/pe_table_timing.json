@@ -1,0 +1,16 @@
+{
+  "folder": "Ag-Be_XY'",
+  "config": "Ag-Be_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Ag-Be_XY'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.009546437300741673,
+  "t_preprocess_s": 0.0022635459899902344,
+  "t_predict_s": 0.0016678750980645418,
+  "t_postprocess_s": 0.002265268936753273,
+  "t_total_s": 0.006196690024808049,
+  "device": "cuda"
+}

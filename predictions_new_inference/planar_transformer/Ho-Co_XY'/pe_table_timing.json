@@ -1,0 +1,16 @@
+{
+  "folder": "Ho-Co_XY'",
+  "config": "Ho-Co_XY'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Ho-Co_XY'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.006703866180032492,
+  "t_preprocess_s": 0.0017604560125619173,
+  "t_predict_s": 0.0027365610003471375,
+  "t_postprocess_s": 0.00212338799610734,
+  "t_total_s": 0.006620405009016395,
+  "device": "cuda"
+}

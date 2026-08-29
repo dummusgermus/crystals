@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Dy-Ni",
+  "config": "1-1-2-8a",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 108,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_cgcnn/C15_Dy-Ni/1-1-2-8a_graph_pred.npz",
+  "mae_residual_eV": 0.003936602268368006,
+  "t_preprocess_s": 0.0025051389820873737,
+  "t_predict_s": 0.0012579357717186213,
+  "t_postprocess_s": 0.003009441075846553,
+  "t_total_s": 0.006772515829652548,
+  "device": "cuda"
+}

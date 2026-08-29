@@ -1,0 +1,16 @@
+{
+  "folder": "Bi-Au_XY'XY",
+  "config": "Bi-Au_XY'XY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Bi-Au_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.005864538252353668,
+  "t_preprocess_s": 0.001780899940058589,
+  "t_predict_s": 0.0028228480368852615,
+  "t_postprocess_s": 0.001889459090307355,
+  "t_total_s": 0.0064932070672512054,
+  "device": "cuda"
+}

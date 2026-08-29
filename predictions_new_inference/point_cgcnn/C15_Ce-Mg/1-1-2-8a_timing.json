@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Ce-Mg",
+  "config": "1-1-2-8a",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 106,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_cgcnn/C15_Ce-Mg/1-1-2-8a_graph_pred.npz",
+  "mae_residual_eV": 0.001098864828236401,
+  "t_preprocess_s": 0.0025648369919508696,
+  "t_predict_s": 0.0012395610101521015,
+  "t_postprocess_s": 0.0028430460952222347,
+  "t_total_s": 0.006647444097325206,
+  "device": "cuda"
+}

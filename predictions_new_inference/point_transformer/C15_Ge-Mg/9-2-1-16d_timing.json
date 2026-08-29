@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Ge-Mg",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Ge-Mg/9-2-1-16d_graph_pred.npz",
+  "mae_residual_eV": 0.30832439661026,
+  "t_preprocess_s": 0.0023212041705846786,
+  "t_predict_s": 0.0028870149981230497,
+  "t_postprocess_s": 0.001883249031379819,
+  "t_total_s": 0.007091468200087547,
+  "device": "cuda"
+}

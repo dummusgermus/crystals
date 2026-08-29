@@ -1,0 +1,16 @@
+{
+  "folder": "Pr-Os_XY'XYZXYZXYZX",
+  "config": "Pr-Os_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Pr-Os_XY'XYZXYZXYZX/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.014570552855730057,
+  "t_preprocess_s": 0.0017773930449038744,
+  "t_predict_s": 0.002828808967024088,
+  "t_postprocess_s": 0.0027010589838027954,
+  "t_total_s": 0.007307260995730758,
+  "device": "cuda"
+}

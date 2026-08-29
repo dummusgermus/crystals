@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Lu-Co",
+  "config": "1-1-1-8a",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 109,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Lu-Co/1-1-1-8a_graph_pred.npz",
+  "mae_residual_eV": 1.1582858860492706e-05,
+  "t_preprocess_s": 0.0024952490348368883,
+  "t_predict_s": 0.0029271328821778297,
+  "t_postprocess_s": 0.002701512072235346,
+  "t_total_s": 0.008123893989250064,
+  "device": "cuda"
+}

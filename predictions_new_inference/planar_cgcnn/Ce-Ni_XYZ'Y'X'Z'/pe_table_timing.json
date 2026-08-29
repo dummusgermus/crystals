@@ -1,0 +1,16 @@
+{
+  "folder": "Ce-Ni_XYZ'Y'X'Z'",
+  "config": "Ce-Ni_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Ce-Ni_XYZ'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.011466752737760544,
+  "t_preprocess_s": 0.0018621340859681368,
+  "t_predict_s": 0.0011709081009030342,
+  "t_postprocess_s": 0.0027728029526770115,
+  "t_total_s": 0.0058058451395481825,
+  "device": "cuda"
+}

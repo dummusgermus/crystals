@@ -1,0 +1,16 @@
+{
+  "folder": "Cs-Bi_XY'XYZXY",
+  "config": "Cs-Bi_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Cs-Bi_XY'XYZXY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.019187375903129578,
+  "t_preprocess_s": 0.0018209139816462994,
+  "t_predict_s": 0.0028313978109508753,
+  "t_postprocess_s": 0.0020191918592900038,
+  "t_total_s": 0.006671503651887178,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Nb-Cr_XYZ'Y'",
+  "config": "Nb-Cr_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Nb-Cr_XYZ'Y'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.008527814410626888,
+  "t_preprocess_s": 0.001734292134642601,
+  "t_predict_s": 0.002898263977840543,
+  "t_postprocess_s": 0.0020862978417426348,
+  "t_total_s": 0.006718853954225779,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Ca-Pt_XYZ'Y'",
+  "config": "Ca-Pt_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Ca-Pt_XYZ'Y'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.005222877021878958,
+  "t_preprocess_s": 0.0021973629482090473,
+  "t_predict_s": 0.002839311957359314,
+  "t_postprocess_s": 0.0023384690284729004,
+  "t_total_s": 0.007375143934041262,
+  "device": "cuda"
+}

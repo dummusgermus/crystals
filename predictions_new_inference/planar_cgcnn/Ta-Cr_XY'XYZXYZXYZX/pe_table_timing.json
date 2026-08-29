@@ -1,0 +1,16 @@
+{
+  "folder": "Ta-Cr_XY'XYZXYZXYZX",
+  "config": "Ta-Cr_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Ta-Cr_XY'XYZXYZXYZX/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0032338134478777647,
+  "t_preprocess_s": 0.001958654960617423,
+  "t_predict_s": 0.0009390730410814285,
+  "t_postprocess_s": 0.0025108419358730316,
+  "t_total_s": 0.005408569937571883,
+  "device": "cuda"
+}

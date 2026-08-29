@@ -1,0 +1,16 @@
+{
+  "folder": "Ca-Ir_XY'XYZXY",
+  "config": "Ca-Ir_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Ca-Ir_XY'XYZXY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.003708495292812586,
+  "t_preprocess_s": 0.0018144939094781876,
+  "t_predict_s": 0.0028055959846824408,
+  "t_postprocess_s": 0.001997268060222268,
+  "t_total_s": 0.006617357954382896,
+  "device": "cuda"
+}

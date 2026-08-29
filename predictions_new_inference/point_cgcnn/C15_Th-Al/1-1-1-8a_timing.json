@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Th-Al",
+  "config": "1-1-1-8a",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 106,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_cgcnn/C15_Th-Al/1-1-1-8a_graph_pred.npz",
+  "mae_residual_eV": 0.00036171331885270774,
+  "t_preprocess_s": 0.002323966007679701,
+  "t_predict_s": 0.0009448169730603695,
+  "t_postprocess_s": 0.0023684499319642782,
+  "t_total_s": 0.0056372329127043486,
+  "device": "cuda"
+}

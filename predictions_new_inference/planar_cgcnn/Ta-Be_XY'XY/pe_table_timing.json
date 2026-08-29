@@ -1,0 +1,16 @@
+{
+  "folder": "Ta-Be_XY'XY",
+  "config": "Ta-Be_XY'XY",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Ta-Be_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0035469376016408205,
+  "t_preprocess_s": 0.0018141760956496,
+  "t_predict_s": 0.0009625558741390705,
+  "t_postprocess_s": 0.0022857091389596462,
+  "t_total_s": 0.005062441108748317,
+  "device": "cuda"
+}

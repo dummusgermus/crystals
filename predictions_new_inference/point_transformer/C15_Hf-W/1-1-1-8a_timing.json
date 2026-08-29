@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Hf-W",
+  "config": "1-1-1-8a",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 108,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Hf-W/1-1-1-8a_graph_pred.npz",
+  "mae_residual_eV": 1.1582858860492706e-05,
+  "t_preprocess_s": 0.0023735540453344584,
+  "t_predict_s": 0.002916784957051277,
+  "t_postprocess_s": 0.0023696990683674812,
+  "t_total_s": 0.007660038070753217,
+  "device": "cuda"
+}

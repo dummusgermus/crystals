@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Dy-Co",
+  "config": "1-1-2-8a",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 109,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_cgcnn/C15_Dy-Co/1-1-2-8a_graph_pred.npz",
+  "mae_residual_eV": 0.0023497233632951975,
+  "t_preprocess_s": 0.0025464000646024942,
+  "t_predict_s": 0.0013735771644860506,
+  "t_postprocess_s": 0.0028576510958373547,
+  "t_total_s": 0.0067776283249258995,
+  "device": "cuda"
+}

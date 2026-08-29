@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Ir_XYZ'Y'X'Z'Y'X'Z'",
+  "config": "Pu-Ir_XYZ'Y'X'Z'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 54,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Pu-Ir_XYZ'Y'X'Z'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.006423926446586847,
+  "t_preprocess_s": 0.00217810389585793,
+  "t_predict_s": 0.0009515930432826281,
+  "t_postprocess_s": 0.002503030002117157,
+  "t_total_s": 0.005632726941257715,
+  "device": "cuda"
+}

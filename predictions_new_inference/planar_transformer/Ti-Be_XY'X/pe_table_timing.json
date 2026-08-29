@@ -1,0 +1,16 @@
+{
+  "folder": "Ti-Be_XY'X",
+  "config": "Ti-Be_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Ti-Be_XY'X/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.005024933256208897,
+  "t_preprocess_s": 0.0017969999462366104,
+  "t_predict_s": 0.0028399599250406027,
+  "t_postprocess_s": 0.001891053980216384,
+  "t_total_s": 0.006528013851493597,
+  "device": "cuda"
+}

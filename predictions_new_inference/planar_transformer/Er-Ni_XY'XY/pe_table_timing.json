@@ -1,0 +1,16 @@
+{
+  "folder": "Er-Ni_XY'XY",
+  "config": "Er-Ni_XY'XY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Er-Ni_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0036653114948421717,
+  "t_preprocess_s": 0.0019504721276462078,
+  "t_predict_s": 0.0027910361532121897,
+  "t_postprocess_s": 0.002529241144657135,
+  "t_total_s": 0.0072707494255155325,
+  "device": "cuda"
+}

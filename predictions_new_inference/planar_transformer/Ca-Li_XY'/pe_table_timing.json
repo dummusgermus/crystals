@@ -1,0 +1,16 @@
+{
+  "folder": "Ca-Li_XY'",
+  "config": "Ca-Li_XY'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Ca-Li_XY'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0002037323865806684,
+  "t_preprocess_s": 0.0018112158868461847,
+  "t_predict_s": 0.0027203329373151064,
+  "t_postprocess_s": 0.002119115088135004,
+  "t_total_s": 0.006650663912296295,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Zr-Cr_XY'",
+  "config": "Zr-Cr_XY'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Zr-Cr_XY'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.00391665892675519,
+  "t_preprocess_s": 0.0019630780443549156,
+  "t_predict_s": 0.002856863895431161,
+  "t_postprocess_s": 0.0022106750402599573,
+  "t_total_s": 0.007030616980046034,
+  "device": "cuda"
+}

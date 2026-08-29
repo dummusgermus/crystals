@@ -1,0 +1,16 @@
+{
+  "folder": "Nb-Cr_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Nb-Cr_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Nb-Cr_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0023179086856544018,
+  "t_preprocess_s": 0.0018574309069663286,
+  "t_predict_s": 0.0009436958935111761,
+  "t_postprocess_s": 0.002540616085752845,
+  "t_total_s": 0.0053417428862303495,
+  "device": "cuda"
+}

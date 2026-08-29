@@ -1,0 +1,16 @@
+{
+  "folder": "Hf-Mo_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Hf-Mo_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Hf-Mo_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0031309337355196476,
+  "t_preprocess_s": 0.0022280148696154356,
+  "t_predict_s": 0.0009005460888147354,
+  "t_postprocess_s": 0.0021191518753767014,
+  "t_total_s": 0.005247712833806872,
+  "device": "cuda"
+}

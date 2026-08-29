@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Tb-Ni",
+  "config": "1-1-2-8a",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 107,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_cgcnn/C15_Tb-Ni/1-1-2-8a_graph_pred.npz",
+  "mae_residual_eV": 0.0029586825985461473,
+  "t_preprocess_s": 0.0023112951312214136,
+  "t_predict_s": 0.000948605127632618,
+  "t_postprocess_s": 0.0021490559447556734,
+  "t_total_s": 0.005408956203609705,
+  "device": "cuda"
+}

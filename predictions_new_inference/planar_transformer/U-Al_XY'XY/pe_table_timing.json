@@ -1,0 +1,16 @@
+{
+  "folder": "U-Al_XY'XY",
+  "config": "U-Al_XY'XY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/U-Al_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.12350810319185257,
+  "t_preprocess_s": 0.0020428078714758158,
+  "t_predict_s": 0.0036895410157740116,
+  "t_postprocess_s": 0.003567310981452465,
+  "t_total_s": 0.009299659868702292,
+  "device": "cuda"
+}

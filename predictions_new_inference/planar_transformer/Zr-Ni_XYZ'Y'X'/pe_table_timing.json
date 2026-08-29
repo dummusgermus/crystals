@@ -1,0 +1,16 @@
+{
+  "folder": "Zr-Ni_XYZ'Y'X'",
+  "config": "Zr-Ni_XYZ'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 30,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Zr-Ni_XYZ'Y'X'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.014408309943974018,
+  "t_preprocess_s": 0.0019926440436393023,
+  "t_predict_s": 0.0028880159370601177,
+  "t_postprocess_s": 0.0021644411608576775,
+  "t_total_s": 0.0070451011415570974,
+  "device": "cuda"
+}

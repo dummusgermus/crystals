@@ -1,0 +1,16 @@
+{
+  "folder": "Mg-Cu_XYZ'Y'X'Z'",
+  "config": "Mg-Cu_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Mg-Cu_XYZ'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0011730706319212914,
+  "t_preprocess_s": 0.0018041699659079313,
+  "t_predict_s": 0.0009229949209839106,
+  "t_postprocess_s": 0.0021291659213602543,
+  "t_total_s": 0.004856330808252096,
+  "device": "cuda"
+}

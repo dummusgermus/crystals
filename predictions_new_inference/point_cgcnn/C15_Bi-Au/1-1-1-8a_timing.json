@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Bi-Au",
+  "config": "1-1-1-8a",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 106,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_cgcnn/C15_Bi-Au/1-1-1-8a_graph_pred.npz",
+  "mae_residual_eV": 0.000460406590718776,
+  "t_preprocess_s": 0.0025397869758307934,
+  "t_predict_s": 0.001277778996154666,
+  "t_postprocess_s": 0.0030150359962135553,
+  "t_total_s": 0.006832601968199015,
+  "device": "cuda"
+}

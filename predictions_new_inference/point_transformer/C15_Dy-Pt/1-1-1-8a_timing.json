@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Dy-Pt",
+  "config": "1-1-1-8a",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 107,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Dy-Pt/1-1-1-8a_graph_pred.npz",
+  "mae_residual_eV": 1.1582858860492706e-05,
+  "t_preprocess_s": 0.002253348007798195,
+  "t_predict_s": 0.002872498007491231,
+  "t_postprocess_s": 0.002232043072581291,
+  "t_total_s": 0.007357889087870717,
+  "device": "cuda"
+}

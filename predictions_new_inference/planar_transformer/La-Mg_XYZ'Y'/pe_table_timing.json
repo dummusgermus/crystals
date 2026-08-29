@@ -1,0 +1,16 @@
+{
+  "folder": "La-Mg_XYZ'Y'",
+  "config": "La-Mg_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/La-Mg_XYZ'Y'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0022872791159898043,
+  "t_preprocess_s": 0.0018744550179690123,
+  "t_predict_s": 0.0028431329410523176,
+  "t_postprocess_s": 0.002519723027944565,
+  "t_total_s": 0.007237310986965895,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Nd-Pt_XYZ'Y'X'Z'Y'X'Z'",
+  "config": "Nd-Pt_XYZ'Y'X'Z'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 54,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Nd-Pt_XYZ'Y'X'Z'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0028909689281135798,
+  "t_preprocess_s": 0.0018020649440586567,
+  "t_predict_s": 0.002824970055371523,
+  "t_postprocess_s": 0.0026513119228184223,
+  "t_total_s": 0.007278346922248602,
+  "device": "cuda"
+}

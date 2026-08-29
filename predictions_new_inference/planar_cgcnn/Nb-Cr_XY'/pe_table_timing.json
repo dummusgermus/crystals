@@ -1,0 +1,16 @@
+{
+  "folder": "Nb-Cr_XY'",
+  "config": "Nb-Cr_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Nb-Cr_XY'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0029693813994526863,
+  "t_preprocess_s": 0.0022494748700410128,
+  "t_predict_s": 0.0009316001087427139,
+  "t_postprocess_s": 0.002079135039821267,
+  "t_total_s": 0.005260210018604994,
+  "device": "cuda"
+}

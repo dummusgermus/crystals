@@ -1,0 +1,16 @@
+{
+  "folder": "Ho-Fe_XYZ'Y'X'",
+  "config": "Ho-Fe_XYZ'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 30,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Ho-Fe_XYZ'Y'X'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.005019420757889748,
+  "t_preprocess_s": 0.0020493860356509686,
+  "t_predict_s": 0.00281547917984426,
+  "t_postprocess_s": 0.0021145271603018045,
+  "t_total_s": 0.006979392375797033,
+  "device": "cuda"
+}

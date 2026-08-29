@@ -1,0 +1,16 @@
+{
+  "folder": "Lu-Al_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Lu-Al_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Lu-Al_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0006648411508649588,
+  "t_preprocess_s": 0.0018487600609660149,
+  "t_predict_s": 0.000926655950024724,
+  "t_postprocess_s": 0.0025002670008689165,
+  "t_total_s": 0.005275683011859655,
+  "device": "cuda"
+}

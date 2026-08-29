@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Co_XY'XY",
+  "config": "Pu-Co_XY'XY",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Pu-Co_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.004097450990229845,
+  "t_preprocess_s": 0.001825008075684309,
+  "t_predict_s": 0.0009767122101038694,
+  "t_postprocess_s": 0.002163334982469678,
+  "t_total_s": 0.004965055268257856,
+  "device": "cuda"
+}

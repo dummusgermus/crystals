@@ -1,0 +1,16 @@
+{
+  "folder": "U-Mn_XYZ'Y'X'Z'",
+  "config": "U-Mn_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/U-Mn_XYZ'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 1.2052372694015503,
+  "t_preprocess_s": 0.0018216839525848627,
+  "t_predict_s": 0.002889184979721904,
+  "t_postprocess_s": 0.002790764905512333,
+  "t_total_s": 0.007501633837819099,
+  "device": "cuda"
+}

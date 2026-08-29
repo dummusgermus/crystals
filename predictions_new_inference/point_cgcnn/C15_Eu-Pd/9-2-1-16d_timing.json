@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Eu-Pd",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_cgcnn/C15_Eu-Pd/9-2-1-16d_graph_pred.npz",
+  "mae_residual_eV": 0.0031710327602922916,
+  "t_preprocess_s": 0.0024866750463843346,
+  "t_predict_s": 0.0012434590607881546,
+  "t_postprocess_s": 0.002562170848250389,
+  "t_total_s": 0.006292304955422878,
+  "device": "cuda"
+}

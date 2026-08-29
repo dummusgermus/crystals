@@ -1,0 +1,16 @@
+{
+  "folder": "Ge-Mg_XY'XYZXYZXYZX",
+  "config": "Ge-Mg_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Ge-Mg_XY'XYZXYZXYZX/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.2712957561016083,
+  "t_preprocess_s": 0.002560843015089631,
+  "t_predict_s": 0.0008822120726108551,
+  "t_postprocess_s": 0.0021150829270482063,
+  "t_total_s": 0.0055581380147486925,
+  "device": "cuda"
+}

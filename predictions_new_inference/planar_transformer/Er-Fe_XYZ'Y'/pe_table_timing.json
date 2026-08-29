@@ -1,0 +1,16 @@
+{
+  "folder": "Er-Fe_XYZ'Y'",
+  "config": "Er-Fe_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Er-Fe_XYZ'Y'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.006503687705844641,
+  "t_preprocess_s": 0.0017988320905715227,
+  "t_predict_s": 0.002844728995114565,
+  "t_postprocess_s": 0.002243970986455679,
+  "t_total_s": 0.0068875320721417665,
+  "device": "cuda"
+}

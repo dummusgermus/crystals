@@ -1,0 +1,16 @@
+{
+  "folder": "Ag-Be_XY'XYZXYZXYZX",
+  "config": "Ag-Be_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Ag-Be_XY'XYZXYZXYZX/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0023347954265773296,
+  "t_preprocess_s": 0.0018208818510174751,
+  "t_predict_s": 0.0029724889900535345,
+  "t_postprocess_s": 0.002302197040989995,
+  "t_total_s": 0.007095567882061005,
+  "device": "cuda"
+}

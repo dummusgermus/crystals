@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Zr-Ni",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Zr-Ni/9-2-1-16d_graph_pred.npz",
+  "mae_residual_eV": 0.015916328877210617,
+  "t_preprocess_s": 0.002347047906368971,
+  "t_predict_s": 0.0029064221307635307,
+  "t_postprocess_s": 0.002038553124293685,
+  "t_total_s": 0.0072920231614261866,
+  "device": "cuda"
+}

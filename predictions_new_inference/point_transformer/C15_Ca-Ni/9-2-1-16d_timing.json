@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Ca-Ni",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Ca-Ni/9-2-1-16d_graph_pred.npz",
+  "mae_residual_eV": 0.018662698566913605,
+  "t_preprocess_s": 0.0024431669153273106,
+  "t_predict_s": 0.00290833692997694,
+  "t_postprocess_s": 0.0022136459592729807,
+  "t_total_s": 0.007565149804577231,
+  "device": "cuda"
+}

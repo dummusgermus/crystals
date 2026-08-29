@@ -1,0 +1,16 @@
+{
+  "folder": "Pr-Mg_XYZ'Y'X'Z'",
+  "config": "Pr-Mg_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Pr-Mg_XYZ'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0018074015388265252,
+  "t_preprocess_s": 0.0017594101373106241,
+  "t_predict_s": 0.002759022871032357,
+  "t_postprocess_s": 0.0019922289066016674,
+  "t_total_s": 0.006510661914944649,
+  "device": "cuda"
+}

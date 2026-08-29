@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Co-Ti",
+  "config": "1-1-2-8a",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 108,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Co-Ti/1-1-2-8a_graph_pred.npz",
+  "mae_residual_eV": 0.7255818843841553,
+  "t_preprocess_s": 0.0023473550099879503,
+  "t_predict_s": 0.0029270409140735865,
+  "t_postprocess_s": 0.0018848269246518612,
+  "t_total_s": 0.007159222848713398,
+  "device": "cuda"
+}

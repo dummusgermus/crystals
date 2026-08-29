@@ -1,0 +1,16 @@
+{
+  "folder": "Ca-Ni_XY'XY",
+  "config": "Ca-Ni_XY'XY",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Ca-Ni_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0018568085506558418,
+  "t_preprocess_s": 0.0017827339470386505,
+  "t_predict_s": 0.0011027019936591387,
+  "t_postprocess_s": 0.002408919157460332,
+  "t_total_s": 0.005294355098158121,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Yb-Ir_XY'XYZXYZXYZX",
+  "config": "Yb-Ir_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Yb-Ir_XY'XYZXYZXYZX/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0075289406813681126,
+  "t_preprocess_s": 0.0018659010529518127,
+  "t_predict_s": 0.0009585940279066563,
+  "t_postprocess_s": 0.0024642550852149725,
+  "t_total_s": 0.0052887501660734415,
+  "device": "cuda"
+}

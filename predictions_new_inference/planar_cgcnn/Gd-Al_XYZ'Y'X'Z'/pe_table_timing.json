@@ -1,0 +1,16 @@
+{
+  "folder": "Gd-Al_XYZ'Y'X'Z'",
+  "config": "Gd-Al_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Gd-Al_XYZ'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0017009115545079112,
+  "t_preprocess_s": 0.0017997149843722582,
+  "t_predict_s": 0.0009304711129516363,
+  "t_postprocess_s": 0.002393353031948209,
+  "t_total_s": 0.005123539129272103,
+  "device": "cuda"
+}

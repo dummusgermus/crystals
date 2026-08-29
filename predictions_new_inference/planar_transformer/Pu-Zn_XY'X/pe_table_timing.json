@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Zn_XY'X",
+  "config": "Pu-Zn_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Pu-Zn_XY'X/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0019456413574516773,
+  "t_preprocess_s": 0.0018118710722774267,
+  "t_predict_s": 0.002867851871997118,
+  "t_postprocess_s": 0.0028305458836257458,
+  "t_total_s": 0.0075102688279002905,
+  "device": "cuda"
+}

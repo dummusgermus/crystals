@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Ca-Li",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_cgcnn/C15_Ca-Li/9-2-1-16d_graph_pred.npz",
+  "mae_residual_eV": 0.003462681546807289,
+  "t_preprocess_s": 0.002470300067216158,
+  "t_predict_s": 0.001269191037863493,
+  "t_postprocess_s": 0.0024670499842613935,
+  "t_total_s": 0.006206541089341044,
+  "device": "cuda"
+}

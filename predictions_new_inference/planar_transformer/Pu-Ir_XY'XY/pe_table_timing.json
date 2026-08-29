@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Ir_XY'XY",
+  "config": "Pu-Ir_XY'XY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Pu-Ir_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.014376793056726456,
+  "t_preprocess_s": 0.0018975958228111267,
+  "t_predict_s": 0.002832896076142788,
+  "t_postprocess_s": 0.0021863360889256,
+  "t_total_s": 0.006916827987879515,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Na-Au_XYZ'Y'",
+  "config": "Na-Au_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Na-Au_XYZ'Y'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.00530480220913887,
+  "t_preprocess_s": 0.001843862934038043,
+  "t_predict_s": 0.000939514022320509,
+  "t_postprocess_s": 0.0016568051651120186,
+  "t_total_s": 0.0044401821214705706,
+  "device": "cuda"
+}

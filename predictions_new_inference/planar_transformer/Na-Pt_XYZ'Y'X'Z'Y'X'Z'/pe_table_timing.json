@@ -1,0 +1,16 @@
+{
+  "folder": "Na-Pt_XYZ'Y'X'Z'Y'X'Z'",
+  "config": "Na-Pt_XYZ'Y'X'Z'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 54,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Na-Pt_XYZ'Y'X'Z'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.005252904258668423,
+  "t_preprocess_s": 0.0018593191634863615,
+  "t_predict_s": 0.002809718018397689,
+  "t_postprocess_s": 0.0021372721530497074,
+  "t_total_s": 0.006806309334933758,
+  "device": "cuda"
+}

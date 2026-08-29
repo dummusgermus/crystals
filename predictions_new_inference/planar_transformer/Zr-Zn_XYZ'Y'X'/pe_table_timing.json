@@ -1,0 +1,16 @@
+{
+  "folder": "Zr-Zn_XYZ'Y'X'",
+  "config": "Zr-Zn_XYZ'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 30,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Zr-Zn_XYZ'Y'X'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.00698002427816391,
+  "t_preprocess_s": 0.0017791460268199444,
+  "t_predict_s": 0.0028487942181527615,
+  "t_postprocess_s": 0.0020424348767846823,
+  "t_total_s": 0.006670375121757388,
+  "device": "cuda"
+}

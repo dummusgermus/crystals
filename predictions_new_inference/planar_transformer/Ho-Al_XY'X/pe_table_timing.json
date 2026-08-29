@@ -1,0 +1,16 @@
+{
+  "folder": "Ho-Al_XY'X",
+  "config": "Ho-Al_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Ho-Al_XY'X/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.005461710039526224,
+  "t_preprocess_s": 0.0017395911272615194,
+  "t_predict_s": 0.0028216401115059853,
+  "t_postprocess_s": 0.0022928460966795683,
+  "t_total_s": 0.006854077335447073,
+  "device": "cuda"
+}

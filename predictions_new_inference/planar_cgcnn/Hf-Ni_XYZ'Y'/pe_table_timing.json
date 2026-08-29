@@ -1,0 +1,16 @@
+{
+  "folder": "Hf-Ni_XYZ'Y'",
+  "config": "Hf-Ni_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Hf-Ni_XYZ'Y'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0039880904369056225,
+  "t_preprocess_s": 0.0017791520804166794,
+  "t_predict_s": 0.0009117110166698694,
+  "t_postprocess_s": 0.0017836201004683971,
+  "t_total_s": 0.004474483197554946,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Yb-Co_XYZ'Y'X'Z'",
+  "config": "Yb-Co_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Yb-Co_XYZ'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.001131989760324359,
+  "t_preprocess_s": 0.0021161059848964214,
+  "t_predict_s": 0.0009358630049973726,
+  "t_postprocess_s": 0.002583398949354887,
+  "t_total_s": 0.005635367939248681,
+  "device": "cuda"
+}

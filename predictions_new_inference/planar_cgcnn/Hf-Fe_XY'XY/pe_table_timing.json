@@ -1,0 +1,16 @@
+{
+  "folder": "Hf-Fe_XY'XY",
+  "config": "Hf-Fe_XY'XY",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Hf-Fe_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0022571415174752474,
+  "t_preprocess_s": 0.0016580340452492237,
+  "t_predict_s": 0.0009161690250039101,
+  "t_postprocess_s": 0.002465822035446763,
+  "t_total_s": 0.005040025105699897,
+  "device": "cuda"
+}

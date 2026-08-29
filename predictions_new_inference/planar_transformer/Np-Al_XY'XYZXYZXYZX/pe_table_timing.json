@@ -1,0 +1,16 @@
+{
+  "folder": "Np-Al_XY'XYZXYZXYZX",
+  "config": "Np-Al_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Np-Al_XY'XYZXYZXYZX/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.001756943529471755,
+  "t_preprocess_s": 0.0018352861516177654,
+  "t_predict_s": 0.002854774007573724,
+  "t_postprocess_s": 0.0020647530909627676,
+  "t_total_s": 0.006754813250154257,
+  "device": "cuda"
+}

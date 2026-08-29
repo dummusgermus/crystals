@@ -1,0 +1,16 @@
+{
+  "folder": "Ce-Os_XY'XYZXY",
+  "config": "Ce-Os_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Ce-Os_XY'XYZXY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.004965781234204769,
+  "t_preprocess_s": 0.0017330599948763847,
+  "t_predict_s": 0.002816653111949563,
+  "t_postprocess_s": 0.0020716660656034946,
+  "t_total_s": 0.006621379172429442,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Hf-Ni_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Hf-Ni_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Hf-Ni_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0024936164263635874,
+  "t_preprocess_s": 0.0019058710895478725,
+  "t_predict_s": 0.002843501977622509,
+  "t_postprocess_s": 0.002363137900829315,
+  "t_total_s": 0.007112510967999697,
+  "device": "cuda"
+}

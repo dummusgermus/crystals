@@ -1,0 +1,16 @@
+{
+  "folder": "Pb-Au_XY'XYZXY",
+  "config": "Pb-Au_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Pb-Au_XY'XYZXY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0031559120398014784,
+  "t_preprocess_s": 0.0017432391177862883,
+  "t_predict_s": 0.00279916706494987,
+  "t_postprocess_s": 0.002139833988621831,
+  "t_total_s": 0.006682240171357989,
+  "device": "cuda"
+}

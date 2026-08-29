@@ -1,0 +1,16 @@
+{
+  "folder": "Na-Ag_XY'X",
+  "config": "Na-Ag_XY'X",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Na-Ag_XY'X/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.005061067640781403,
+  "t_preprocess_s": 0.001900208881124854,
+  "t_predict_s": 0.0009465650655329227,
+  "t_postprocess_s": 0.001629074104130268,
+  "t_total_s": 0.004475848050788045,
+  "device": "cuda"
+}

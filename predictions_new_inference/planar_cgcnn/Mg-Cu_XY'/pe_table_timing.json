@@ -1,0 +1,16 @@
+{
+  "folder": "Mg-Cu_XY'",
+  "config": "Mg-Cu_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Mg-Cu_XY'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0020999754779040813,
+  "t_preprocess_s": 0.0019791771192103624,
+  "t_predict_s": 0.0009282729588449001,
+  "t_postprocess_s": 0.0022483719512820244,
+  "t_total_s": 0.005155822029337287,
+  "device": "cuda"
+}

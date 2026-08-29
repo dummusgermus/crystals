@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Fe_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "config": "Pu-Fe_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 84,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Pu-Fe_XYZ'Y'X'Z'Y'X'Z'Y'X'Z'Y'X'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0689123272895813,
+  "t_preprocess_s": 0.001880026888102293,
+  "t_predict_s": 0.0009289449080824852,
+  "t_postprocess_s": 0.0023245338816195726,
+  "t_total_s": 0.005133505677804351,
+  "device": "cuda"
+}

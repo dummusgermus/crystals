@@ -1,0 +1,16 @@
+{
+  "folder": "La-Ni_XY'XYZXYZXYZX",
+  "config": "La-Ni_XY'XYZXYZXYZX",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 72,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/La-Ni_XY'XYZXYZXYZX/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0045829094015061855,
+  "t_preprocess_s": 0.0018400009721517563,
+  "t_predict_s": 0.0009375228546559811,
+  "t_postprocess_s": 0.002392312977463007,
+  "t_total_s": 0.005169836804270744,
+  "device": "cuda"
+}

@@ -1,0 +1,16 @@
+{
+  "folder": "Er-Co_XY'",
+  "config": "Er-Co_XY'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Er-Co_XY'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.010683168657124043,
+  "t_preprocess_s": 0.0017808231059461832,
+  "t_predict_s": 0.0009323519188910723,
+  "t_postprocess_s": 0.0025934730656445026,
+  "t_total_s": 0.005306648090481758,
+  "device": "cuda"
+}

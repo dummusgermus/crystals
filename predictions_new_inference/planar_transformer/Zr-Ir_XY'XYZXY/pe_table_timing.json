@@ -1,0 +1,16 @@
+{
+  "folder": "Zr-Ir_XY'XYZXY",
+  "config": "Zr-Ir_XY'XYZXY",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 42,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Zr-Ir_XY'XYZXY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.10245700925588608,
+  "t_preprocess_s": 0.0018559792079031467,
+  "t_predict_s": 0.0029311811085790396,
+  "t_postprocess_s": 0.0019033649004995823,
+  "t_total_s": 0.006690525216981769,
+  "device": "cuda"
+}

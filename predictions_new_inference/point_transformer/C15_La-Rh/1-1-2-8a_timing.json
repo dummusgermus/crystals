@@ -1,0 +1,16 @@
+{
+  "folder": "C15_La-Rh",
+  "config": "1-1-2-8a",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 106,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_La-Rh/1-1-2-8a_graph_pred.npz",
+  "mae_residual_eV": 0.0061164251528680325,
+  "t_preprocess_s": 0.0024286028929054737,
+  "t_predict_s": 0.0028825930785387754,
+  "t_postprocess_s": 0.0021211160346865654,
+  "t_total_s": 0.0074323120061308146,
+  "device": "cuda"
+}

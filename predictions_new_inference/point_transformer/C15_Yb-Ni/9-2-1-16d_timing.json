@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Yb-Ni",
+  "config": "9-2-1-16d",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 64,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Yb-Ni/9-2-1-16d_graph_pred.npz",
+  "mae_residual_eV": 0.009518478065729141,
+  "t_preprocess_s": 0.002366559114307165,
+  "t_predict_s": 0.002936210948973894,
+  "t_postprocess_s": 0.002288420917466283,
+  "t_total_s": 0.007591190980747342,
+  "device": "cuda"
+}

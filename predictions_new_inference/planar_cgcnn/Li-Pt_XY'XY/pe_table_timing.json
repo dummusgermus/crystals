@@ -1,0 +1,16 @@
+{
+  "folder": "Li-Pt_XY'XY",
+  "config": "Li-Pt_XY'XY",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Li-Pt_XY'XY/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.00653437152504921,
+  "t_preprocess_s": 0.0023204649332910776,
+  "t_predict_s": 0.0009666669648140669,
+  "t_postprocess_s": 0.0024767920840531588,
+  "t_total_s": 0.005763923982158303,
+  "device": "cuda"
+}

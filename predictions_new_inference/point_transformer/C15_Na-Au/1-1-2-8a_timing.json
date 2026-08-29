@@ -1,0 +1,16 @@
+{
+  "folder": "C15_Na-Au",
+  "config": "1-1-2-8a",
+  "domain": "point",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 106,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/point_transformer/C15_Na-Au/1-1-2-8a_graph_pred.npz",
+  "mae_residual_eV": 0.0018595716683194041,
+  "t_preprocess_s": 0.0022843601182103157,
+  "t_predict_s": 0.0028966721147298813,
+  "t_postprocess_s": 0.0021050600335001945,
+  "t_total_s": 0.0072860922664403915,
+  "device": "cuda"
+}

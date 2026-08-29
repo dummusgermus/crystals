@@ -1,0 +1,16 @@
+{
+  "folder": "Tm-Co_XYZ'Y'",
+  "config": "Tm-Co_XYZ'Y'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 24,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Tm-Co_XYZ'Y'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.006844694260507822,
+  "t_preprocess_s": 0.001676694955676794,
+  "t_predict_s": 0.0028358809649944305,
+  "t_postprocess_s": 0.004146690014749765,
+  "t_total_s": 0.00865926593542099,
+  "device": "cuda"
+}

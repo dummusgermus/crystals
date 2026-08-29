@@ -1,0 +1,16 @@
+{
+  "folder": "La-Mg_XYZ'Y'X'Z'",
+  "config": "La-Mg_XYZ'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 36,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/La-Mg_XYZ'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.001203412190079689,
+  "t_preprocess_s": 0.0019986650440841913,
+  "t_predict_s": 0.0009369249455630779,
+  "t_postprocess_s": 0.0020213518291711807,
+  "t_total_s": 0.00495694181881845,
+  "device": "cuda"
+}

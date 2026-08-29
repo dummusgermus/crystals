@@ -1,0 +1,16 @@
+{
+  "folder": "Yb-Ni_XY'",
+  "config": "Yb-Ni_XY'",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 12,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Yb-Ni_XY'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.00878963153809309,
+  "t_preprocess_s": 0.001824141014367342,
+  "t_predict_s": 0.0027941439766436815,
+  "t_postprocess_s": 0.0023429389111697674,
+  "t_total_s": 0.006961223902180791,
+  "device": "cuda"
+}

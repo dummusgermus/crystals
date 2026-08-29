@@ -1,0 +1,16 @@
+{
+  "folder": "Pu-Al_XY'X",
+  "config": "Pu-Al_XY'X",
+  "domain": "planar",
+  "architecture": "transformer",
+  "mode": "inference",
+  "n_atoms_graph": 18,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_transformer/Pu-Al_XY'X/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.004264870658516884,
+  "t_preprocess_s": 0.0018221980426460505,
+  "t_predict_s": 0.002791149076074362,
+  "t_postprocess_s": 0.0025909431278705597,
+  "t_total_s": 0.007204290246590972,
+  "device": "cuda"
+}

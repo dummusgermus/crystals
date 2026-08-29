@@ -1,0 +1,16 @@
+{
+  "folder": "Dy-Fe_XYZ'Y'X'Z'Y'X'Z'",
+  "config": "Dy-Fe_XYZ'Y'X'Z'Y'X'Z'",
+  "domain": "planar",
+  "architecture": "cgcnn",
+  "mode": "inference",
+  "n_atoms_graph": 54,
+  "identity_pred": false,
+  "pred_path": "predictions_new_inference/planar_cgcnn/Dy-Fe_XYZ'Y'X'Z'Y'X'Z'/pe_table_graph_pred.npz",
+  "mae_residual_eV": 0.0013078795745968819,
+  "t_preprocess_s": 0.0018498441204428673,
+  "t_predict_s": 0.0009304690174758434,
+  "t_postprocess_s": 0.0020454309415072203,
+  "t_total_s": 0.004825744079425931,
+  "device": "cuda"
+}

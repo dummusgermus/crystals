@@ -32,33 +32,18 @@ import torch
 
 from adv_graph_maker import build_adv_datasets
 from graph_maker import DEFECT_CUTOFF_K
-
-ROOT = os.path.dirname(os.path.abspath(__file__))
-ADV_DIR = os.path.join(ROOT, "adv_datasets")
-SIMULATIONS_DIR = os.path.join(ROOT, "SIMULATIONS")
-BASELINE_SOURCE = os.path.join(ADV_DIR, "cycle34_residual_totals_dataset.pt")
-MANIFEST_JSON = os.path.join(ADV_DIR, "point_graph_size_manifest.json")
-POINT_FULL_CELL_ATOMS = 3000
-
-# baseline k=8 + five larger shell counts
-GRAPH_SIZE_TIERS: Tuple[Tuple[str, int], ...] = (
-    ("k08", 8),
-    ("k09", 9),
-    ("k10", 10),
-    ("k11", 11),
-    ("k12", 12),
-    ("k13", 13),
-    ("k22", 22),
+from graph_size_datasets_config import (
+    ADV_DIR,
+    GRAPH_SIZE_TIERS,
+    MANIFEST_JSON,
+    POINT_FULL_CELL_ATOMS,
+    dataset_path,
+    stats_path,
 )
 
-
-def dataset_path(tag: str) -> str:
-    return os.path.join(ADV_DIR, f"cycle34_residual_totals_size_{tag}.pt")
-
-
-def stats_path(tag: str) -> str:
-    return os.path.join(ADV_DIR, f"cycle34_residual_totals_size_{tag}_stats.json")
-
+ROOT = os.path.dirname(os.path.abspath(__file__))
+SIMULATIONS_DIR = os.path.join(ROOT, "SIMULATIONS")
+BASELINE_SOURCE = os.path.join(ADV_DIR, "cycle34_residual_totals_dataset.pt")
 
 def _summarize_dataset(
     dataset, *, tag: str, cutoff_k: int, built_from_copy: bool = False

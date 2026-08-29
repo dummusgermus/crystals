@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from torch_geometric.loader import DataLoader
 
-from build_point_graph_size_datasets import (
+from graph_size_datasets_config import (
     GRAPH_SIZE_TIERS,
     MANIFEST_JSON,
     dataset_path,

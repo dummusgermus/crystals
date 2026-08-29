@@ -2,15 +2,22 @@
   "target": "delta_total_eV (full-cell net residual)",
   "model": "GatedGNNGraphRegressor (pooled scalar output)",
   "split": "grouped 70/15/15",
-  "epochs": 2,
+  "epochs": 300,
   "seed": 42,
   "by_domain": {
     "point": {
-      "final_test_mae_eV": 703.2507212609053,
-      "final_test_r_tot_median": 48693.997508714485,
-      "final_test_abs_err_median_eV": 534.8199768066406,
-      "best_val_r_tot_median": 49353.7736235598,
-      "checkpoint": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\cgcnn_point_graph_total_model.pt"
+      "final_test_mae_eV": 5.689496883346389,
+      "final_test_r_tot_median": 145.4942509158308,
+      "final_test_abs_err_median_eV": 0.36233729124069214,
+      "best_val_r_tot_median": 84.46326552481717,
+      "checkpoint": "/work/log1/erik.mueller/code/cgcnn_point_graph_total_model.pt"
+    },
+    "planar": {
+      "final_test_mae_eV": 1.0552731552692567,
+      "final_test_r_tot_median": 69.46236872639189,
+      "final_test_abs_err_median_eV": 0.03871582821011543,
+      "best_val_r_tot_median": 71.06938508059078,
+      "checkpoint": "/work/log1/erik.mueller/code/cgcnn_planar_graph_total_model.pt"
     }
   }
 }

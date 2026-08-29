@@ -36,6 +36,7 @@ plots/
 # -----------------------------
 SIMULATIONS/
 predictions/
+predictions_new/
 predictions_inference/
 predictions_validate/
 predictions_validation_model/
@@ -130,3 +131,9 @@ pyg_dataset.pt.graphview.json
 !delivery_global_v2_curves.json
 !predictions_new/delivery_split_indices.json
 !*_global_v2_model.pt
+!cgcnn_graph_total_curves.json
+!cgcnn_graph_total_summary.json
+!cgcnn_graph_total_*.png
+!cgcnn_*_graph_total_model.pt
+!adv_datasets/cycle34_graph_total_target_stats.json
+!planar_pyg_dataset_graph_total_target_c14c15_stats.json

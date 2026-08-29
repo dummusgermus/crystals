@@ -1,0 +1,9 @@
+{
+  "path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_graph_total_target_dataset.pt",
+  "num_graphs": 633,
+  "target": "delta_total_eV (full-cell net residual)",
+  "delta_mean_eV": -11.447878065044282,
+  "delta_std_eV": 116.8482437133789,
+  "abs_delta_mean_eV": 11.447932915155054,
+  "n_near_zero": 211
+}

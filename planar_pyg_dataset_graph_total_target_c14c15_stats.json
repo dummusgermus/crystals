@@ -1,0 +1,9 @@
+{
+  "path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\planar_pyg_dataset_graph_total_target_c14c15.pt",
+  "num_graphs": 1978,
+  "target": "delta_total_eV (full-cell net residual)",
+  "delta_mean_eV": -0.8651738673444237,
+  "delta_std_eV": 5.782888412475586,
+  "abs_delta_mean_eV": 0.8651738673444237,
+  "n_near_zero": 0
+}

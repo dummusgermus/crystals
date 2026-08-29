@@ -639,6 +639,130 @@ class GatedGNNNodeRegressor(nn.Module):
         return self.output_mlp(x)
 
 
+class GatedGNNGraphRegressor(nn.Module):
+    """CGCNN-style gated convolutions + global pool -> one scalar per graph."""
+
+    def __init__(
+        self,
+        in_dim: int,
+        edge_dim: int,
+        hidden_dim: int = 128,
+        num_layers: int = 2,
+        out_dim: int = 1,
+        aggregation: str = "add",
+        dropout: float = 0.0,
+        use_batch_norm: bool = False,
+        set2set_steps: int = 3,
+        activation: str = "silu",
+    ) -> None:
+        super().__init__()
+        if num_layers < 1:
+            raise ValueError("num_layers must be >= 1")
+
+        self.input_mlp = MLP(
+            in_dim,
+            hidden_dim,
+            hidden_dim,
+            dropout=dropout,
+            use_batch_norm=use_batch_norm,
+            activation=activation,
+        )
+
+        self.convs = nn.ModuleList(
+            GatedConv(
+                hidden_dim=hidden_dim,
+                edge_dim=edge_dim,
+                dropout=dropout,
+                use_batch_norm=use_batch_norm,
+                activation=activation,
+            )
+            for _ in range(num_layers)
+        )
+
+        self.pool, pool_out_dim = _build_pool(
+            aggregation=aggregation,
+            hidden_dim=hidden_dim,
+            dropout=dropout,
+            use_batch_norm=use_batch_norm,
+            set2set_steps=set2set_steps,
+        )
+
+        self.output_mlp = MLP(
+            pool_out_dim,
+            hidden_dim,
+            out_dim,
+            dropout=dropout,
+            use_batch_norm=use_batch_norm,
+            num_layers=2,
+            activation=activation,
+        )
+
+    def forward(self, data) -> torch.Tensor:
+        x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
+        batch = getattr(data, "batch", None)
+        if batch is None:
+            batch = x.new_zeros(x.size(0), dtype=torch.long)
+
+        x = self.input_mlp(x)
+        for conv in self.convs:
+            x = conv(x, edge_index, edge_attr)
+
+        if isinstance(self.pool, (GlobalAttention, Set2Set)):
+            graph_repr = self.pool(x, batch)
+        else:
+            graph_repr = self.pool(x, batch)
+
+        return self.output_mlp(graph_repr)
+
+
+class BidirectionalGatedGNNGraphRegressor(nn.Module):
+    """Same as :class:`GatedGNNGraphRegressor` with doubled edges in forward."""
+
+    def __init__(self, model: GatedGNNGraphRegressor) -> None:
+        super().__init__()
+        self.model = model
+
+    def forward(self, data) -> torch.Tensor:
+        ei, ea = bidirectional_edge_pairs(data.edge_index, data.edge_attr)
+        saved_i, saved_a = data.edge_index, data.edge_attr
+        data.edge_index, data.edge_attr = ei, ea
+        try:
+            return self.model(data)
+        finally:
+            data.edge_index, data.edge_attr = saved_i, saved_a
+
+
+def build_gated_graph_model_from_dataset(
+    dataset,
+    hidden_dim: int = 128,
+    num_layers: int = 2,
+    out_dim: int = 1,
+    aggregation: str = "add",
+    dropout: float = 0.0,
+    use_batch_norm: bool = False,
+    activation: str = "silu",
+    bidirectional: bool = True,
+) -> nn.Module:
+    """Build a :class:`GatedGNNGraphRegressor`, optionally bidirectional."""
+    sample = dataset[0]
+    in_dim = sample.x.size(-1)
+    edge_dim = sample.edge_attr.size(-1)
+    inner = GatedGNNGraphRegressor(
+        in_dim=in_dim,
+        edge_dim=edge_dim,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        out_dim=out_dim,
+        aggregation=aggregation,
+        dropout=dropout,
+        use_batch_norm=use_batch_norm,
+        activation=activation,
+    )
+    if bidirectional:
+        return BidirectionalGatedGNNGraphRegressor(inner)
+    return inner
+
+
 def build_gated_model_from_dataset(
     dataset,
     hidden_dim: int = 128,

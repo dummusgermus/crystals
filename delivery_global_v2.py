@@ -300,6 +300,10 @@ def train_delivery_global_v2(
     train_set = [dataset[i] for i in train_idx]
     val_set = [dataset[i] for i in val_idx]
 
+    config = dict(CGCNN_CONFIG if model_kind == "cgcnn" else TRANSFORMER_CONFIG)
+    total_cfg = total_loss_config_for(model_kind, domain)
+    extra_eval_mode = "full" if total_cfg.target_mode == "graph" else "graph"
+
     print(
         f"\n=== {name} | delivery {DELIVERY_VERSION} | train={len(train_set)} "
         f"val={len(val_set)} lambda={total_cfg.lambda_tot:g} "

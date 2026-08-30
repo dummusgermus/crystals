@@ -119,9 +119,14 @@ pyg_dataset.pt.graphview.json
 !adv_datasets/cycle34_residual_totals_size_*.pt
 !adv_datasets/cycle34_residual_totals_size_*_stats.json
 !adv_datasets/point_graph_size_manifest.json
+!adv_datasets/cycle34_residual_totals_k13_edge_*.pt
+!adv_datasets/cycle34_residual_totals_k13_edge_*_stats.json
+!adv_datasets/point_k13_edge_manifest.json
 !cgcnn_graph_size_sweep_curves.json
 !cgcnn_graph_size_sweep_summary.json
 !cgcnn_graph_size_sweep_*.png
+!cgcnn_k13_loss_edge_sweep_curves.json
+!cgcnn_k13_loss_edge_sweep_summary.json
 !planar_pyg_dataset_residual_c14c15_totals_stats.json
 !cgcnn_lambda_sweep_curves.json
 !cgcnn_lambda_sweep_summary.json
@@ -140,6 +145,7 @@ pyg_dataset.pt.graphview.json
 !cgcnn_global_v2_followup_*.png
 !transformer_global_v2_lambda_sweep_*.png
 !cgcnn_graph_size_sweep_*.png
+!cgcnn_k13_loss_edge_sweep_*.png
 !delivery_global_v2_curves.json
 !predictions_new/delivery_split_indices.json
 !*_global_v2_model.pt

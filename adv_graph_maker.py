@@ -20,6 +20,7 @@ directly usable for the ct-UAE workflow.
 import json
 import os
 import time
+from multiprocessing import Pool, cpu_count
 from typing import Dict, List, Optional
 
 import networkx as nx
@@ -237,6 +238,71 @@ def build_adv_datasets(
         print(f"  [{variant}] stats → {stats_path}")
 
     return saved
+
+
+def _count_cycles_job(args: tuple) -> np.ndarray:
+    edge_index, num_nodes = args
+    return count_cycles_per_node(edge_index, num_nodes)
+
+
+def augment_cycle_variant(
+    dataset: List[Data],
+    *,
+    variant: str = "cycle34",
+    base_feature_dim: Optional[int] = None,
+) -> List[Data]:
+    """Append z-scored cycle features to an existing base-feature dataset."""
+    if variant not in DATASET_VARIANTS:
+        raise ValueError(
+            f"Unknown variant {variant!r}; choose from {list(DATASET_VARIANTS)}"
+        )
+    cols = DATASET_VARIANTS[variant]
+    n_cycle_cols = len(cols)
+    if base_feature_dim is None:
+        base_feature_dim = int(dataset[0].x.size(-1)) - n_cycle_cols
+    if base_feature_dim <= 0:
+        raise ValueError(
+            f"Invalid base_feature_dim={base_feature_dim}; "
+            f"x has {int(dataset[0].x.size(-1))} columns."
+        )
+
+    print(f"Computing per-node cycle counts for {len(dataset)} graphs …", flush=True)
+    t0 = time.time()
+    jobs = [(data.edge_index, int(data.num_nodes)) for data in dataset]
+    workers = max(1, min(cpu_count() or 1, 8, len(jobs)))
+    if workers > 1:
+        print(f"  using {workers} worker processes", flush=True)
+        with Pool(processes=workers) as pool:
+            all_cycle_feats = pool.map(_count_cycles_job, jobs, chunksize=4)
+    else:
+        all_cycle_feats = [_count_cycles_job(job) for job in jobs]
+    print(f"  Cycle counting finished in {time.time() - t0:.1f}s", flush=True)
+
+    all_cycles = np.concatenate(all_cycle_feats, axis=0)
+    mean_all = all_cycles.mean(axis=0)
+    std_all = all_cycles.std(axis=0)
+    std_all[std_all < 1e-8] = 1.0
+    v_mean = mean_all[cols]
+    v_std = std_all[cols]
+
+    variant_ds: List[Data] = []
+    for data, cyc in zip(dataset, all_cycle_feats):
+        normed = (cyc[:, cols] - v_mean) / v_std
+        new_data = data.clone()
+        new_data.x = torch.cat(
+            [
+                data.x[:, :base_feature_dim],
+                torch.tensor(normed, dtype=torch.float),
+            ],
+            dim=-1,
+        )
+        variant_ds.append(new_data)
+
+    print(
+        f"  [{variant}] cycle means={v_mean.tolist()} stds={v_std.tolist()}",
+        flush=True,
+    )
+    return variant_ds
 
 
 # ---------------------------------------------------------------------------

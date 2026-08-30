@@ -1,0 +1,9 @@
+{
+  "path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_k13_dataset.pt",
+  "num_graphs": 633,
+  "nodes_median": 252.0,
+  "edges_median": 1561.0,
+  "built_from": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_k13_edge_e03.pt",
+  "cutoff_k": 13,
+  "edge_k": 3
+}

@@ -6,7 +6,7 @@
 #   predictions_new/delivery_split_indices.json
 #   SIMULATIONS/ + Laves_* dump trees
 #
-# Usage:
+# Local restore (needs dump trees; overwrites OUT_ROOT):
 #   bash run_predictions_new_restore.sh
 
 set -euo pipefail

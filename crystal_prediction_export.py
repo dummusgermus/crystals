@@ -111,10 +111,12 @@ JOBS: Dict[str, Dict[str, str]] = {
 GLOBAL_V2_JOBS: Dict[str, Dict[str, str]] = {
     "point_cgcnn": {
         **JOBS["point_cgcnn"],
+        "dataset": os.path.join(ROOT, "adv_datasets", "cycle34_residual_k13_dataset.pt"),
         "checkpoint": os.path.join(ROOT, "cgcnn_defect_residual_global_v2_model.pt"),
     },
     "point_transformer": {
         **JOBS["point_transformer"],
+        "dataset": os.path.join(ROOT, "adv_datasets", "cycle34_residual_k13_dataset.pt"),
         "checkpoint": os.path.join(
             ROOT, "transformer_graph_defect_residual_global_v2_model.pt"
         ),

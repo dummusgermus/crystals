@@ -1,12 +1,12 @@
 """Train four delivery models (CGCNN + Transformer × point/planar) with global-loss v2.
 
-Same 90/10 within-group split as original predictions/ delivery (seed 42).
-Checkpoints by validation R_tot median. Saves split indices to JSON.
+Production settings (k13 point, full-cell CGCNN loss, sweep-optimal lambdas).
+Same 90/10 within-group split as predictions_new (seed 42).
 
 Example::
 
     python train_delivery_global_v2.py --skip-build --epochs 2000
-    python train_delivery_global_v2.py --model point_cgcnn --epochs 300
+    python train_delivery_global_v2.py --model point_cgcnn --epochs 300 --force-split
 """
 
 from __future__ import annotations
@@ -20,42 +20,34 @@ from typing import Dict, List
 
 import torch
 
+from build_delivery_datasets import datasets_ready
 from delivery_global_v2 import (
+    ALL_MODEL_KEYS,
+    BENCHMARK_JSON,
     CHECKPOINTS,
+    CURVES_JSON,
     DELIVERY_SEED,
     DELIVERY_VAL_FRACTION,
+    DELIVERY_VERSION,
     LAMBDA_BY_MODEL,
     SPLIT_JSON_DEFAULT,
     TOTALS_DATASETS,
+    benchmark_delivery_inference,
     build_or_update_split_json,
     save_delivery_split,
     train_delivery_global_v2,
 )
-from train_cgcnn_extensive_comparison import build_datasets
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-
-ALL_MODELS = (
-    "point_cgcnn",
-    "planar_cgcnn",
-    "point_transformer",
-    "planar_transformer",
-)
-
-CURVES_JSON = os.path.join(ROOT, "delivery_global_v2_curves.json")
-
-
-def _totals_datasets_ready() -> bool:
-    return all(os.path.isfile(path) for path in TOTALS_DATASETS.values())
 
 
 def _parse_models(text: str) -> List[str]:
     if text.strip().lower() == "all":
-        return list(ALL_MODELS)
+        return list(ALL_MODEL_KEYS)
     keys = [p.strip() for p in text.split(",") if p.strip()]
     for key in keys:
         if key not in CHECKPOINTS:
-            raise ValueError(f"Unknown model {key!r}; choose from {ALL_MODELS}")
+            raise ValueError(f"Unknown model {key!r}; choose from {ALL_MODEL_KEYS}")
     return keys
 
 
@@ -80,6 +72,12 @@ def main() -> None:
     )
     parser.add_argument("--split-json", default=SPLIT_JSON_DEFAULT)
     parser.add_argument("--output-json", default=CURVES_JSON)
+    parser.add_argument("--benchmark-json", default=BENCHMARK_JSON)
+    parser.add_argument(
+        "--skip-benchmark",
+        action="store_true",
+        help="Skip val-set inference timing after training.",
+    )
     parser.add_argument(
         "--resume",
         action="store_true",
@@ -87,13 +85,14 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    should_build = not args.skip_build and (
-        args.force_build or not _totals_datasets_ready()
-    )
+    should_build = not args.skip_build and (args.force_build or not datasets_ready())
     if should_build:
-        build_datasets(force=args.force_build)
+        cmd = [sys.executable, os.path.join(ROOT, "build_delivery_datasets.py")]
+        if args.force_build:
+            cmd.append("--force")
+        subprocess.run(cmd, check=True, cwd=ROOT)
     elif not args.skip_build:
-        print("Totals datasets already present; skipping build.", flush=True)
+        print("Delivery datasets already present; skipping build.", flush=True)
     if args.build_only:
         print("Build-only done.")
         return
@@ -101,8 +100,10 @@ def main() -> None:
     models = _parse_models(args.model)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
-    print(f"Delivery split seed={DELIVERY_SEED} val_fraction={DELIVERY_VAL_FRACTION}")
+    print(f"Delivery version: {DELIVERY_VERSION}")
+    print(f"Split seed={DELIVERY_SEED} val_fraction={DELIVERY_VAL_FRACTION}")
     print(f"Lambdas: {LAMBDA_BY_MODEL}")
+    print(f"Totals datasets: {TOTALS_DATASETS}")
 
     split_payload = build_or_update_split_json(
         path=args.split_json, force=args.force_split
@@ -111,48 +112,83 @@ def main() -> None:
     print(f"Split indices -> {args.split_json}")
 
     results: Dict[str, Dict] = {}
+    benchmarks: Dict[str, Dict] = {}
     if os.path.isfile(args.output_json):
         with open(args.output_json, encoding="utf-8") as fh:
             payload = json.load(fh)
         results = dict(payload.get("runs", {}))
+    if os.path.isfile(args.benchmark_json):
+        with open(args.benchmark_json, encoding="utf-8") as fh:
+            benchmarks = dict(json.load(fh).get("models", {}))
 
     for model_key in models:
         ckpt_path = CHECKPOINTS[model_key]
         if args.resume and os.path.isfile(ckpt_path):
-            print(f"[skip] checkpoint exists: {model_key}")
-            continue
-        domain, kind = model_key.split("_", 1)
-        ckpt_path = CHECKPOINTS[model_key]
-        results[model_key] = train_delivery_global_v2(
-            domain=domain,
-            model_kind=kind,
-            device=device,
-            epochs=args.epochs,
-            metric=args.metric,
-            checkpoint_path=ckpt_path,
-            split_payload=split_payload,
-        )
+            print(f"[skip train] checkpoint exists: {model_key}")
+        else:
+            domain, kind = model_key.split("_", 1)
+            results[model_key] = train_delivery_global_v2(
+                domain=domain,
+                model_kind=kind,
+                device=device,
+                epochs=args.epochs,
+                metric=args.metric,
+                checkpoint_path=ckpt_path,
+                split_payload=split_payload,
+            )
+
+        if not args.skip_benchmark and os.path.isfile(ckpt_path):
+            print(f"[benchmark] {model_key} …", flush=True)
+            benchmarks[model_key] = benchmark_delivery_inference(
+                model_key=model_key,
+                checkpoint_path=ckpt_path,
+                split_payload=split_payload,
+                device=device,
+            )
+            print(
+                f"[benchmark] {model_key}: "
+                f"{benchmarks[model_key]['inference_ms_per_graph']:.2f} ms/graph "
+                f"({benchmarks[model_key]['val_graphs']} val graphs)",
+                flush=True,
+            )
+
         payload = {
+            "version": DELIVERY_VERSION,
             "epochs": args.epochs,
             "seed": DELIVERY_SEED,
             "val_fraction": DELIVERY_VAL_FRACTION,
             "split_json": args.split_json,
             "lambda_by_model": LAMBDA_BY_MODEL,
-            "loss": "global_v2",
+            "totals_datasets": TOTALS_DATASETS,
             "checkpoint_metric": "val_r_tot_median",
             "runs": results,
         }
         with open(args.output_json, "w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2)
+        with open(args.benchmark_json, "w", encoding="utf-8") as fh:
+            json.dump(
+                {"version": DELIVERY_VERSION, "models": benchmarks},
+                fh,
+                indent=2,
+            )
 
     print(f"\nSaved training curves -> {args.output_json}")
+    print(f"Saved inference benchmarks -> {args.benchmark_json}")
     for key in models:
         if key not in results:
-            print(f"  {key}: (skipped — no result in this run)")
+            print(f"  {key}: (skipped — no training result this run)")
             continue
         r = results[key]
+        extra_key = (
+            "final_val_r_tot_full_median"
+            if r.get("total_target_mode") == "graph"
+            else "final_val_r_tot_graph_median"
+        )
+        extra = r.get(extra_key, float("nan"))
         print(
-            f"  {key}: val R_tot={r['best_val_r_tot_median']:.1f}% "
+            f"  {key}: target={r.get('total_target_mode')} "
+            f"val R_tot={r['best_val_r_tot_median']:.1f}% "
+            f"alt R_tot={extra:.1f}% "
             f"val MAE={r['best_val_mae']:.4f} -> {r['checkpoint']}"
         )
 

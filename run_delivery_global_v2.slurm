@@ -6,39 +6,31 @@
 #SBATCH --partition=log_gpu_24gb
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
+#SBATCH --mem=48G
 
-# predictions_new pipeline (cluster): train 4 global-v2 models + GPU inference.
+# predictions_new production pipeline (k13 point + global-v2 optimizations):
+#   * Point graphs: cutoff_k=13, edge_k=3
+#   * Point CGCNN: full-cell global loss (λ=0.01)
+#   * Point Transformer: graph global loss (λ=0.02)
+#   * Planar CGCNN: graph global loss (λ=0.005)
+#   * Planar Transformer: graph global loss (λ=0.01)
+#   * 90/10 within-group split, checkpoint by val R_tot
+#   * Val-set inference benchmarks + crystal inference (no dumps)
 #
-# Same delivery split as original predictions/ (within-group 90/10, seed 42).
-# Only change vs original delivery: global-loss v2 + checkpoint by val R_tot.
-#
-# Prerequisites on cluster (rsync from local):
-#   adv_datasets/cycle34_residual_dataset.pt          (+ particle_ids)
-#   planar_pyg_dataset_residual_c14c15.pt           (+ particle_ids)
-#   adv_datasets/cycle34_residual_totals_dataset.pt
-#   planar_pyg_dataset_residual_c14c15_totals.pt
-#
-# Cluster outputs (pull to local):
-#   predictions_new/delivery_split_indices.json
-#   *_global_v2_model.pt  (4 checkpoints)
-#   predictions_new_inference/  (graph preds + timings)
-#   delivery_global_v2_curves.json
-#
-# Local restore (needs dump trees):
-#   bash run_predictions_new_restore.sh
-#
-# Submit:
+# Build datasets locally, rsync .pt files, then:
 #   sbatch run_delivery_global_v2.slurm
 #
-# Train only:
-#   sbatch --export=ALL,SKIP_INFER=1 run_delivery_global_v2.slurm
+# Fresh retrain (overwrite checkpoints + split):
+#   sbatch --export=ALL,FORCE_SPLIT=1 run_delivery_global_v2.slurm
 #
 # Resume interrupted training:
 #   sbatch --export=ALL,RESUME=1 run_delivery_global_v2.slurm
 #
-# Rebuild totals datasets on cluster (needs dump trees — usually avoid):
-#   sbatch --export=ALL,FORCE_BUILD=1 run_delivery_global_v2.slurm
+# Train only (skip crystal inference):
+#   sbatch --export=ALL,SKIP_INFER=1 run_delivery_global_v2.slurm
+#
+# Local restore after pull (overwrites predictions_new/):
+#   bash run_predictions_new_restore.sh
 
 set -euo pipefail
 
@@ -58,20 +50,35 @@ export TRITON_CACHE_DIR="${CACHE_ROOT}/triton"
 export TORCHINDUCTOR_CACHE_DIR="${CACHE_ROOT}/inductor"
 mkdir -p "${TRITON_CACHE_DIR}" "${TORCHINDUCTOR_CACHE_DIR}"
 
+SHIM_DIR="${SLURM_SUBMIT_DIR}/.lib_shim"
+mkdir -p "${SHIM_DIR}"
+if [ ! -e "${SHIM_DIR}/libOpenGL.so.0" ]; then
+  SYS_LIBGL="$(ldconfig -p | awk '/libGL\.so\.1\b/ {print $NF; exit}')"
+  if [ -z "${SYS_LIBGL}" ] || [ ! -e "${SYS_LIBGL}" ]; then
+    SYS_LIBGL="/lib/x86_64-linux-gnu/libGL.so.1"
+  fi
+  if [ -e "${SYS_LIBGL}" ]; then
+    ln -sf "${SYS_LIBGL}" "${SHIM_DIR}/libOpenGL.so.0"
+    echo "[env] libOpenGL.so.0 -> ${SYS_LIBGL}"
+  fi
+fi
+export LD_LIBRARY_PATH="${SHIM_DIR}:${LD_LIBRARY_PATH:-}"
+
 EPOCHS="${EPOCHS:-2000}"
 FORCE_BUILD="${FORCE_BUILD:-0}"
+FORCE_SPLIT="${FORCE_SPLIT:-1}"
 RESUME="${RESUME:-0}"
 SKIP_TRAIN="${SKIP_TRAIN:-0}"
 SKIP_INFER="${SKIP_INFER:-0}"
+SKIP_BUILD="${SKIP_BUILD:-1}"
 INFER_ROOT="${INFER_ROOT:-predictions_new_inference}"
 SPLIT_JSON="${SPLIT_JSON:-predictions_new/delivery_split_indices.json}"
 DEVICE="${DEVICE:-auto}"
 
 echo "============================================================"
-echo "[job] predictions_new: global-v2 delivery train + inference"
-echo "[job] epochs=${EPOCHS} split_json=${SPLIT_JSON}"
-echo "[job] force_build=${FORCE_BUILD} resume=${RESUME}"
-echo "[job] skip_train=${SKIP_TRAIN} skip_infer=${SKIP_INFER}"
+echo "[job] predictions_new delivery (${EPOCHS} ep)"
+echo "[job] version=global_v2_k13 force_split=${FORCE_SPLIT} resume=${RESUME}"
+echo "[job] skip_train=${SKIP_TRAIN} skip_infer=${SKIP_INFER} skip_build=${SKIP_BUILD}"
 echo "============================================================"
 
 python - <<'PY'
@@ -82,60 +89,47 @@ if torch.cuda.is_available():
 PY
 
 echo
-echo "=== Checking datasets ==="
-for path in \
-  adv_datasets/cycle34_residual_dataset.pt \
-  planar_pyg_dataset_residual_c14c15.pt \
-  adv_datasets/cycle34_residual_totals_dataset.pt \
-  planar_pyg_dataset_residual_c14c15_totals.pt
-do
-  if [ ! -f "${path}" ]; then
-    echo "[FATAL] Missing ${path}" >&2
-    exit 1
-  fi
-  echo "[ok] ${path}"
-done
-
+echo "=== Preflight: delivery datasets ==="
 python - <<'PY'
+import sys
 import torch
-from pathlib import Path
-for path in [
-    Path("adv_datasets/cycle34_residual_dataset.pt"),
-    Path("planar_pyg_dataset_residual_c14c15.pt"),
-]:
-    ds = torch.load(path, weights_only=False)
-    g = ds[0]
-    has_ids = getattr(g, "particle_ids", None) is not None
-    print(f"[check] {path.name}: n={len(ds)} particle_ids={'yes' if has_ids else 'NO'}", flush=True)
-    if not has_ids:
-        raise SystemExit(f"Missing particle_ids on {path}")
+from build_delivery_datasets import datasets_ready
+from delivery_global_v2 import EXPORT_DATASETS, TOTALS_DATASETS, POINT_CUTOFF_K, POINT_EDGE_K
 
-for path in [
-    Path("adv_datasets/cycle34_residual_totals_dataset.pt"),
-    Path("planar_pyg_dataset_residual_c14c15_totals.pt"),
-]:
+paths = list(TOTALS_DATASETS.values()) + list(EXPORT_DATASETS.values())
+missing = [p for p in paths if not __import__("os").path.isfile(p)]
+if missing:
+    print("Missing datasets:", *missing, sep="\n  ", file=sys.stderr)
+    print("Build locally: python build_delivery_datasets.py", file=sys.stderr)
+    sys.exit(1)
+
+pt = torch.load(TOTALS_DATASETS["point"], weights_only=False)
+g = pt[0]
+print(f"[ok] point totals: n={len(pt)} cutoff_k={getattr(g,'cutoff_k',None)} edge_k={getattr(g,'edge_k',None)}", flush=True)
+if int(getattr(g, "cutoff_k", -1)) != POINT_CUTOFF_K or int(getattr(g, "edge_k", -1)) != POINT_EDGE_K:
+    sys.exit(f"Point dataset must be k={POINT_CUTOFF_K} edge_k={POINT_EDGE_K}")
+if not hasattr(g, "particle_ids"):
+    sys.exit("Point export dataset missing particle_ids")
+
+for domain, path in EXPORT_DATASETS.items():
     ds = torch.load(path, weights_only=False)
-    g = ds[0]
-    has_delta = hasattr(g, "delta_total_eV") or (
-        hasattr(g, "meta") and g.meta is not None and "graph_delta_total_eV" in g.meta
-    )
-    print(
-        f"[check] {path.name}: n={len(ds)} totals={'yes' if has_delta else 'NO'}",
-        flush=True,
-    )
-    if not has_delta:
-        raise SystemExit(f"Missing total-energy fields on {path}; build locally and rsync.")
+    print(f"[ok] {domain} export: {path} n={len(ds)}", flush=True)
+print("All delivery datasets present.", flush=True)
 PY
 
 TRAIN_CMD=(
   python -u train_delivery_global_v2.py
-  --skip-build
   --epochs "${EPOCHS}"
   --split-json "${SPLIT_JSON}"
   --model all
 )
-if [ "${FORCE_BUILD}" = "1" ]; then
-  TRAIN_CMD=(python -u train_delivery_global_v2.py --force-build --epochs "${EPOCHS}" --split-json "${SPLIT_JSON}" --model all)
+if [ "${SKIP_BUILD}" = "1" ]; then
+  TRAIN_CMD+=(--skip-build)
+elif [ "${FORCE_BUILD}" = "1" ]; then
+  TRAIN_CMD+=(--force-build)
+fi
+if [ "${FORCE_SPLIT}" = "1" ]; then
+  TRAIN_CMD+=(--force-split)
 fi
 if [ "${RESUME}" = "1" ]; then
   TRAIN_CMD+=(--resume)
@@ -143,7 +137,7 @@ fi
 
 if [ "${SKIP_TRAIN}" != "1" ]; then
   echo
-  echo "=== Training 4 models (CGCNN + Transformer, global v2) ==="
+  echo "=== Training 4 models + val inference benchmarks ==="
   "${TRAIN_CMD[@]}"
 else
   echo
@@ -168,7 +162,7 @@ done
 
 if [ "${SKIP_INFER}" != "1" ]; then
   echo
-  echo "=== GPU inference (no dumps) ==="
+  echo "=== Crystal inference (no dumps) ==="
   python -u crystal_prediction_export.py \
     --mode inference \
     --job all \
@@ -186,9 +180,14 @@ if [ "${SKIP_INFER}" != "1" ]; then
   done
 else
   echo
-  echo "=== SKIP inference ==="
+  echo "=== SKIP crystal inference ==="
 fi
 
 echo
-echo "[done] Pull ${SPLIT_JSON}, checkpoints, and ${INFER_ROOT}/"
-echo "[done] Then run: bash run_predictions_new_restore.sh"
+echo "[done] Pull artifacts:"
+echo "  ${SPLIT_JSON}"
+echo "  *_global_v2_model.pt (4 checkpoints)"
+echo "  delivery_global_v2_curves.json"
+echo "  delivery_inference_benchmark.json"
+echo "  ${INFER_ROOT}/"
+echo "[done] Local: bash run_predictions_new_restore.sh  (overwrites predictions_new/)"

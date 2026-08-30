@@ -7,10 +7,10 @@
   "n_atoms_graph": 18,
   "identity_pred": false,
   "pred_path": "predictions_new_inference/planar_transformer/La-Os_XY'X/pe_table_graph_pred.npz",
-  "mae_residual_eV": 0.012186012230813503,
-  "t_preprocess_s": 0.0018036810215562582,
-  "t_predict_s": 0.0028423001058399677,
-  "t_postprocess_s": 0.002190049970522523,
-  "t_total_s": 0.006836031097918749,
+  "mae_residual_eV": 0.014123257249593735,
+  "t_preprocess_s": 0.0018473900854587555,
+  "t_predict_s": 0.0028830391820520163,
+  "t_postprocess_s": 0.004410970024764538,
+  "t_total_s": 0.00914139929227531,
   "device": "cuda"
 }

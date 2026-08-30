@@ -7,10 +7,10 @@
   "n_atoms_graph": 12,
   "identity_pred": false,
   "pred_path": "predictions_new_inference/planar_transformer/Mg-Cu_XY'/pe_table_graph_pred.npz",
-  "mae_residual_eV": 0.002670716494321823,
-  "t_preprocess_s": 0.0018541822209954262,
-  "t_predict_s": 0.0026933960616588593,
-  "t_postprocess_s": 0.002309718169271946,
-  "t_total_s": 0.006857296451926231,
+  "mae_residual_eV": 0.002939628204330802,
+  "t_preprocess_s": 0.0019735051319003105,
+  "t_predict_s": 0.0028271940536797047,
+  "t_postprocess_s": 0.0018136329017579556,
+  "t_total_s": 0.006614332087337971,
   "device": "cuda"
 }

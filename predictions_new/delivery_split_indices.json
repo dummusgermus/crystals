@@ -2,16 +2,39 @@
   "seed": 42,
   "val_fraction": 0.1,
   "splitter": "within_group_train_val_indices",
+  "version": "global_v2_k13",
   "loss": "global_v2",
   "checkpoint_metric": "val_r_tot_median",
-  "lambda_by_domain": {
-    "point": 0.01,
-    "planar": 0.005
+  "point_cutoff_k": 13,
+  "point_edge_k": 3,
+  "lambda_by_model": {
+    "cgcnn": {
+      "point": 0.01,
+      "planar": 0.005
+    },
+    "transformer": {
+      "point": 0.02,
+      "planar": 0.01
+    }
+  },
+  "total_target_mode_by_model": {
+    "cgcnn_point": "full",
+    "transformer_point": "graph",
+    "cgcnn_planar": "graph",
+    "transformer_planar": "graph"
+  },
+  "totals_datasets": {
+    "point": "/work/log1/erik.mueller/code/adv_datasets/cycle34_residual_totals_k13_dataset.pt",
+    "planar": "/work/log1/erik.mueller/code/planar_pyg_dataset_residual_c14c15_totals.pt"
+  },
+  "export_datasets": {
+    "point": "/work/log1/erik.mueller/code/adv_datasets/cycle34_residual_k13_dataset.pt",
+    "planar": "/work/log1/erik.mueller/code/planar_pyg_dataset_residual_c14c15.pt"
   },
   "point": {
     "domain": "point",
-    "dataset_path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_totals_dataset.pt",
-    "export_dataset_path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\adv_datasets\\cycle34_residual_dataset.pt",
+    "dataset_path": "/work/log1/erik.mueller/code/adv_datasets/cycle34_residual_totals_k13_dataset.pt",
+    "export_dataset_path": "/work/log1/erik.mueller/code/adv_datasets/cycle34_residual_k13_dataset.pt",
     "n_graphs": 633,
     "n_train": 570,
     "n_val": 63,
@@ -655,8 +678,8 @@
   },
   "planar": {
     "domain": "planar",
-    "dataset_path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\planar_pyg_dataset_residual_c14c15_totals.pt",
-    "export_dataset_path": "D:\\Uni\\Faecher\\Hiwi\\Projekte\\jara\\code\\planar_pyg_dataset_residual_c14c15.pt",
+    "dataset_path": "/work/log1/erik.mueller/code/planar_pyg_dataset_residual_c14c15_totals.pt",
+    "export_dataset_path": "/work/log1/erik.mueller/code/planar_pyg_dataset_residual_c14c15.pt",
     "n_graphs": 1978,
     "n_train": 1780,
     "n_val": 198,

@@ -1,0 +1,53 @@
+{
+  "version": "global_v2_k13",
+  "models": {
+    "point_cgcnn": {
+      "model_key": "point_cgcnn",
+      "checkpoint": "/work/log1/erik.mueller/code/cgcnn_defect_residual_global_v2_model.pt",
+      "dataset": "/work/log1/erik.mueller/code/adv_datasets/cycle34_residual_totals_k13_dataset.pt",
+      "val_graphs": 63,
+      "val_nodes": 13646,
+      "inference_batch_size": 8,
+      "inference_wall_s": 0.03343355003744364,
+      "inference_ms_per_graph": 0.5306912704356133,
+      "inference_ms_per_node": 0.002450062292059478,
+      "inference_graphs_per_s": 1884.3347454710508
+    },
+    "planar_cgcnn": {
+      "model_key": "planar_cgcnn",
+      "checkpoint": "/work/log1/erik.mueller/code/cgcnn_planar_residual_global_v2_model.pt",
+      "dataset": "/work/log1/erik.mueller/code/planar_pyg_dataset_residual_c14c15_totals.pt",
+      "val_graphs": 198,
+      "val_nodes": 7962,
+      "inference_batch_size": 8,
+      "inference_wall_s": 0.09170487383380532,
+      "inference_ms_per_graph": 0.46315592845356224,
+      "inference_ms_per_node": 0.011517818868852716,
+      "inference_graphs_per_s": 2159.1000753005883
+    },
+    "point_transformer": {
+      "model_key": "point_transformer",
+      "checkpoint": "/work/log1/erik.mueller/code/transformer_graph_defect_residual_global_v2_model.pt",
+      "dataset": "/work/log1/erik.mueller/code/adv_datasets/cycle34_residual_totals_k13_dataset.pt",
+      "val_graphs": 63,
+      "val_nodes": 13646,
+      "inference_batch_size": 8,
+      "inference_wall_s": 0.04836630797944963,
+      "inference_ms_per_graph": 0.7677191742769782,
+      "inference_ms_per_node": 0.0035443579055730347,
+      "inference_graphs_per_s": 1302.5596253236465
+    },
+    "planar_transformer": {
+      "model_key": "planar_transformer",
+      "checkpoint": "/work/log1/erik.mueller/code/transformer_graph_planar_residual_global_v2_model.pt",
+      "dataset": "/work/log1/erik.mueller/code/planar_pyg_dataset_residual_c14c15_totals.pt",
+      "val_graphs": 198,
+      "val_nodes": 7962,
+      "inference_batch_size": 8,
+      "inference_wall_s": 0.13675702991895378,
+      "inference_ms_per_graph": 0.6906920702977464,
+      "inference_ms_per_node": 0.017176215764751795,
+      "inference_graphs_per_s": 1447.8231950294664
+    }
+  }
+}

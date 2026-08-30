@@ -7,10 +7,10 @@
   "n_atoms_graph": 36,
   "identity_pred": false,
   "pred_path": "predictions_new_inference/planar_transformer/Pu-Fe_XYZ'Y'X'Z'/pe_table_graph_pred.npz",
-  "mae_residual_eV": 0.08697352558374405,
-  "t_preprocess_s": 0.0023537729866802692,
-  "t_predict_s": 0.0028010541573166847,
-  "t_postprocess_s": 0.0019249399192631245,
-  "t_total_s": 0.007079767063260078,
+  "mae_residual_eV": 0.08572909981012344,
+  "t_preprocess_s": 0.0019104029051959515,
+  "t_predict_s": 0.0029098959639668465,
+  "t_postprocess_s": 0.0019205419812351465,
+  "t_total_s": 0.0067408408503979445,
   "device": "cuda"
 }

@@ -1,0 +1,88 @@
+{
+  "domain": "point",
+  "model": "cgcnn",
+  "cutoff_k": 13,
+  "lambda_tot": 0.01,
+  "loss_modes": [
+    "graph",
+    "full"
+  ],
+  "edge_k_tiers": [
+    {
+      "tag": "e03",
+      "edge_k": 3
+    }
+  ],
+  "metrics": {
+    "atom": "final_test_mae",
+    "global_graph": "final_test_r_tot_graph_median",
+    "global_full_cell": "final_test_r_tot_full_median"
+  },
+  "runs": [
+    {
+      "edge_tag": "e03",
+      "edge_k": 3,
+      "loss_mode": "graph",
+      "run_key": "point_k13_e03_graph",
+      "final_test_mae": 0.007232792074015985,
+      "final_test_r_tot_graph_median": 34.449759595708336,
+      "final_test_r_tot_full_median": 30.120273086253142,
+      "final_test_abs_total_err_eV": 0.4608886192533343,
+      "final_test_abs_total_err_full_eV": 4.814701278888606,
+      "train_wall_s": 308.0368138840422,
+      "train_s_per_epoch": 1.026789379613474
+    },
+    {
+      "edge_tag": "e03",
+      "edge_k": 3,
+      "loss_mode": "full",
+      "run_key": "point_k13_e03_full",
+      "final_test_mae": 0.007086551340762526,
+      "final_test_r_tot_graph_median": 26.142710438241917,
+      "final_test_r_tot_full_median": 24.469755360826586,
+      "final_test_abs_total_err_eV": 4.788951754957452,
+      "final_test_abs_total_err_full_eV": NaN,
+      "train_wall_s": 287.99740144214593,
+      "train_s_per_epoch": 0.9599913381404864
+    }
+  ],
+  "best_full_cell_overall": {
+    "edge_tag": "e03",
+    "edge_k": 3,
+    "loss_mode": "full",
+    "run_key": "point_k13_e03_full",
+    "final_test_mae": 0.007086551340762526,
+    "final_test_r_tot_graph_median": 26.142710438241917,
+    "final_test_r_tot_full_median": 24.469755360826586,
+    "final_test_abs_total_err_eV": 4.788951754957452,
+    "final_test_abs_total_err_full_eV": NaN,
+    "train_wall_s": 287.99740144214593,
+    "train_s_per_epoch": 0.9599913381404864
+  },
+  "best_full_cell_graph_loss": {
+    "edge_tag": "e03",
+    "edge_k": 3,
+    "loss_mode": "graph",
+    "run_key": "point_k13_e03_graph",
+    "final_test_mae": 0.007232792074015985,
+    "final_test_r_tot_graph_median": 34.449759595708336,
+    "final_test_r_tot_full_median": 30.120273086253142,
+    "final_test_abs_total_err_eV": 0.4608886192533343,
+    "final_test_abs_total_err_full_eV": 4.814701278888606,
+    "train_wall_s": 308.0368138840422,
+    "train_s_per_epoch": 1.026789379613474
+  },
+  "best_full_cell_full_loss": {
+    "edge_tag": "e03",
+    "edge_k": 3,
+    "loss_mode": "full",
+    "run_key": "point_k13_e03_full",
+    "final_test_mae": 0.007086551340762526,
+    "final_test_r_tot_graph_median": 26.142710438241917,
+    "final_test_r_tot_full_median": 24.469755360826586,
+    "final_test_abs_total_err_eV": 4.788951754957452,
+    "final_test_abs_total_err_full_eV": NaN,
+    "train_wall_s": 287.99740144214593,
+    "train_s_per_epoch": 0.9599913381404864
+  }
+}

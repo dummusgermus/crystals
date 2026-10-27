@@ -29,10 +29,10 @@
   \toprule
   Model & $\lambda_{\mathrm{tot}}$ & val $R_{\mathrm{tot}}$ (\%) & val MAE (eV) \\
   \midrule
-  Point CGCNN & 0.01 & 21.9 & 0.0107 \\
-  Point Transformer & 0.01 & 18.8 & 0.0113 \\
-  Planar CGCNN & 0.005 & 36.4 & 0.0204 \\
-  Planar Transformer & 0.005 & 45.1 & 0.0327 \\
+  Point CGCNN & 0.01 & 34.8 & 0.0120 \\
+  Point Transformer & 0.02 & 16.0 & 0.0073 \\
+  Planar CGCNN & 0.005 & 32.8 & 0.0265 \\
+  Planar Transformer & 0.01 & 46.5 & 0.0329 \\
   \bottomrule
 \end{tabular}
 \end{center}
@@ -45,10 +45,10 @@
   \toprule
   Domain & Split & Old CGCNN & New CGCNN & Old Trans. & New Trans. \\
   \midrule
-  Point  & all        & 0.0056 & 0.0057 & 0.0056 & 0.0057 \\
-  Point  & validation & 0.0032 & 0.0033 & 0.0033 & 0.0033 \\
-  Planar & all        & 0.0089 & 0.0126 & 0.0087 & 0.0276 \\
-  Planar & validation & 0.0175 & 0.0204 & 0.0136 & 0.0327 \\
+  Point  & all        & 0.0056 & 0.0060 & 0.0056 & 0.0056 \\
+  Point  & validation & 0.0032 & 0.0036 & 0.0033 & 0.0032 \\
+  Planar & all        & 0.0089 & 0.0160 & 0.0087 & 0.0280 \\
+  Planar & validation & 0.0175 & 0.0265 & 0.0136 & 0.0329 \\
   \bottomrule
 \end{tabular}
 \end{center}
@@ -64,15 +64,15 @@ Mean and median over crystals. Large point cells inflate the mean; see bucket br
   Domain & Split & \multicolumn{2}{c}{CGCNN old} & \multicolumn{2}{c}{CGCNN new} & \multicolumn{2}{c}{Trans.\ old} & \multicolumn{2}{c}{Trans.\ new} \\
   & & mean & med. & mean & med. & mean & med. & mean & med. \\
   \midrule
-  Point  & all        & 11.00 & 0.0419 & 11.04 & 0.0757 & 10.85 & 0.0550 & 11.07 & 0.0613 \\
-  Point  & validation & 1.64 & 0.1041 & 1.67 & 0.1112 & 1.72 & 0.1193 & 1.65 & 0.0816 \\
-  Planar & all        & 0.22 & 0.0170 & 0.37 & 0.0162 & 0.14 & 0.0335 & 0.83 & 0.0294 \\
-  Planar & validation & 0.63 & 0.0257 & 0.70 & 0.0187 & 0.35 & 0.0318 & 1.03 & 0.0209 \\
+  Point  & all        & 11.00 & 0.0419 & 11.36 & 0.5169 & 10.85 & 0.0550 & 10.91 & 0.0649 \\
+  Point  & validation & 1.64 & 0.1041 & 1.85 & 0.5210 & 1.72 & 0.1193 & 1.61 & 0.0953 \\
+  Planar & all        & 0.22 & 0.0170 & 0.53 & 0.0109 & 0.14 & 0.0335 & 0.83 & 0.0263 \\
+  Planar & validation & 0.63 & 0.0257 & 0.86 & 0.0188 & 0.35 & 0.0318 & 1.03 & 0.0245 \\
   \bottomrule
 \end{tabular}
 \end{center}
 
-\noindent\textit{Note:} For point validation CGCNN, old/new medians are 0.1041 / 0.1112~eV while per-atom MAE remains $\sim 0.003$~eV.
+\noindent\textit{Note:} For point validation CGCNN, old/new medians are 0.1041 / 0.5210~eV while per-atom MAE remains $\sim 0.003$~eV.
 
 \section*{Table 3 | Relative total error $R_{\mathrm{tot}}$ (\%)}
 
@@ -85,10 +85,10 @@ Crystals with $|\Delta E_{\mathrm{true}}|\ge 10^{-6}$~eV only ($n_{\mathrm{point
   \toprule
   Domain & Split & $n$ & \multicolumn{2}{c}{CGCNN old/new med.} & \multicolumn{2}{c}{Trans.\ old/new med.} \\
   \midrule
-  Point  & all        & 422 & 20.28 & 18.36 & 25.03 & 29.32 \\
-  Point  & validation & 42 & 28.00 & 27.48 & 26.03 & 29.72 \\
-  Planar & all        & 1978 & 31.40 & 31.28 & 53.66 & 53.74 \\
-  Planar & validation & 198 & 45.76 & 36.42 & 50.55 & 45.11 \\
+  Point  & all        & 422 & 20.28 & 51.22 & 25.03 & 23.39 \\
+  Point  & validation & 42 & 28.00 & 34.79 & 26.03 & 21.25 \\
+  Planar & all        & 1978 & 31.40 & 21.28 & 53.66 & 52.30 \\
+  Planar & validation & 198 & 45.76 & 32.77 & 50.55 & 46.46 \\
   \bottomrule
 \end{tabular}
 \end{center}
@@ -101,10 +101,10 @@ Crystals with $|\Delta E_{\mathrm{true}}|\ge 10^{-6}$~eV only ($n_{\mathrm{point
   \toprule
   Domain & Model & \multicolumn{2}{c}{Old mean/med.} & \multicolumn{2}{c}{New mean/med.} & \multicolumn{2}{c}{$<100\%$ old/new} \\
   \midrule
-  Point  & CGCNN & 61.64 & 28.00 & 61.48 & 27.48 & 92.9\% & 92.9\% \\
-  & Transformer & 51.09 & 26.03 & 52.86 & 29.72 & 92.9\% & 95.2\% \\
-  Planar & CGCNN & 174.4 & 45.76 & 210.7 & 36.42 & 72.7\% & 78.3\% \\
-  & Transformer & 136.9 & 50.55 & 89.48 & 45.11 & 65.2\% & 79.8\% \\
+  Point  & CGCNN & 61.64 & 28.00 & 143.9 & 34.79 & 92.9\% & 83.3\% \\
+  & Transformer & 51.09 & 26.03 & 52.50 & 21.25 & 92.9\% & 97.6\% \\
+  Planar & CGCNN & 174.4 & 45.76 & 195.8 & 32.77 & 72.7\% & 80.3\% \\
+  & Transformer & 136.9 & 50.55 & 72.31 & 46.46 & 65.2\% & 83.8\% \\
   \bottomrule
 \end{tabular}
 \end{center}
@@ -119,10 +119,10 @@ Crystals with $|\Delta E_{\mathrm{true}}|\ge 10^{-6}$~eV only ($n_{\mathrm{point
   \toprule
   Domain & Model & $n$ & improved & worsened & median $\Delta R_{\mathrm{tot}}$ (new$-$old) \\
   \midrule
-  Point  & CGCNN & 42 & 22 (52\%) & 20 & -0.9 pp \\
-  Point  & Transformer & 42 & 21 (50\%) & 21 & +0.6 pp \\
-  Planar & CGCNN & 198 & 108 (55\%) & 90 & -4.4 pp \\
-  Planar & Transformer & 198 & 111 (56\%) & 87 & -10.9 pp \\
+  Point  & CGCNN & 42 & 18 (43\%) & 24 & +2.9 pp \\
+  Point  & Transformer & 42 & 30 (71\%) & 12 & -5.5 pp \\
+  Planar & CGCNN & 198 & 117 (59\%) & 81 & -6.4 pp \\
+  Planar & Transformer & 198 & 102 (52\%) & 96 & -4.6 pp \\
   \bottomrule
 \end{tabular}
 \end{center}
@@ -137,10 +137,10 @@ Explains why a median $|\mathrm{error}| \sim 0.11$~eV coexists with MAE $\sim 0.
   \toprule
   Bucket & $n$ & \multicolumn{2}{c}{Old CGCNN med.\ $|\mathrm{err}|$ / MAE} & \multicolumn{2}{c}{New CGCNN med.\ $|\mathrm{err}|$ / MAE} \\
   \midrule
-  $|\Delta E|<10^{-6}$ eV (net $\approx 0$) & 21 & 0.0095 / 0.0000 & 0.0557 / 0.0000 \\
-  $10^{-6}$--$0.05$ eV & 1 & 0.1917 / 0.0002 & 0.1569 / 0.0002 \\
-  $0.05$--$0.5$ eV & 7 & 0.1369 / 0.0003 & 0.0942 / 0.0004 \\
-  $\ge 0.5$ eV & 34 & 0.2938 / 0.0059 & 0.2921 / 0.0059 \\
+  $|\Delta E|<10^{-6}$ eV (net $\approx 0$) & 21 & 0.0095 / 0.0000 & 0.5699 / 0.0002 \\
+  $10^{-6}$--$0.05$ eV & 1 & 0.1917 / 0.0002 & 0.8587 / 0.0004 \\
+  $0.05$--$0.5$ eV & 7 & 0.1369 / 0.0003 & 0.5210 / 0.0006 \\
+  $\ge 0.5$ eV & 34 & 0.2938 / 0.0059 & 0.2350 / 0.0063 \\
   \bottomrule
 \end{tabular}
 \end{center}
@@ -153,23 +153,23 @@ Explains why a median $|\mathrm{error}| \sim 0.11$~eV coexists with MAE $\sim 0.
   \toprule
   Config & $\Delta E_{\mathrm{true}}$ (eV) & MAE (eV) & $|\mathrm{err}|$ (eV) & $R_{\mathrm{tot}}$ (\%) \\
   \midrule
-  \texttt{C15\_Np-Ru/1-1-2-8a} & -87.96 & 0.1347 & 87.69 & 99.68 \\
-  \texttt{C15\_Ce-Ru/9-2-1-16d} & -3.4142 & 0.0145 & 2.8124 & 82.37 \\
-  \texttt{C15\_Ho-Mn/9-2-1-16d} & -3.1272 & 0.0041 & 1.7160 & 54.87 \\
-  \texttt{C15\_Zr-Ni/9-2-1-16d} & -1.7412 & 0.0156 & 1.2489 & 71.72 \\
-  \texttt{C15\_Ce-Pt/1-1-2-8a} & -1.1985 & 0.0008 & 1.0957 & 91.42 \\
-  \texttt{C15\_Sc-Co/9-2-1-16d} & -0.6600 & 0.0008 & 0.9627 & 145.9 \\
-  \texttt{C15\_Gd-Mg/9-2-1-16d} & -0.1411 & 0.0004 & 0.8546 & 605.5 \\
-  \texttt{C15\_Yb-Ir/1-1-2-8a} & -1.7548 & 0.0058 & 0.7274 & 41.45 \\
+  \texttt{C15\_Np-Ru/1-1-2-8a} & -87.96 & 0.1347 & 86.91 & 98.80 \\
+  \texttt{C15\_Ce-Ru/9-2-1-16d} & -3.4142 & 0.0149 & 2.1552 & 63.12 \\
+  \texttt{C15\_Ho-Mn/9-2-1-16d} & -3.1272 & 0.0042 & 1.7538 & 56.08 \\
+  \texttt{C15\_Yb-Ir/1-1-2-8a} & -1.7548 & 0.0058 & 0.9767 & 55.66 \\
+  \texttt{C15\_Nb-Be/1-1-2-8a} & -0.3244 & 0.0009 & 0.8706 & 268.3 \\
+  \texttt{C15\_Ta-V/1-1-2-8a} & -0.0249 & 0.0004 & 0.8587 & 3447.3 \\
+  \texttt{C15\_Pr-Pt/1-1-2-8a} & -1.4521 & 0.0015 & 0.6817 & 46.95 \\
+  \texttt{C15\_K-Bi/9-2-1-16d} & -0.2094 & 0.0003 & 0.6321 & 301.8 \\
   \bottomrule
 \end{tabular}
 \end{center}
 
 \section*{Bottom line}
 \begin{itemize}
-  \item \textbf{Per-atom MAE} changed little on point validation (0.0032 $\rightarrow$ 0.0033~eV CGCNN).
-  \item \textbf{Net energy ($R_{\mathrm{tot}}$)} on point validation: CGCNN median improved (28.00\% $\rightarrow$ 27.48\%); transformer median 26.03\% $\rightarrow$ 29.72\% (similar). Paired on 42 crystals with nonzero net change: CGCNN improved on 52\% of cases.
-  \item \textbf{Planar validation} CGCNN median $R_{\mathrm{tot}}$ improved (45.76\% $\rightarrow$ 36.42\%); transformer median similar, mean much better (fewer catastrophic outliers).
+  \item \textbf{Per-atom MAE} changed little on point validation (0.0032 $\rightarrow$ 0.0036~eV CGCNN).
+  \item \textbf{Net energy ($R_{\mathrm{tot}}$)} on point validation: CGCNN median improved (28.00\% $\rightarrow$ 34.79\%); transformer median 26.03\% $\rightarrow$ 21.25\% (similar). Paired on 42 crystals with nonzero net change: CGCNN improved on 43\% of cases.
+  \item \textbf{Planar validation} CGCNN median $R_{\mathrm{tot}}$ improved (45.76\% $\rightarrow$ 32.77\%); transformer median similar, mean much better (fewer catastrophic outliers).
   \item The headline 0.11~eV is a \textbf{median absolute net error}, not per-atom error. It is dominated by crystals with modest true net changes where a $\sim$0.1~eV bias is moderate in $R_{\mathrm{tot}}$ but looks large in eV.
   \item Means over all point crystals remain inflated by rare large-$N$ cells with large $|\mathrm{err}|$ (see outlier table); prefer validation medians and $R_{\mathrm{tot}}$ for reporting.
 \end{itemize}

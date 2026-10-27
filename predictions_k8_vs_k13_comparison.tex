@@ -1,0 +1,139 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{parskip}
+\geometry{margin=2cm}
+
+\begin{document}
+
+\title{Delivery update: \texttt{predictions\_new} before vs.\ after k=13 optimization}
+\date{}
+\maketitle
+
+\noindent\textbf{Compared deliveries.}
+\begin{itemize}
+  \item \textbf{Prior} (Aug~2026): $k=8$ point graphs; global-loss v2 with \texttt{graph} net-energy target; CGCNN/Transformer point $\lambda=0.01$; planar Transformer $\lambda=0.005$.
+  \item \textbf{Current} (Aug~2026): $k=13$, edge\_k$=3$ point graphs; point CGCNN full-cell global loss ($\lambda=0.01$); point Transformer $\lambda=0.02$; planar Transformer $\lambda=0.01$; tuned CGCNN/planar $\lambda$ unchanged.
+\end{itemize}
+Same crystals and 90/10 split (seed~42). Prior CSV aggregates are archived in \texttt{prediction\_old\_vs\_new\_comparison.json} (``blocks.new''); current stats were recomputed after restore.
+
+\section*{Training checkpoint metrics (model selection)}
+
+\begin{center}
+\small
+\begin{tabular}{l l r r r r}
+  \toprule
+  Model & Target & $\lambda$ & Prior val $R_{\mathrm{tot}}$ & Current val $R_{\mathrm{tot}}$ & Current val MAE \\
+  \midrule
+  Point CGCNN & full & 0.01 & 21.9 & 34.8 & 0.0120 \\
+  Point Transformer & graph & 0.02 & 18.8 & 16.0 & 0.0073 \\
+  Planar CGCNN & graph & 0.005 & 36.4 & 32.8 & 0.0265 \\
+  Planar Transformer & graph & 0.01 & 45.1 & 46.5 & 0.0329 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\noindent\textit{Note:} Prior point CGCNN checkpoint used graph-target $R_{\mathrm{tot}}$; current point CGCNN uses full-cell $R_{\mathrm{tot}}$ for selection (graph-target val $R_{\mathrm{tot}}$ = 30.3\%).
+
+\section*{Table 1 | Validation per-atom MAE (eV/atom, mean)}
+
+\begin{center}
+\small
+\begin{tabular}{l r r r r}
+  \toprule
+  Domain & Model & Prior & Current & $\Delta$ \\
+  \midrule
+  Point  & CGCNN       & 0.0033 & 0.0036 & +0.0003 (worse) \\
+  Point  & Transformer & 0.0033 & 0.0032 & -0.0000 (better) \\
+  Planar & CGCNN       & 0.0204 & 0.0265 & +0.0061 (worse) \\
+  Planar & Transformer & 0.0327 & 0.0329 & +0.0001 (worse) \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Table 2 | Validation $R_{\mathrm{tot}}$ median (\%)}
+
+Crystals with $|\Delta E_{\mathrm{true}}|\ge 10^{-6}$~eV. Primary net-energy metric.
+
+\begin{center}
+\small
+\begin{tabular}{l r r r r r}
+  \toprule
+  Domain & Model & Prior & Current & $\Delta$ (pp) & Verdict \\
+  \midrule
+  Point  & CGCNN       & 27.48 & 34.79 & +7.30 & worse \\
+  Point  & Transformer & 29.72 & 21.25 & -8.47 & improved \\
+  Planar & CGCNN       & 36.42 & 32.77 & -3.65 & improved \\
+  Planar & Transformer & 45.11 & 46.46 & +1.35 & worse \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Table 3 | Validation absolute total error $|\mathrm{PE}_{\mathrm{pred}}^{\mathrm{tot}}-\mathrm{PE}_{\mathrm{true}}^{\mathrm{tot}}|$ (eV)}
+
+\begin{center}
+\small
+\begin{tabular}{l r r r r r}
+  \toprule
+  Domain & Model & Prior med. & Current med. & Prior mean & Current mean \\
+  \midrule
+  Point  & CGCNN & 0.1112 & 0.5210 & 1.67 & 1.85 \\
+  & Transformer & 0.0816 & 0.0953 & 1.65 & 1.61 \\
+  Planar & CGCNN & 0.0187 & 0.0188 & 0.70 & 0.86 \\
+  & Transformer & 0.0209 & 0.0245 & 1.03 & 1.03 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Table 4 | All crystals ($R_{\mathrm{tot}}$ median, \%)}
+
+\begin{center}
+\small
+\begin{tabular}{l r r r r}
+  \toprule
+  Domain & Model & Prior & Current & $\Delta$ (pp) \\
+  \midrule
+  Point  & CGCNN       & 18.36 & 51.22 & +32.86 \\
+  Point  & Transformer & 29.32 & 23.39 & -5.93 \\
+  Planar & CGCNN       & 31.28 & 21.28 & -10.00 \\
+  Planar & Transformer & 53.74 & 52.30 & -1.44 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Assessment}
+\begin{itemize}
+  \item \textbf{Point CGCNN (primary goal):} validation $R_{\mathrm{tot}}$ median 27.48\% $\rightarrow$ 34.79\% (+7.3~pp). Net-energy generalization \textbf{did not improve} on held-out validation despite $k=13$ and full-cell training loss; checkpoint metric changed (graph $\rightarrow$ full).
+  \item \textbf{Point Transformer:} validation $R_{\mathrm{tot}}$ 29.72\% $\rightarrow$ 21.25\% (-8.5~pp); per-atom MAE improved (0.0033 $\rightarrow$ 0.0032~eV).
+  \item \textbf{Planar CGCNN:} validation $R_{\mathrm{tot}}$ 36.42\% $\rightarrow$ 32.77\% (-3.6~pp).
+  \item \textbf{Planar Transformer:} validation $R_{\mathrm{tot}}$ 45.11\% $\rightarrow$ 46.46\% (+1.4~pp); $\lambda$ increased $0.005 \rightarrow 0.01$ per sweep.
+  \item \textbf{Point all crystals (train+val):} CGCNN $R_{\mathrm{tot}}$ median 18.36\% $\rightarrow$ 51.22\% (+32.9~pp) on the full delivery set (train crystals dominate $n$); validation-only trend is the fair generalization read.
+  \item \textbf{Caveat:} Point cells have many configs with $|\Delta E_{\mathrm{true}}|\approx 0$; absolute eV errors can look large while $R_{\mathrm{tot}}$ is the fair net-energy metric. Training val $R_{\mathrm{tot}}$ for point CGCNN rose because checkpoint target switched to full-cell.
+  \item \textbf{Bottom line:} Mixed results. Point Transformer and planar metrics show small improvements or flat validation $R_{\mathrm{tot}}$; point CGCNN validation $R_{\mathrm{tot}}$ did not beat the prior $k=8$ graph-loss delivery on this split. Per-atom MAE remains excellent ($\sim 0.003$~eV on point validation).
+\end{itemize}
+
+\section*{Largest point validation outliers (current CGCNN)}
+
+\begin{center}
+\footnotesize
+\begin{tabular}{l r r r r}
+  \toprule
+  Config & $\Delta E_{\mathrm{true}}$ & MAE & $|\mathrm{err}|$ & $R_{\mathrm{tot}}$ \\
+  \midrule
+  \texttt{C15\_Np-Ru/1-1-2-8a} & -87.96 & 0.1347 & 86.91 & 98.80 \\
+  \texttt{C15\_Ce-Ru/9-2-1-16d} & -3.4142 & 0.0149 & 2.1552 & 63.12 \\
+  \texttt{C15\_Ho-Mn/9-2-1-16d} & -3.1272 & 0.0042 & 1.7538 & 56.08 \\
+  \texttt{C15\_Yb-Ir/1-1-2-8a} & -1.7548 & 0.0058 & 0.9767 & 55.66 \\
+  \texttt{C15\_Nb-Be/1-1-2-8a} & -0.3244 & 0.0009 & 0.8706 & 268.3 \\
+  \texttt{C15\_Ta-V/1-1-2-8a} & -0.0249 & 0.0004 & 0.8587 & 3447.3 \\
+  \texttt{C15\_Pr-Pt/1-1-2-8a} & -1.4521 & 0.0015 & 0.6817 & 46.95 \\
+  \texttt{C15\_K-Bi/9-2-1-16d} & -0.2094 & 0.0003 & 0.6321 & 301.8 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}

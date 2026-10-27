@@ -1,0 +1,181 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{makecell}
+\usepackage{geometry}
+\geometry{margin=1.4cm}
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.08}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.35em}
+
+\newcommand{\dPE}{\Delta\mathrm{PE}}
+\newcommand{\dEtrue}{\Delta E_{\mathrm{true}}}
+
+\begin{document}
+
+\noindent\textbf{Problem (baseline, atom-only MAE).}
+Per-atom MAE is small (point val.\ 0.003--0.004~eV; planar val.\ 0.014~eV) but net formation energy can fail: $R_{\mathrm{tot}}=100\,|\sum_i(\widehat{\dPE}_i-\dPE_i)|/|\dEtrue|$ with $\dEtrue=\sum_i\dPE_i$.
+Signed shifts cancel ($\sum_i|\dPE_i|\gg|\dEtrue|$): median amplification $A=\sum_i|\dPE_i|/|\dEtrue|=8.8$ for planar $|\dEtrue|<0.05$~eV ($n=796$); typical $A\approx 4$--10 overall.
+Example Ag--Be (planar, $N=18$): MAE $=0.0046$~eV yet $R_{\mathrm{tot}}=101\%$ because $\widehat{\dE}\approx 0$ while $\dEtrue=-0.036$~eV.
+Delivery baseline medians: point $R_{\mathrm{tot}}\approx 20$--28\%; planar val.\ CGCNN $45.8\%$ / Transformer $50.6\%$ ($n_{\mathrm{val}}=198$).
+
+\medskip
+\noindent\textbf{Idea: $\lambda$-weighted global Huber loss (v2).}
+Keep per-atom MAE; add a graph-level term on scaled relative net error.
+Per batch, graph $g$ with $N_g$ atoms, training mean/std $(\mu,\sigma)$, denorm.\ $\widehat{\dPE}_{g,i}=\sigma\hat z_{g,i}+\mu$:
+\begin{align*}
+  \mathcal{L}_{\mathrm{atom}}
+  &= \frac{1}{|B|}\sum_g \frac{1}{N_g}\sum_{i\in g}\bigl|\hat z_{g,i}-\tilde y_{g,i}\bigr|,
+  \qquad
+  \dEtrue_g=\sum_{i\in g}\dPE_{g,i},\;
+  \widehat{\Delta E}_g=\sum_{i\in g}\widehat{\dPE}_{g,i},\\
+  s_g &= \max(|\dEtrue_g|,\,0.05~\mathrm{eV}),\quad
+  r_g=\frac{\widehat{\Delta E}_g-\dEtrue_g}{s_g},\quad
+  H(r)=
+  \begin{cases}
+    \tfrac12 r^2 & |r|\le 1\\
+    |r|-\tfrac12 & |r|>1
+  \end{cases}\\
+  \mathcal{L}_{\mathrm{tot,raw}}
+  &= \frac{\sum_g w_g H(r_g)}{\sum_g w_g+\varepsilon},
+  \qquad
+  w_g=
+  \begin{cases}
+    0 & |\dEtrue_g|>50~\mathrm{eV}\ \mathrm{or\ full/graph\ mismatch}>5~\mathrm{eV}\\
+    1 & \mathrm{else}
+  \end{cases}\\
+  \mathcal{L}_{\mathrm{tot}}
+  &= \mathcal{L}_{\mathrm{tot,raw}}\,
+    \frac{\mathcal{L}_{\mathrm{atom}}}{\mathcal{L}_{\mathrm{tot,raw}}+\varepsilon}\Big|_{\mathrm{stop\text{-}grad}},\qquad
+  \boxed{\mathcal{L}=\mathcal{L}_{\mathrm{atom}}+\lambda\,\mathcal{L}_{\mathrm{tot}}}.
+\end{align*}
+Checkpoint global runs on val.\ median $R_{\mathrm{tot}}$; atom-only on val.\ MAE.
+Recommended $\lambda$: CGCNN point $0.01$ / planar $0.005$; Transformer point $0.02$ / planar $0.01$.
+
+\medskip
+\noindent\textbf{What we tried} (grouped 70/15/15 test unless noted; CGCNN 300~ep unless noted).
+
+{\small
+\begin{tabular}{@{}p{0.28\linewidth}p{0.34\linewidth}p{0.34\linewidth}@{}}
+\toprule
+Attempt & Result & Note \\
+\midrule
+Atom-only baseline &
+Point $R_{\mathrm{tot}}=25.2\%$, MAE $0.0102$; planar $55.1\%$, MAE $0.0104$ &
+Per-atom loss only. \\
+Legacy global v1 ($\lambda\ge 0.1$, scaled MSE, full-cell target) &
+Point $R_{\mathrm{tot}}=66.7\%$ ($+48$~pp vs.\ base); MAE $0.018$ &
+Failed; target/scale mismatch. \\
+Global v2 ($\lambda=0.01$, 100~ep, MAE ckpt) &
+Planar $R_{\mathrm{tot}}$: $64.7\%\to 46.2\%$ &
+Early signal; planar base still under-trained. \\
+Global v2 follow-up ($R_{\mathrm{tot}}$ ckpt) &
+Point: $25.2\%\to 24.1\%$, MAE $0.0102\!\to\!0.0097$; planar: $55.1\%\to 45.6\%$, MAE $+0.0024$ &
+Planar trades ${\sim}0.002$~eV MAE for ${\sim}10$~pp; $\lambda=0.005$ on point hurts ($40.1\%$). \\
+Graph-size sweep ($k=8\ldots 13$, graph loss) &
+Full-cell test $R_{\mathrm{tot}}$: $k8=31.3\%$, $k13=23.9\%$ &
+Best full-cell at $k=13$ (252 atoms/graph). \\
+$k=13$ loss target (edge\_k$=3$) &
+Graph target: full-cell $R_{\mathrm{tot}}=30.1\%$; full-cell target: $24.5\%$ &
+Full-cell loss wins on full-cell metric. \\
+Transformer $\lambda$ sweep (1000~ep) &
+Point: $27.8\%\to 17.1\%$ at $\lambda=0.02$; planar: $58.8\%\to 41.9\%$ at $\lambda=0.01$ &
+vs.\ old delivery $\lambda$. \\
+Direct graph-level $\dEtrue$ head &
+Point test $R_{\mathrm{tot}}=145\%$; planar $69\%$ &
+Predict $\dEtrue$ without per-atom map; dropped. \\
+Formation-energy head / post-hoc rescaling &
+Not deployed &
+Proposed in notes; not retrained. \\
+Production delivery (90/10 split, $k=13$, 2000~ep) &
+Point CGCNN val.\ $R_{\mathrm{tot}}$: $27.5\%\to 34.8\%$; point Trans.: $29.7\%\to 21.3\%$ &
+Sweep gains did not fully transfer; atom MAE unchanged (${\sim}0.003$~eV). \\
+\bottomrule
+\end{tabular}
+}
+
+\medskip
+\noindent\textbf{Delivery performance: \texttt{predictions} $\rightarrow$ \texttt{predictions\_new}.}
+Same crystals and 90/10 split (seed~42); stats from merged CSV headers ($R_{\mathrm{tot}}$ only where $|\Delta E_{\mathrm{true}}|\ge 10^{-6}$~eV).
+
+{\scriptsize
+\noindent\textit{Table 1:} MAE [eV/atom] and $R_{\mathrm{tot}}$ median [\%].\\[-0.5em]
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llr rrrr rrrr@{}}
+\toprule
+& & &
+\multicolumn{4}{c}{\texttt{predictions}} &
+\multicolumn{4}{c}{\texttt{predictions\_new}} \\
+\cmidrule(lr){4-7}\cmidrule(lr){8-11}
+Domain & Split & $n$ &
+\makecell{MAE\\$C$} & \makecell{MAE\\$T$} &
+\makecell{$R_{\mathrm{tot}}$\\$C$} & \makecell{$R_{\mathrm{tot}}$\\$T$} &
+\makecell{MAE\\$C$} & \makecell{MAE\\$T$} &
+\makecell{$R_{\mathrm{tot}}$\\$C$} & \makecell{$R_{\mathrm{tot}}$\\$T$} \\
+\midrule
+Point  & all & 422 &
+0.00565 & 0.00556 & 20.3 & 25.0 &
+0.00601 & 0.00564 & 51.2 & 23.4 \\
+Point  & val & 42 &
+0.00324 & 0.00326 & 28.0 & 26.0 &
+0.00356 & 0.00324 & 34.8 & 21.3 \\
+Planar & all & 1978 &
+0.00894 & 0.00871 & 31.4 & 53.7 &
+0.0160 & 0.0280 & 21.3 & 52.3 \\
+Planar & val & 198 &
+0.0175 & 0.0136 & 45.8 & 50.5 &
+0.0265 & 0.0329 & 32.8 & 46.5 \\
+\bottomrule
+\end{tabular}%
+}
+
+\medskip
+\noindent\textit{Table 2:} $|\Delta E|_{\mathrm{tot}}$ median [eV]; fractions with $R_{\mathrm{tot}}<100\%$ / $<50\%$ [\% of crystals].\\[-0.5em]
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llr rrrr rrrr@{}}
+\toprule
+& & &
+\multicolumn{4}{c}{\texttt{predictions}} &
+\multicolumn{4}{c}{\texttt{predictions\_new}} \\
+\cmidrule(lr){4-7}\cmidrule(lr){8-11}
+Domain & Split & $n$ &
+\makecell{$|\Delta E|$\\$C$} & \makecell{$|\Delta E|$\\$T$} &
+\makecell{$<100\%$\\$C$} & \makecell{$<50\%$\\$C$} &
+\makecell{$|\Delta E|$\\$C$} & \makecell{$|\Delta E|$\\$T$} &
+\makecell{$<100\%$\\$C$} & \makecell{$<50\%$\\$C$} \\
+\midrule
+Point  & all & 422 &
+0.042 & 0.055 & 94.5 & 72.5 &
+0.517 & 0.065 & 73.5 & 48.6 \\
+Point  & val & 42 &
+0.104 & 0.119 & 92.9 & 76.2 &
+0.521 & 0.095 & 83.3 & 69.0 \\
+Planar & all & 1978 &
+0.017 & 0.033 & 84.7 & 65.6 &
+0.011 & 0.026 & 91.2 & 75.4 \\
+Planar & val & 198 &
+0.026 & 0.032 & 72.7 & 53.5 &
+0.019 & 0.025 & 80.3 & 58.6 \\
+\bottomrule
+\end{tabular}%
+}
+}
+
+\noindent\textit{Subscripts:} $C$ = CGCNN, $T$ = Transformer.
+MAE = mean per-atom $|\widehat{\Delta\mathrm{PE}}-\Delta\mathrm{PE}|$;
+$|\Delta E|^{\mathrm{med}}$ = median $|\mathrm{PE}^{\mathrm{pred}}_{\mathrm{tot}}-\mathrm{PE}^{\mathrm{true}}_{\mathrm{tot}}|$;
+$R_{\mathrm{tot}}^{\mathrm{med}}$ = median relative total error (\%);
+$<100\%$ / $<50\%$ = fraction of crystals below that $R_{\mathrm{tot}}$ threshold.
+
+\medskip
+\noindent\textbf{Takeaway.}
+Cancellation makes $R_{\mathrm{tot}}$ a different objective from MAE; v2 global Huber loss fixes this in controlled sweeps (${\sim}1$--10~pp on CGCNN, up to ${\sim}11$~pp on Transformer), often at ${\sim}0.002$~eV/atom MAE cost on planar.
+On delivery CSVs: point Transformer and planar CGCNN improve on val.\ $R_{\mathrm{tot}}$ ($26.0\%\to 21.3\%$, $45.8\%\to 32.8\%$); point CGCNN regresses ($28.0\%\to 34.8\%$) despite similar val.\ MAE.
+
+\end{document}

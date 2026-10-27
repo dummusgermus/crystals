@@ -83,6 +83,9 @@ uae_embeddings/
 !planar_pyg_dataset_residual_c14c15_totals.pt
 !adv_datasets/cycle34_graph_total_target_dataset.pt
 !planar_pyg_dataset_graph_total_target_c14c15.pt
+# Ising/SFE .pt is large (~424MB) — keep ignored; transfer to cluster separately.
+# !adv_datasets/ising_sfe_cycle34_total_energy_dataset.pt
+# stats covered by *_stats.json ignore below
 
 # Cluster inference ΔPE preds (needed for local restore-merged)
 !predictions_inference/**/*_graph_pred.pt
@@ -151,7 +154,8 @@ pyg_dataset.pt.graphview.json
 !cgcnn_graph_size_sweep_*.png
 !cgcnn_k13_loss_edge_sweep_*.png
 !delivery_global_v2_curves.json
-!delivery_inference_benchmark.json
+!predictions_k8_vs_k13_comparison.json
+!predictions_k8_vs_k13_comparison.tex
 !predictions_new/delivery_split_indices.json
 !*_global_v2_model.pt
 !transformer_*_global_v2_lambda_*_model.pt
@@ -160,5 +164,10 @@ pyg_dataset.pt.graphview.json
 !cgcnn_graph_total_summary.json
 !cgcnn_graph_total_*.png
 !cgcnn_*_graph_total_model.pt
+!cgcnn_ising_sfe_curves.json
+!cgcnn_ising_sfe_summary.json
+!cgcnn_ising_sfe_*.png
+!cgcnn_ising_sfe_total_energy_model.pt
+!adv_datasets/ising_sfe_split_indices.json
 !adv_datasets/cycle34_graph_total_target_stats.json
 !planar_pyg_dataset_graph_total_target_c14c15_stats.json

@@ -143,30 +143,38 @@ def graph_target(data) -> torch.Tensor:
 
 
 def sanitize_dataset_for_batching(dataset) -> None:
-    """Ensure every graph has the same tensor keys (PyG Batch requires this).
+    """Make graph attribute sets uniform for PyG ``Batch`` collate.
 
-    ``sfe_mjm2`` / ``is_faulted`` were only set when present in the source tree,
-    which makes ``DataLoader`` crash with ``KeyError: 'sfe_mjm2'``.
+    Two failure modes from the Ising/SFE ``.pt``:
+
+    1. Top-level ``sfe_mjm2`` missing on some graphs.
+    2. ``data.meta`` dicts with *different keys* (PyG collates dicts
+       recursively → ``KeyError: 'sfe_mjm2'`` inside ``meta``).
+
+    We drop ``meta`` (not needed for training) and fill optional tensors.
     """
     for data in dataset:
-        if not hasattr(data, "sfe_mjm2") or data.sfe_mjm2 is None:
-            data.sfe_mjm2 = torch.tensor([float("nan")], dtype=torch.float)
-        elif not torch.is_tensor(data.sfe_mjm2):
-            data.sfe_mjm2 = torch.tensor([float(data.sfe_mjm2)], dtype=torch.float)
+        # Variable-key dicts cannot be batched — remove before DataLoader.
+        if "meta" in data:
+            del data.meta
+        elif hasattr(data, "meta"):
+            try:
+                delattr(data, "meta")
+            except Exception:
+                pass
 
-        if not hasattr(data, "cohesive_energy_eV") or data.cohesive_energy_eV is None:
-            data.cohesive_energy_eV = torch.tensor([float("nan")], dtype=torch.float)
-        elif not torch.is_tensor(data.cohesive_energy_eV):
-            data.cohesive_energy_eV = torch.tensor(
-                [float(data.cohesive_energy_eV)], dtype=torch.float
-            )
+        data.sfe_mjm2 = (
+            data.sfe_mjm2.view(-1)[:1].float()
+            if ("sfe_mjm2" in data and data.sfe_mjm2 is not None)
+            else torch.tensor([float("nan")], dtype=torch.float)
+        )
+        data.cohesive_energy_eV = (
+            data.cohesive_energy_eV.view(-1)[:1].float()
+            if ("cohesive_energy_eV" in data and data.cohesive_energy_eV is not None)
+            else torch.tensor([float("nan")], dtype=torch.float)
+        )
+        data.is_faulted = bool(getattr(data, "is_faulted", False))
 
-        if not hasattr(data, "is_faulted"):
-            data.is_faulted = False
-        else:
-            data.is_faulted = bool(data.is_faulted)
-
-        # Keep string metadata as plain Python str (PyG will list-collate them).
         for key in (
             "material",
             "kind",
@@ -179,8 +187,11 @@ def sanitize_dataset_for_batching(dataset) -> None:
             "stack_sequence",
             "target_mode",
         ):
-            if getattr(data, key, None) is None:
+            val = getattr(data, key, None)
+            if val is None:
                 setattr(data, key, "")
+            else:
+                setattr(data, key, str(val))
 
 
 

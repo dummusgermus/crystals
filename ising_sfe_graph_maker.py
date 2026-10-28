@@ -438,12 +438,13 @@ def build_ising_sfe_pyg_dataset(
                 dtype=torch.float,
             )
             data.is_faulted = bool(rec.get("is_faulted", False))
+            # Keep meta keys identical on every graph (PyG Batch collates dicts).
             meta = dict(meta)
             meta["total_energy_eV"] = total_e
-            if cohesive is not None:
-                meta["cohesive_energy_eV"] = cohesive
-            if sfe is not None:
-                meta["sfe_mjm2"] = sfe
+            meta["cohesive_energy_eV"] = (
+                float(cohesive) if cohesive is not None else float("nan")
+            )
+            meta["sfe_mjm2"] = float(sfe) if sfe is not None else float("nan")
             data.meta = meta
             data.particle_ids = particle_ids
             dataset.append(data)

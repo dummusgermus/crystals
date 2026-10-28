@@ -142,6 +142,48 @@ def graph_target(data) -> torch.Tensor:
     return data.y.view(1)
 
 
+def sanitize_dataset_for_batching(dataset) -> None:
+    """Ensure every graph has the same tensor keys (PyG Batch requires this).
+
+    ``sfe_mjm2`` / ``is_faulted`` were only set when present in the source tree,
+    which makes ``DataLoader`` crash with ``KeyError: 'sfe_mjm2'``.
+    """
+    for data in dataset:
+        if not hasattr(data, "sfe_mjm2") or data.sfe_mjm2 is None:
+            data.sfe_mjm2 = torch.tensor([float("nan")], dtype=torch.float)
+        elif not torch.is_tensor(data.sfe_mjm2):
+            data.sfe_mjm2 = torch.tensor([float(data.sfe_mjm2)], dtype=torch.float)
+
+        if not hasattr(data, "cohesive_energy_eV") or data.cohesive_energy_eV is None:
+            data.cohesive_energy_eV = torch.tensor([float("nan")], dtype=torch.float)
+        elif not torch.is_tensor(data.cohesive_energy_eV):
+            data.cohesive_energy_eV = torch.tensor(
+                [float(data.cohesive_energy_eV)], dtype=torch.float
+            )
+
+        if not hasattr(data, "is_faulted"):
+            data.is_faulted = False
+        else:
+            data.is_faulted = bool(data.is_faulted)
+
+        # Keep string metadata as plain Python str (PyG will list-collate them).
+        for key in (
+            "material",
+            "kind",
+            "phase",
+            "fault",
+            "polytype",
+            "folder",
+            "element_a",
+            "element_b",
+            "stack_sequence",
+            "target_mode",
+        ):
+            if getattr(data, key, None) is None:
+                setattr(data, key, "")
+
+
+
 def summarize_split(name: str, subset) -> None:
     if not subset:
         print(f"{name}: 0 graphs")
@@ -533,6 +575,8 @@ def main() -> None:
 
     dataset = torch.load(args.dataset, weights_only=False)
     print(f"Loaded {len(dataset)} graphs", flush=True)
+    sanitize_dataset_for_batching(dataset)
+    print("Sanitized optional attrs for PyG batching (sfe_mjm2/is_faulted/…)", flush=True)
 
     config = dict(DEFAULT_CONFIG)
     config["batch_size"] = args.batch_size

@@ -428,12 +428,16 @@ def build_ising_sfe_pyg_dataset(
             data.edge_mode = edge_mode
             data.target_mode = "graph_total_energy"
             data.total_energy_eV = torch.tensor([total_e], dtype=torch.float)
-            if cohesive is not None:
-                data.cohesive_energy_eV = torch.tensor([cohesive], dtype=torch.float)
-            if sfe is not None:
-                data.sfe_mjm2 = torch.tensor([sfe], dtype=torch.float)
-            if "is_faulted" in rec:
-                data.is_faulted = bool(rec["is_faulted"])
+            # Always set optional scalars so PyG Batch collate sees uniform keys.
+            data.cohesive_energy_eV = torch.tensor(
+                [float(cohesive) if cohesive is not None else float("nan")],
+                dtype=torch.float,
+            )
+            data.sfe_mjm2 = torch.tensor(
+                [float(sfe) if sfe is not None else float("nan")],
+                dtype=torch.float,
+            )
+            data.is_faulted = bool(rec.get("is_faulted", False))
             meta = dict(meta)
             meta["total_energy_eV"] = total_e
             if cohesive is not None:

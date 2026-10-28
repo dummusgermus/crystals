@@ -1,0 +1,19 @@
+{
+  "target": "total_energy_eV (graph-level)",
+  "model": "GatedGNNGraphRegressor (pooled scalar output)",
+  "split": "material-grouped 70/15/15",
+  "epochs": 300,
+  "seed": 42,
+  "dataset": "/work/log1/erik.mueller/code/adv_datasets/ising_sfe_cycle34_total_energy_dataset.pt",
+  "final_test_mae_eV": 103.68156968176098,
+  "final_test_rel_median_pct": 26.6954341854586,
+  "final_test_abs_err_median_eV": 49.14251708984375,
+  "best_val_rel_median_pct": 26.751281528489738,
+  "checkpoint": "/work/log1/erik.mueller/code/cgcnn_ising_sfe_total_energy_model.pt",
+  "n_train": 30396,
+  "n_val": 6545,
+  "n_test": 6477,
+  "n_materials_train": 946,
+  "n_materials_val": 203,
+  "n_materials_test": 195
+}

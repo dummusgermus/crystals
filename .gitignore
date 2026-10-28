@@ -168,6 +168,10 @@ pyg_dataset.pt.graphview.json
 !cgcnn_ising_sfe_summary.json
 !cgcnn_ising_sfe_*.png
 !cgcnn_ising_sfe_total_energy_model.pt
+!transformer_ising_sfe_curves.json
+!transformer_ising_sfe_summary.json
+!transformer_ising_sfe_*.png
+!transformer_ising_sfe_total_energy_model.pt
 !adv_datasets/ising_sfe_split_indices.json
 !adv_datasets/cycle34_graph_total_target_stats.json
 !planar_pyg_dataset_graph_total_target_c14c15_stats.json

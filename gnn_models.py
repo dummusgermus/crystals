@@ -1049,6 +1049,128 @@ def build_graph_transformer_from_dataset(
     )
 
 
+class GraphTransformerGraphRegressor(nn.Module):
+    """Graph-level scalar regressor: same encoder as the node GT, then mean-pool.
+
+    Used for tasks with one target per graph (e.g. Ising/SFE total energy).
+    """
+
+    def __init__(
+        self,
+        in_dim: int,
+        edge_dim: int,
+        hidden_dim: int = 128,
+        num_layers: int = 4,
+        out_dim: int = 1,
+        num_heads: int = 4,
+        dropout: float = 0.1,
+        attention_dropout: float = 0.1,
+        activation: str = "gelu",
+        aggregation: str = "mean",
+    ) -> None:
+        super().__init__()
+        if hidden_dim % num_heads != 0:
+            raise ValueError("hidden_dim must be divisible by num_heads")
+        if num_layers < 1:
+            raise ValueError("num_layers must be >= 1")
+
+        self.num_heads = num_heads
+        self.node_encoder = nn.Linear(in_dim, hidden_dim)
+        self.edge_encoder = nn.Linear(edge_dim, num_heads)
+        act = activation.lower()
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hidden_dim,
+            nhead=num_heads,
+            dim_feedforward=hidden_dim * 2,
+            dropout=dropout,
+            activation=act,
+            batch_first=True,
+            norm_first=True,
+        )
+        self.encoder = nn.TransformerEncoder(
+            encoder_layer, num_layers=num_layers, enable_nested_tensor=False
+        )
+        self.attention_dropout = attention_dropout
+        self.pool, pool_out_dim = _build_pool(
+            aggregation=aggregation,
+            hidden_dim=hidden_dim,
+            dropout=dropout,
+            use_batch_norm=False,
+            set2set_steps=3,
+        )
+        self.head = nn.Sequential(
+            nn.Linear(pool_out_dim, hidden_dim),
+            nn.GELU() if act == "gelu" else _get_activation(act),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, out_dim),
+        )
+
+    def forward(self, data) -> torch.Tensor:
+        if getattr(data, "batch", None) is None:
+            data.batch = data.x.new_zeros(data.x.size(0), dtype=torch.long)
+
+        x = self.node_encoder(data.x)
+        edge_attr = data.edge_attr
+        if edge_attr is None:
+            edge_attr = torch.ones(
+                (data.edge_index.size(1), 1),
+                dtype=data.x.dtype,
+                device=data.x.device,
+            )
+        edge_bias = self.edge_encoder(edge_attr)
+
+        x_pad, node_mask = to_dense_batch(x, data.batch)
+        attn = to_dense_adj(data.edge_index, data.batch, edge_bias)
+
+        pad = ~node_mask
+        attn = attn.masked_fill(pad.unsqueeze(2).unsqueeze(-1), float("-inf"))
+        attn = attn.masked_fill(pad.unsqueeze(1).unsqueeze(-1), float("-inf"))
+        eye = torch.eye(attn.size(1), device=attn.device, dtype=torch.bool)
+        attn = attn.masked_fill(eye.view(1, attn.size(1), attn.size(1), 1), 0.0)
+
+        attn_mask = attn.permute(0, 3, 1, 2).reshape(
+            -1, attn.size(1), attn.size(2)
+        )
+
+        out = self.encoder(x_pad, mask=attn_mask)
+        if self.attention_dropout > 0:
+            out = F.dropout(out, p=self.attention_dropout, training=self.training)
+
+        # Scatter dense outputs back to the sparse node order used by pooling.
+        x_out = out[node_mask]
+        graph_repr = self.pool(x_out, data.batch)
+        return self.head(graph_repr)
+
+
+def build_graph_transformer_graph_model_from_dataset(
+    dataset,
+    hidden_dim: int = 128,
+    num_layers: int = 4,
+    out_dim: int = 1,
+    num_heads: int = 4,
+    dropout: float = 0.1,
+    attention_dropout: float = 0.1,
+    activation: str = "gelu",
+    aggregation: str = "mean",
+) -> GraphTransformerGraphRegressor:
+    """Build a :class:`GraphTransformerGraphRegressor` from dataset feature dims."""
+    sample = dataset[0]
+    in_dim = sample.x.size(-1)
+    edge_dim = sample.edge_attr.size(-1) if sample.edge_attr is not None else 1
+    return GraphTransformerGraphRegressor(
+        in_dim=in_dim,
+        edge_dim=edge_dim,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        out_dim=out_dim,
+        num_heads=num_heads,
+        dropout=dropout,
+        attention_dropout=attention_dropout,
+        activation=activation,
+        aggregation=aggregation,
+    )
+
+
 # ---------------------------------------------------------------------------
 # GTS triangular-attention transformer (from tests/gnn_models_hadamard.py)
 # Dense O(N^3) attention — prefer GPU; use GraphTransformer on CPU.

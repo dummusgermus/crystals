@@ -277,7 +277,11 @@ def evaluate(
     )
 
 
-def _plot_results(payload: dict, prefix: str) -> None:
+def _plot_results(
+    payload: dict,
+    prefix: str,
+    title: str = "Ising/SFE graph-level total energy CGCNN",
+) -> None:
     try:
         import matplotlib.pyplot as plt
     except ImportError:
@@ -322,7 +326,7 @@ def _plot_results(payload: dict, prefix: str) -> None:
             axes[1, 1].grid(True, alpha=0.25)
     for ax in axes[0]:
         ax.set_xlabel("Epoch")
-    fig.suptitle("Ising/SFE graph-level total energy CGCNN")
+    fig.suptitle(title)
     fig.tight_layout()
     out = f"{prefix}_epoch_curves.png"
     fig.savefig(out, dpi=150, bbox_inches="tight")

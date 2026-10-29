@@ -1,0 +1,19 @@
+{
+  "target": "total_energy_eV (graph-level)",
+  "model": "GraphTransformerGraphRegressor (mean-pool scalar output)",
+  "split": "material-grouped 70/15/15",
+  "epochs": 300,
+  "seed": 42,
+  "dataset": "/work/log1/erik.mueller/code/adv_datasets/ising_sfe_cycle34_total_energy_dataset.pt",
+  "final_test_mae_eV": 146.82498450203408,
+  "final_test_rel_median_pct": 41.68533036134604,
+  "final_test_abs_err_median_eV": 93.89370727539062,
+  "best_val_rel_median_pct": 41.67759261888128,
+  "checkpoint": "/work/log1/erik.mueller/code/transformer_ising_sfe_total_energy_model.pt",
+  "n_train": 30396,
+  "n_val": 6545,
+  "n_test": 6477,
+  "n_materials_train": 946,
+  "n_materials_val": 203,
+  "n_materials_test": 195
+}

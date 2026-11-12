@@ -147,12 +147,31 @@ This is a study of 132 runs on planar CGCNN: 11 variants × 6 seeds × 2 splits,
 
 **A safer checkpoint rule is tested on every run as well.** Pick the best-R_tot epoch only among epochs whose per-atom error is within 20 % of the run's best. This rules out stuck epochs.
 
-### How we will decide
-For each variant we will measure:
-- how often runs get stuck,
-- the final test R_tot and MAE (paired against `base`),
-- whether the safer checkpoint rule helps.
+### Results (132 runs, planar CGCNN)
 
-The winner will then be checked on the point dataset and on the Transformer to make sure nothing gets worse there, before it becomes the default.
+The clear winner is **`combo-rob`**: learning rate 1e-3, gradient clipping, a cosine schedule with warm-up, and median/MAD target scaling. Compared with the current recipe:
+- **R_tot −23 pp** (49.8 % → 26.9 %) and **per-atom MAE −51 %** (22.9 → 11.8 meV/atom).
+- It was better in all 12 paired runs (p ≈ 2e-4).
+- On the random split the MAE drops from 14.4 to 6.1 meV/atom.
 
-Progress: `plateau_study/progress.log`. Results will be posted on Slack and added here.
+Plain `combo` (the same without robust scaling) is almost as good: −17 pp and −51 %.
+
+**Why it works.** The current recipe effectively stops learning early. The scheduler halves the learning rate during the slow start, so the best checkpoint lands between epochs 1 and 180. With the new recipe, runs keep improving until epochs 700–1600.
+
+**What did not work on its own:**
+- Lower learning rate and gradient clipping each cut the MAE by 20–34 % but barely moved R_tot.
+- The safer checkpoint rule alone cut the MAE by 12 % and left R_tot unchanged. With the new recipe it no longer matters, because training is stable.
+- Cosine schedule at the old learning rate, the patient scheduler, MSE warm-up and batch norm all made things worse.
+
+The fixes only work together.
+
+Details: `plateau_study/analysis.md`, plot `plateau_study/plateau_results.png`.
+
+### Next step (running)
+Before adopting the new recipe, we are checking that it doesn't hurt elsewhere. This is job 5259243, with 84 runs on at most 16 GPUs:
+- **Point CGCNN:** the current recipe vs. `combo` vs. `combo-rob`.
+- **Transformer, planar and point:** current vs. robust target scaling. The Transformer already uses learning rate 1e-3, clipping and a cosine schedule.
+
+If the results hold, the new recipe becomes the CGCNN default in `delivery_global_v2.py`.
+
+Progress: `plateau_study/progress_confirm.log`.

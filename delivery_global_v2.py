@@ -21,6 +21,7 @@ import numpy as np
 import torch
 from torch_geometric.loader import DataLoader
 
+from atom_encodings import encode_dataset
 from gnn_models import build_gated_model_from_dataset, build_graph_transformer_from_dataset
 from train_cgcnn_global_v2 import default_total_loss_config
 from train_single import (
@@ -44,6 +45,15 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DELIVERY_SEED = 42
 DELIVERY_VAL_FRACTION = 0.1
 DELIVERY_VERSION = "global_v2_k13"
+
+# Atom-type encoding of x[:, 0] (see atom_encodings.py). The old LAMMPS type 1/2
+# label ("type12") is arbitrary per compound. "pair_props_edge" = own + partner
+# element descriptors + A/B role, plus edge features d/(r_i+r_j) and |dEN|.
+# Best in the 2000-epoch confirmation (atom_encoding_sweep_long/ranking_encoding.md,
+# 96 runs: R_tot -11.0 pp, MAE -13.6 %, R_tot better in 8/8 settings) and 8/8 on
+# both metrics in the 336-run sweep. Stored in each checkpoint as "atom_encoding";
+# crystal_prediction_export applies it at inference. Old checkpoints = "type12".
+ATOM_ENCODING = "pair_props_edge"
 
 # Point defect graph shell (k=13, edge_k=3 from sweeps).
 POINT_CUTOFF_K = 13
@@ -294,6 +304,7 @@ def train_delivery_global_v2(
     dataset_path = TOTALS_DATASETS[domain]
     dataset = torch.load(dataset_path, weights_only=False)
     ensure_graph_delta_field(dataset)
+    dataset = encode_dataset(dataset, ATOM_ENCODING)
 
     train_idx = np.array(split_payload[domain]["train_indices"], dtype=int)
     val_idx = np.array(split_payload[domain]["val_indices"], dtype=int)
@@ -468,6 +479,7 @@ def train_delivery_global_v2(
         "domain": domain,
         "model_kind": model_kind,
         "loss_mode": DELIVERY_VERSION,
+        "atom_encoding": ATOM_ENCODING,
         "lambda_tot": total_cfg.lambda_tot,
         "checkpoint_metric": "val_r_tot_median",
         "best_val_r_tot_median": best_score,
@@ -526,9 +538,10 @@ def benchmark_delivery_inference(
     dataset_path = TOTALS_DATASETS[domain]
     dataset = torch.load(dataset_path, weights_only=False)
     val_idx = np.array(split_payload[domain]["val_indices"], dtype=int)
-    val_set = [dataset[i] for i in val_idx]
 
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    dataset = encode_dataset(dataset, ckpt.get("atom_encoding", "type12"))
+    val_set = [dataset[i] for i in val_idx]
     config = dict(ckpt["config"])
     model = _build_model(model_kind, dataset, config).to(device)
     model.load_state_dict(ckpt["model_state"])

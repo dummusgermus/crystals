@@ -22,6 +22,7 @@ import torch
 from torch_geometric.loader import DataLoader
 
 from atom_encodings import encode_dataset
+from edge_features import encode_edges
 from gnn_models import build_gated_model_from_dataset, build_graph_transformer_from_dataset
 from train_cgcnn_global_v2 import default_total_loss_config
 from train_single import (
@@ -64,9 +65,13 @@ LAMBDA_CGCNN_BY_DOMAIN = {
     "point": 0.01,
     "planar": 0.005,
 }
+# Loss sweep + 9-seed confirmation (loss_sweep/analysis_confirm.md): a stronger
+# total-energy weight helps the Transformer (point x3: R_tot -5.5 pp, MAE -6.7 %;
+# planar x30: R_tot -25 pp, median MAE unchanged). CGCNN keeps its weights; the
+# graph-sum target for CGCNN point was neutral in a like-for-like comparison.
 LAMBDA_TRANSFORMER_BY_DOMAIN = {
-    "point": 0.02,
-    "planar": 0.01,
+    "point": 0.06,
+    "planar": 0.3,
 }
 LAMBDA_BY_MODEL = {
     "cgcnn": LAMBDA_CGCNN_BY_DOMAIN,
@@ -114,14 +119,27 @@ SPLIT_JSON_DEFAULT = os.path.join(ROOT, "predictions_new", "delivery_split_indic
 
 CGCNN_CONFIG = dict(
     hidden_dim=128,
-    num_layers=2,
+    # Architecture from arch_sweep (216 runs + 9-seed confirmation, 2026-11-14):
+    # 4 gated layers (was 2) + bond distance expanded into 16 Gaussian RBFs
+    # (edge_features.py). vs. 2 layers / raw distance: test R_tot -4.2 pp (4/4
+    # settings, p=2e-5), MAE -11.5 % (p=7e-5). arch_sweep/confirm/ranking_variant.md
+    num_layers=4,
     dropout=0.0,
     use_batch_norm=False,
     activation="silu",
     bidirectional=True,
-    lr=2e-3,
+    edge="rbf16",  # bond-distance representation (edge_features.py): raw | rbf{K}
+    # Training recipe from the plateau study (plateau_study/analysis*.md, 2026-11-13):
+    # LR 1e-3 + grad clip 1.0 + cosine schedule with warm-up replaced
+    # LR 2e-3 + ReduceLROnPlateau, which stalled planar runs on the "predict the
+    # median" plateau. Planar test R_tot 49.8 -> 26.9 %, MAE -49 %; point R_tot -4.4 pp.
+    lr=1e-3,
     weight_decay=0.0,
     batch_size=8,
+    warmup_iters=20,
+    min_lr=1e-5,
+    gradient_norm=1.0,
+    scheduler="cosine_warmup",
 )
 
 TRANSFORMER_CONFIG = dict(
@@ -131,6 +149,7 @@ TRANSFORMER_CONFIG = dict(
     dropout=0.1,
     attention_dropout=0.1,
     activation="gelu",
+    edge="raw",  # RBF distances were worse for the Transformer (arch_sweep, 2026-11-13)
     lr=1e-3,
     weight_decay=1e-5,
     batch_size=8,
@@ -139,6 +158,17 @@ TRANSFORMER_CONFIG = dict(
     gradient_norm=1.0,
     scheduler="cosine_warmup",
 )
+
+# Target normalisation per (model, domain): "robust" = median / (1.4826 * MAD),
+# "std" = mean / std. Planar residuals are heavy-tailed (|y| p50 3.8 meV, std 139 meV),
+# so std scaling squeezes most atoms to ~0. Robust scaling helped CGCNN on both domains
+# and the point Transformer (R_tot -12 pp); planar Transformer was mixed -> keep std.
+TARGET_NORM = {
+    ("cgcnn", "point"): "robust",
+    ("cgcnn", "planar"): "robust",
+    ("transformer", "point"): "robust",
+    ("transformer", "planar"): "std",
+}
 
 CHECKPOINTS = {
     "point_cgcnn": os.path.join(ROOT, "cgcnn_defect_residual_global_v2_model.pt"),
@@ -305,6 +335,7 @@ def train_delivery_global_v2(
     dataset = torch.load(dataset_path, weights_only=False)
     ensure_graph_delta_field(dataset)
     dataset = encode_dataset(dataset, ATOM_ENCODING)
+    dataset = encode_edges(dataset, (CGCNN_CONFIG if model_kind == "cgcnn" else TRANSFORMER_CONFIG).get("edge", "raw"))
 
     train_idx = np.array(split_payload[domain]["train_indices"], dtype=int)
     val_idx = np.array(split_payload[domain]["val_indices"], dtype=int)
@@ -328,25 +359,27 @@ def train_delivery_global_v2(
     val_loader = DataLoader(val_set, batch_size=config["batch_size"], shuffle=False)
 
     train_targets = torch.cat([d.y for d in train_set], dim=0).view(-1)
-    target_mean = train_targets.mean().to(device)
-    target_std = train_targets.std(unbiased=False).clamp(min=1e-6).to(device)
+    target_norm = TARGET_NORM[(model_kind, domain)]
+    if target_norm == "robust":
+        med = train_targets.median()
+        target_mean = med.to(device)
+        target_std = (1.4826 * (train_targets - med).abs().median()).clamp(min=1e-6).to(device)
+    else:
+        target_mean = train_targets.mean().to(device)
+        target_std = train_targets.std(unbiased=False).clamp(min=1e-6).to(device)
 
     model = _build_model(model_kind, dataset, config).to(device)
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"[{name}] params={n_params:,}", flush=True)
 
-    if model_kind == "cgcnn":
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"]
-        )
+    opt_cls = torch.optim.Adam if model_kind == "cgcnn" else torch.optim.AdamW
+    optimizer = opt_cls(model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
+    if config.get("scheduler") == "plateau":
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode="min", factor=0.5, patience=8, min_lr=1e-6
         )
         scheduler_mode = "plateau"
     else:
-        optimizer = torch.optim.AdamW(
-            model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"]
-        )
         scheduler = CosineWithWarmupLR(
             optimizer=optimizer,
             warmup_iters=config["warmup_iters"],
@@ -405,7 +438,7 @@ def train_delivery_global_v2(
                 balance_losses=total_cfg.balance_losses,
             )
             loss.backward()
-            if model_kind == "transformer" and config.get("gradient_norm"):
+            if config.get("gradient_norm"):
                 torch.nn.utils.clip_grad_norm_(
                     model.parameters(), max_norm=float(config["gradient_norm"])
                 )
@@ -476,6 +509,7 @@ def train_delivery_global_v2(
         "config": config,
         "target_mean": float(target_mean.cpu()),
         "target_std": float(target_std.cpu()),
+        "target_norm": target_norm,
         "domain": domain,
         "model_kind": model_kind,
         "loss_mode": DELIVERY_VERSION,
@@ -541,6 +575,7 @@ def benchmark_delivery_inference(
 
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
     dataset = encode_dataset(dataset, ckpt.get("atom_encoding", "type12"))
+    dataset = encode_edges(dataset, ckpt["config"].get("edge", "raw"))
     val_set = [dataset[i] for i in val_idx]
     config = dict(ckpt["config"])
     model = _build_model(model_kind, dataset, config).to(device)

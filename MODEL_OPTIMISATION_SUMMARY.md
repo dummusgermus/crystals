@@ -109,7 +109,7 @@ Details: `pe_sweep/ranking_pe.md`, plot `pe_sweep/pe_sweep_results.png`.
 
 ---
 
-## 3. The plateau problem (in progress)
+## 3. The plateau problem (done)
 
 ### What happens
 Some runs, mostly CGCNN on the planar dataset, get **stuck**. For tens to hundreds of epochs the model predicts roughly the same small value for every atom. Its error sits around 34 meV/atom, compared with about 13 meV/atom for a run that trains properly. Some runs escape, some never do, and whether a run gets stuck depends on the random seed. That makes comparisons between configurations noisy.
@@ -167,11 +167,138 @@ The fixes only work together.
 
 Details: `plateau_study/analysis.md`, plot `plateau_study/plateau_results.png`.
 
-### Next step (running)
-Before adopting the new recipe, we are checking that it doesn't hurt elsewhere. This is job 5259243, with 84 runs on at most 16 GPUs:
-- **Point CGCNN:** the current recipe vs. `combo` vs. `combo-rob`.
-- **Transformer, planar and point:** current vs. robust target scaling. The Transformer already uses learning rate 1e-3, clipping and a cosine schedule.
+### Confirmation and what we settled on (84 runs)
+- **Point CGCNN:** the new recipe also helps, with R_tot −4.4 pp (28.1 → 23.7 %) and MAE −12 % (p ≈ 0.01).
+- **Transformer:** it already used learning rate 1e-3, clipping and a cosine schedule, which is why it never had the plateau problem. So only robust scaling was tested:
+  - point: R_tot −12 pp (32.4 → 20.4 %, p ≈ 0.003), MAE unchanged;
+  - planar: mixed (MAE −16 %, R_tot not better).
 
-If the results hold, the new recipe becomes the CGCNN default in `delivery_global_v2.py`.
+**New defaults** in `delivery_global_v2.py`:
+- **CGCNN:** learning rate 1e-3, gradient clipping 1.0, cosine schedule (20 warm-up epochs, minimum learning rate 1e-5).
+- **Target scaling:** median/MAD for CGCNN (both datasets) and the point Transformer. The planar Transformer keeps mean/std. The choice is stored in every checkpoint, and the export picks it up automatically.
+- **Checkpoint rule:** unchanged (best validation R_tot). With stable training the safer rule brought nothing and hurt the planar Transformer.
 
-Progress: `plateau_study/progress_confirm.log`.
+Production checkpoints have not been retrained yet.
+
+Details: `plateau_study/analysis_confirm.md`.
+
+---
+
+## 4. Architecture and bond-distance features (done)
+
+Job 5264402 runs 216 runs, all with the new recipe, 3 seeds × both datasets × both splits:
+- **CGCNN:**
+  - depth: 2 (current), 3, 4 or 6 layers;
+  - width: 64, 128 (current) or 256;
+  - bond length either raw (current) or expanded into 16 / 32 Gaussian radial basis functions;
+  - two combinations: 4 layers at width 256, and 4 layers with radial basis 16.
+- **Transformer:**
+  - depth: 2, 4 (current) or 6 layers;
+  - width: 64, 128 (current) or 256;
+  - radial basis 16 / 32;
+  - one combination: 6 layers with radial basis 16.
+
+### Results (216 runs)
+- **CGCNN: deeper is better.** With 2 layers each atom only sees atoms two bonds away.
+  - 4 layers: R_tot −4.1 pp, better in all 4 settings (p ≈ 5e-4).
+  - 4 layers + radial basis 16: R_tot −4.1 pp and MAE −11.5 %.
+  - 3 layers: −3.2 pp.
+  - Width hardly matters, though 64 is worse.
+  - Radial-basis distances alone give little; they help in combination with depth.
+- **Transformer:** the current size (4 layers, width 128, raw distance) is already the best. Every change made R_tot worse.
+
+### Confirmation and what we settled on (9 seeds, 144 runs)
+**New CGCNN default: 4 layers plus bond distances as 16 radial basis functions.**
+- **Against the old 2-layer model:** R_tot −4.2 pp (better in 4/4 settings, p ≈ 2e-5) and MAE −11.5 % (p ≈ 7e-5).
+- **Against plain 4 layers:** the same R_tot, but MAE −9 % in all 4 settings.
+- **Example:** on the planar random split, R_tot went from 17.8 to 12.0 % and MAE from 6.3 to 5.3 meV/atom.
+- **Transformer:** stays unchanged.
+
+The setting is stored in every checkpoint, and the export applies it automatically.
+
+Details: `arch_sweep/ranking_variant.md`, `arch_sweep/confirm/ranking_variant.md`, plot `arch_sweep/arch_results.png`.
+
+---
+
+## 5. Positional encodings, rechecked (done: none adopted)
+We compared Laplacian 8 + random-walk 16 with no positional encoding on the new CGCNN default, with 6 seeds × 4 settings (48 runs).
+- **Result:** R_tot −1.0 pp (p ≈ 0.10) and MAE +4.8 %.
+- **Why the earlier hint disappeared:** on the old 2-layer model this combination gave −4.9 pp. The deeper model already picks up that structure on its own.
+- **Default:** stays without positional encoding.
+
+Details: `pe_recheck/ranking_pe.md`.
+
+---
+
+## 6. Loss function (done: Transformer weights raised)
+The loss is the per-atom error plus λ × the total-energy error, balanced so that λ is the relative weight of the total-energy term. Before this step λ was only 0.005–0.02, depending on model and dataset.
+
+### What we tested (216 runs, 3 seeds × 4 settings, both models)
+- λ at ×0 (no total-energy term), ×0.3, ×3, ×10, ×30 and ×100 of the old value;
+- the total-energy target flipped (graph sum ↔ full cell);
+- a squared-error instead of a Huber total-energy loss.
+
+### Results
+- More weight on the total energy lowers R_tot, but for CGCNN it raises the per-atom MAE. CGCNN had nothing that was clearly better overall.
+- Removing the total-energy term (λ = 0) makes the Transformer worse, so the term is useful.
+- The squared-error loss made no real difference.
+- The best candidates went into a confirmation with 6 more seeds (9 in total, 84 extra runs): `loss_sweep/analysis_confirm.md`.
+
+### Confirmation and what we settled on (9 seeds)
+| Model / dataset | Candidate | R_tot random | R_tot held-out | MAE | Decision |
+|---|---|---|---|---|---|
+| Transformer point | λ ×3 (0.02 → 0.06) | −9.3 pp | −1.7 pp | −6.7 % (pooled) | **adopted** |
+| Transformer planar | λ ×10 (→ 0.1) | −15.9 pp (9/9 seeds) | −16.6 pp (9/9) | ≈ 0 | |
+| Transformer planar | λ ×30 (0.01 → 0.3) | 36.5 → 9.8 % (9/9 seeds) | 51.9 → 28.9 % (9/9) | random −27 %, held-out median unchanged | **adopted** |
+| CGCNN point | graph-sum target | −0.9 pp* | −1.3 pp* | ≈ 0 | not adopted |
+
+\*The first analysis showed a −4.7 pp gain for the graph-sum target. That turned out to be a measurement artefact: the variant was scored with the graph-sum metric and the baseline with the full-cell metric. Scored the same way, the change is neutral (and slightly worse with the full-cell metric), so CGCNN point keeps the full-cell target.
+
+The held-out MAE of the planar Transformer jumps between seeds by a factor of 7 (9–96 meV), with or without the change. The mean MAE moves with single bad seeds, so we judged it by the median, which is unchanged. This seed-to-seed instability of the Transformer is a good reason to look at ensembling next.
+
+New defaults in `delivery_global_v2.py`: `LAMBDA_TRANSFORMER_BY_DOMAIN = {point: 0.06, planar: 0.3}`. CGCNN is unchanged.
+
+## 7. Production retrain (done: waiting for your approval)
+All four production models were retrained with every new default: the atom encoding, the plateau fix, the RBF bond features and 4 CGCNN layers, the robust target scaling and the new loss weights.
+- Each was trained with 3 seeds on exactly the same train/validation split as the current production checkpoint.
+- Both old and new were scored on the delivery validation set (`production_retrain/comparison.md`, plot `production_retrain/retrain_results.png`).
+
+| Model | val MAE old → new (meV/atom) | R_tot graph-sum old → new | R_tot full-cell old → new |
+|---|---|---|---|
+| CGCNN point | 12.0 → 5.6 (−54 %) | 30.3 → 12.1 % | 34.8 → 11.4 % |
+| CGCNN planar | 26.5 → 6.1 (−77 %) | 32.8 → 7.0 % | same |
+| Transformer point | 7.3 → 6.9 (−5 %) | 16.0 → 9.9 % | 21.3 → 18.2 % |
+| Transformer planar | 32.9 → 12.8 (−61 %) | 46.5 → 7.4 % | same |
+
+Every model improves on every main metric, and the planar models improve by 4–6×. The one exception is the mean absolute total-energy error of the Transformer point model, which rises 21 %; its median relative error falls.
+
+Caveats:
+- The point validation set is small (63 structures).
+- The validation set is also used to pick the best epoch, for both old and new, so these numbers are slightly optimistic. The independent test numbers from the sweeps above are the cleaner measure.
+
+The new checkpoints are in `production_retrain/ckpts/`. The production checkpoints are unchanged until you approve.
+
+## 8. Ensembling (done)
+### The question
+Does averaging the predictions of several models help? The models are identical except for their random starting point. In particular, does it help the Transformer, whose results change a lot from seed to seed?
+
+### How we tested (120 runs)
+For each model, dataset and split type, we trained 5 models on exactly the same split with different seeds, and repeated this for 3 different splits. All runs use the current defaults. We then combined their test predictions after training (`ensemble_study/analyze.py`, results in `ensemble_study/analysis.md`).
+
+### Results (`ensemble_study/ensemble_results.png`)
+- **Averaging works everywhere.** Averaging 5 models beats the average single model in all 24 of 24 splits, on both R_tot (−3.6 pp on average, range −1.8 to −5.1 pp) and per-atom MAE (−6 %, range −2 to −10 %).
+- **Most of the gain comes from the first few models.** 3 models give about 75 % of the gain of 5 (R_tot −2.7 pp, MAE −4.9 %); the curve is still slowly improving at 5.
+- **Picking the best seed by validation error does not work.** That is what we did so far. It gives no reliable gain (R_tot −0.5 pp, n.s.) and on average a *worse* MAE (+4 %). For the planar Transformer on held-out chemistry, the MAE gets 31 % worse. The validation set is too small to identify a genuinely better seed.
+- **Variations on the plain mean did not add anything.** We tried the median instead of the mean, averaging the checkpoints picked by best MAE instead of best R_tot, and averaging both checkpoint types. None was reliably better, and the median was slightly worse on R_tot.
+- **Averaging CGCNN and Transformer** gave no reliable gain over the better single-architecture ensemble (6 of 12 splits better).
+
+### What we settled on
+Use a mean ensemble of several seeds (3–5) of the same model instead of a single "best" seed.
+
+On the delivery split, the 3 retrained seeds per production model already form a 3-member ensemble (`production_retrain/ensemble_eval.md`). Compared with the average single retrained model:
+- planar CGCNN: R_tot 7.0 → 5.9 %, MAE 6.1 → 5.7 meV;
+- planar Transformer: R_tot 7.4 → 6.5 %;
+- point CGCNN: MAE 5.6 → 5.2 meV;
+- point Transformer: MAE 6.9 → 6.6 meV, but R_tot 9.9 → 13.2 %. This validation set has only 63 structures, so the median is noisy there; the 24-split test result is the more reliable evidence.
+
+Using it in production would need a small change to the prediction export so that it loads several checkpoints and averages them. This waits for your decision on replacing the production checkpoints.

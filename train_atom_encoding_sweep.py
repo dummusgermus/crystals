@@ -33,6 +33,7 @@ import torch
 from torch_geometric.loader import DataLoader
 
 from atom_encodings import ENCODINGS, element_pair_key, encode_dataset
+from edge_features import encode_edges
 from positional_encodings import (
     apply_pe,
     build_pair_bias_transformer,
@@ -43,6 +44,7 @@ from positional_encodings import (
 )
 from delivery_global_v2 import (
     CGCNN_CONFIG,
+    TARGET_NORM,
     TOTALS_DATASETS,
     TRANSFORMER_CONFIG,
     CosineWithWarmupLR,
@@ -177,6 +179,7 @@ def run(args) -> dict:
     run_key = (f"{args.split}_{domain}_{model_kind}_{encoding}"
                + (f"_pe-{pe}" if pe is not None else "")
                + (f"_v-{args.variant}" if args.variant else "")
+               + (f"_sp{args.split_seed}" if args.split_seed is not None else "")
                + f"_s{args.seed}" + (f"_{args.tag}" if args.tag else ""))
     out_json = os.path.join(args.out_dir, "results", f"{run_key}.json")
     if os.path.isfile(out_json) and not args.force:
@@ -187,16 +190,20 @@ def run(args) -> dict:
     raw = torch.load(TOTALS_DATASETS[domain], weights_only=False)
     ensure_graph_delta_field(raw)
     dataset = encode_dataset(raw, encoding)
+    if args.edge is None:  # default: production setting per model
+        args.edge = (CGCNN_CONFIG if model_kind == "cgcnn" else TRANSFORMER_CONFIG).get("edge", "raw")
+    dataset = encode_edges(dataset, args.edge)
     k_lap = 0
     if pe is not None:
         if model_kind == "cgcnn" and has_pair_bias(pe):
             raise SystemExit(f"pair-bias PE {pe!r} is Transformer-only")
         dataset, _pad = apply_pe(dataset, load_or_build_cache(raw, domain), pe)
         k_lap = parse_pe(pe).get("lap", 0)
+    split_seed = args.seed if args.split_seed is None else args.split_seed
     if args.split == "random":
-        tr, va, te = random_split(len(dataset), args.seed)
+        tr, va, te = random_split(len(dataset), split_seed)
     else:
-        tr, va, te = chem_split(dataset, args.seed)
+        tr, va, te = chem_split(dataset, split_seed)
     train_set = [dataset[i] for i in tr]
     val_set = [dataset[i] for i in va]
     test_set = [dataset[i] for i in te]
@@ -207,18 +214,41 @@ def run(args) -> dict:
         config["lr"] = args.lr
     if args.batch_norm:
         config["use_batch_norm"] = True
-    sched_kind = args.sched or ("plateau" if model_kind == "cgcnn" else "cosine")
+    if args.hidden is not None:
+        config["hidden_dim"] = args.hidden
+    if args.layers is not None:
+        config["num_layers"] = args.layers
+    if args.heads is not None:
+        config["num_heads"] = args.heads
+    # defaults follow production (delivery_global_v2): CGCNN now cosine + clip, see plateau study
+    sched_kind = args.sched or ("plateau" if config.get("scheduler") == "plateau" else "cosine")
+    if args.target_norm is None:
+        args.target_norm = TARGET_NORM[(model_kind, domain)]
     recipe = {
         "sched": sched_kind,
         "plateau_patience": args.patience,
-        "min_lr": args.min_lr if args.min_lr is not None else (1e-6 if model_kind == "cgcnn" else config["min_lr"]),
-        "warmup_epochs": args.warmup if args.warmup is not None else (0 if model_kind == "cgcnn" else config["warmup_iters"]),
-        "grad_clip": args.clip if args.clip is not None else (config.get("gradient_norm") or 0.0 if model_kind == "transformer" else 0.0),
+        "min_lr": args.min_lr if args.min_lr is not None else config.get("min_lr", 1e-6),
+        "warmup_epochs": args.warmup if args.warmup is not None else config.get("warmup_iters", 0),
+        "grad_clip": args.clip if args.clip is not None else float(config.get("gradient_norm") or 0.0),
         "atom_loss": args.atom_loss,
         "mse_warmup_epochs": args.mse_warmup,
         "target_norm": args.target_norm,
+        "edge": args.edge,
+        "hidden_dim": config["hidden_dim"],
+        "num_layers": config["num_layers"],
+        "num_heads": config.get("num_heads"),
+        "weight_decay": config["weight_decay"],
     }
     total_cfg = total_loss_config_for(model_kind, domain)
+    # loss-sweep overrides (item 2); None = production default
+    if args.lambda_tot is not None:
+        total_cfg.lambda_tot = args.lambda_tot
+    if args.tot_target is not None:
+        total_cfg.target_mode = args.tot_target
+    if args.tot_loss is not None:
+        total_cfg.loss_type = args.tot_loss
+    if args.tot_scale_eps is not None:
+        total_cfg.scale_eps = args.tot_scale_eps
     epochs = args.epochs
     print(
         f"=== {run_key} | train={len(train_set)} val={len(val_set)} "
@@ -453,6 +483,7 @@ def run(args) -> dict:
         "seed": args.seed,
         "epochs": epochs,
         "lambda_tot": total_cfg.lambda_tot,
+        "total_loss": dict(total_cfg.__dict__),
         "total_target_mode": total_cfg.target_mode,
         "n_params": n_params,
         "x_dim": int(dataset[0].x.size(-1)),
@@ -468,6 +499,31 @@ def run(args) -> dict:
                 key=lambda f: f[1])) if front else None,
         "curves": curves,
     }
+    result["split_seed"] = split_seed
+    if args.save_preds:  # per-atom predictions for offline ensembling (ensemble study)
+        def dump(state) -> dict:
+            model.load_state_dict({k: v.to(device) for k, v in state.items()})
+            model.eval()
+            out = {}
+            for name, loader, idx in (("val", val_loader, va), ("test", test_loader, te)):
+                preds, ys, gids, tg, tf, off = [], [], [], [], [], 0
+                with torch.no_grad():
+                    for b in loader:
+                        b = b.to(device)
+                        preds.append((model(b) * t_std + t_mean).view(-1).double().cpu())
+                        ys.append(b.y.view(-1).double().cpu())
+                        gids.append((b.batch.view(-1) + off).cpu())
+                        tg.append(select_total_targets(b, target_mode="graph").double().cpu())
+                        tf.append(select_total_targets(b, target_mode="full").double().cpu())
+                        off += b.num_graphs
+                out[name] = {"pred": torch.cat(preds), "y": torch.cat(ys), "graph": torch.cat(gids),
+                             "tot_graph": torch.cat(tg), "tot_full": torch.cat(tf),
+                             "indices": torch.as_tensor(np.asarray(idx))}
+            return out
+        pred_path = os.path.join(args.out_dir, "preds", f"{run_key}.pt")
+        os.makedirs(os.path.dirname(pred_path), exist_ok=True)
+        torch.save({"ckpt_rtot": dump(best_rtot_state), "ckpt_mae": dump(best_mae_state),
+                    "own_target_mode": total_cfg.target_mode}, pred_path)
     os.makedirs(os.path.dirname(out_json), exist_ok=True)
     with open(out_json, "w", encoding="utf-8") as fh:
         json.dump(result, fh)
@@ -515,6 +571,8 @@ def main() -> None:
     p.add_argument("--epochs", type=int, default=None)
     p.add_argument("--out-dir", default=OUT_DIR_DEFAULT)
     p.add_argument("--save-model", action="store_true")
+    p.add_argument("--save-preds", action="store_true", help="dump per-atom val/test predictions (ensembling)")
+    p.add_argument("--split-seed", type=int, default=None, help="data split seed (default: --seed)")
     p.add_argument("--force", action="store_true")
     p.add_argument("--tag", default="", help="suffix for run name / W&B group (e.g. ep2000)")
     p.add_argument("--pe", default=None,
@@ -531,7 +589,16 @@ def main() -> None:
     p.add_argument("--atom-loss", choices=["mae", "huber", "mse"], default="mae")
     p.add_argument("--mse-warmup", type=int, default=0, help="use MSE atom loss for the first N epochs")
     p.add_argument("--batch-norm", action="store_true")
-    p.add_argument("--target-norm", choices=["std", "robust"], default="std")
+    p.add_argument("--target-norm", choices=["std", "robust"], default=None,
+                   help="default: production TARGET_NORM per (model, domain)")
+    p.add_argument("--lambda-tot", type=float, default=None, help="total-energy loss weight override")
+    p.add_argument("--tot-target", choices=["graph", "full"], default=None, help="total-energy target mode override")
+    p.add_argument("--tot-loss", choices=["huber", "mse"], default=None, help="total-energy loss type override")
+    p.add_argument("--tot-scale-eps", type=float, default=None, help="relative-error floor (eV) override")
+    p.add_argument("--edge", default=None, help="edge-distance representation: raw | rbf{K} (default: production)")
+    p.add_argument("--hidden", type=int, default=None, help="hidden width override")
+    p.add_argument("--layers", type=int, default=None, help="number of conv / attention layers override")
+    p.add_argument("--heads", type=int, default=None, help="Transformer heads override")
     p.add_argument("--ckpt-mae-tol", type=float, default=0.2,
                    help="gated checkpoint: best val R_tot among epochs with val MAE <= (1+tol)*min")
     p.add_argument("--wandb-project", default=WANDB_PROJECT_DEFAULT)

@@ -47,6 +47,7 @@ from gnn_models import (
     build_graph_transformer_from_dataset,
 )
 from atom_encodings import encode_graph
+from edge_features import encode_edges_graph
 from train_single import within_group_train_val_indices
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -1052,7 +1053,8 @@ def load_residual_model(
     # Checkpoints trained with a new atom-type encoding need the same x / edge_attr
     # layout; old checkpoints have no key and use the raw type 1/2 column.
     atom_encoding = str(ckpt.get("atom_encoding", "type12"))
-    dataset = [encode_graph(dataset[0], atom_encoding)]
+    edge_spec = str(config.get("edge", "raw"))  # old checkpoints: raw distance
+    dataset = [encode_edges_graph(encode_graph(dataset[0], atom_encoding), edge_spec)]
 
     if architecture == "cgcnn":
         model = build_gated_model_from_dataset(
@@ -1084,6 +1086,7 @@ def load_residual_model(
     model.to(device)
     model.eval()
     model.atom_encoding = atom_encoding
+    model.edge_spec = edge_spec
 
     target_mean = torch.tensor(float(ckpt["target_mean"]), device=device)
     target_std = torch.tensor(float(ckpt["target_std"]), device=device)
@@ -1116,7 +1119,8 @@ def predict_residual_delta(
 
     assert model is not None and target_mean is not None and target_std is not None
     # Encode only the model input; callers keep reading raw x[:, 1] (initial PE).
-    data = encode_graph(data, getattr(model, "atom_encoding", "type12"))
+    data = encode_edges_graph(encode_graph(data, getattr(model, "atom_encoding", "type12")),
+                              getattr(model, "edge_spec", "raw"))
     loader = DataLoader([data], batch_size=1, shuffle=False)
     t_pre0 = time.perf_counter()
     batch = next(iter(loader)).to(device)

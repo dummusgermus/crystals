@@ -138,11 +138,30 @@ GLOBAL_V2_JOBS: Dict[str, Dict[str, str]] = {
 }
 
 
+# Accurate (slower) variant: mean of N seeds trained on the same delivery split
+# (ensemble study: 5 seeds beat one model in 24/24 test splits, R_tot -3.6 pp,
+# MAE -6 %). Checkpoints are listed comma-separated; see load_residual_model.
+ENSEMBLE_DIR = os.path.join(ROOT, "ensemble_checkpoints")
+ENSEMBLE_SEEDS = (0, 1, 2, 3, 4)
+GLOBAL_V2_ENSEMBLE_JOBS: Dict[str, Dict[str, str]] = {
+    key: {
+        **job,
+        "checkpoint": ",".join(
+            os.path.join(ENSEMBLE_DIR, f"{key}_s{s}.pt") for s in ENSEMBLE_SEEDS
+        ),
+        "output_subdir": job["output_subdir"] + "_ensemble",
+    }
+    for key, job in GLOBAL_V2_JOBS.items()
+}
+
+
 def get_jobs(profile: str) -> Dict[str, Dict[str, str]]:
     if profile in {"default", "legacy"}:
         return JOBS
     if profile == "global_v2":
         return GLOBAL_V2_JOBS
+    if profile == "global_v2_ensemble":
+        return GLOBAL_V2_ENSEMBLE_JOBS
     raise ValueError(f"Unknown job profile: {profile}")
 
 
@@ -1029,12 +1048,51 @@ def write_pe_pt(path: str, table: CrystalPETable) -> None:
     torch.save(payload, path)
 
 
+class EnsembleModel(torch.nn.Module):
+    """Mean of several residual models; returns *denormalised* ΔPE.
+
+    Use with target_mean = 0 and target_std = 1 (load_residual_model does this).
+    Members must share the input encoding (atom encoding + edge features)."""
+
+    def __init__(self, members, means, stds):
+        super().__init__()
+        self.members = torch.nn.ModuleList(members)
+        self.register_buffer("means", torch.stack(list(means)).view(-1))
+        self.register_buffer("stds", torch.stack(list(stds)).view(-1))
+        encs = {(m.atom_encoding, m.edge_spec) for m in members}
+        if len(encs) != 1:
+            raise ValueError(f"ensemble members use different input encodings: {encs}")
+        self.atom_encoding, self.edge_spec = encs.pop()
+
+    def forward(self, batch):
+        out = None
+        for i, m in enumerate(self.members):
+            p = m(batch) * self.stds[i] + self.means[i]
+            out = p if out is None else out + p
+        return out / len(self.members)
+
+
+def split_checkpoint_paths(checkpoint_path) -> List[str]:
+    if isinstance(checkpoint_path, (list, tuple)):
+        return [str(p) for p in checkpoint_path]
+    return [p for p in str(checkpoint_path).split(",") if p]
+
+
 def load_residual_model(
-    checkpoint_path: str,
+    checkpoint_path,
     dataset: List[Data],
     architecture: str,
     device: torch.device,
 ) -> Tuple[torch.nn.Module, torch.Tensor, torch.Tensor]:
+    """Load one checkpoint, or a mean ensemble if several paths are given
+    (list or comma-separated string)."""
+    paths = split_checkpoint_paths(checkpoint_path)
+    if len(paths) > 1:
+        loaded = [load_residual_model(p, dataset, architecture, device) for p in paths]
+        model = EnsembleModel([m for m, _, _ in loaded], [mu for _, mu, _ in loaded],
+                              [sd for _, _, sd in loaded]).to(device).eval()
+        return (model, torch.tensor(0.0, device=device), torch.tensor(1.0, device=device))
+    checkpoint_path = paths[0]
     ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     config = dict(ckpt.get("config", {}))
     # Training configs often mix optimiser knobs into the same dict.
@@ -1728,8 +1786,9 @@ def run_job(
         if identity_pred:
             print(f"[{job_name}] identity-pred: using graph.y (residual GT) as dPE")
         else:
-            if not os.path.isfile(ckpt_path):
-                msg = f"Checkpoint not found: {ckpt_path}"
+            missing = [p for p in split_checkpoint_paths(ckpt_path) if not os.path.isfile(p)]
+            if missing:
+                msg = f"Checkpoint not found: {', '.join(missing)}"
                 if skip_missing_checkpoint:
                     print(f"[{job_name}] SKIP - {msg}")
                     return
@@ -1897,7 +1956,10 @@ def parse_args() -> argparse.Namespace:
         "--checkpoint",
         type=str,
         default=None,
-        help="Override checkpoint path (only valid with a single --job).",
+        help=(
+            "Override checkpoint path (only valid with a single --job). Several "
+            "comma-separated paths = mean ensemble."
+        ),
     )
     parser.add_argument(
         "--identity-pred",
@@ -1928,8 +1990,11 @@ def parse_args() -> argparse.Namespace:
         "--job-profile",
         type=str,
         default="default",
-        choices=["default", "global_v2"],
-        help="Checkpoint set: default=original delivery, global_v2=predictions_new.",
+        choices=["default", "global_v2", "global_v2_ensemble"],
+        help=(
+            "Checkpoint set: default=original delivery, global_v2=predictions_new "
+            "(fast, one model), global_v2_ensemble=mean of 5 seeds (slower, more accurate)."
+        ),
     )
     parser.add_argument(
         "--split-json",

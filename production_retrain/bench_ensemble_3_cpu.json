@@ -1,0 +1,30 @@
+{
+ "point_cgcnn": {
+  "single_ms": 7.725710049271584,
+  "ensemble_ms": 22.90072850883007,
+  "ratio": 2.96422314101592,
+  "max_abs_diff_vs_mean_eV": 0.0,
+  "atoms_median": 252
+ },
+ "point_transformer": {
+  "single_ms": 7.032387889921665,
+  "ensemble_ms": 22.38763403147459,
+  "ratio": 3.183503865530371,
+  "max_abs_diff_vs_mean_eV": 0.0,
+  "atoms_median": 252
+ },
+ "planar_cgcnn": {
+  "single_ms": 3.2037403434515,
+  "ensemble_ms": 8.436362259089947,
+  "ratio": 2.633285271178114,
+  "max_abs_diff_vs_mean_eV": 0.0,
+  "atoms_median": 36
+ },
+ "planar_transformer": {
+  "single_ms": 2.534877508878708,
+  "ensemble_ms": 7.670368999242783,
+  "ratio": 3.025932800451465,
+  "max_abs_diff_vs_mean_eV": 0.0,
+  "atoms_median": 36
+ }
+}

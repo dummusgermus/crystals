@@ -1,0 +1,52 @@
+{
+ "skipped": [
+  {
+   "compound": "DyS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "ErS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "GdS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "HoS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "LuS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "NdS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "PrS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "TbS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "TmS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "YS2",
+   "reason": "element missing from element_properties.json"
+  },
+  {
+   "compound": "YbS2",
+   "reason": "element missing from element_properties.json"
+  }
+ ],
+ "errors": [],
+ "n_relax": 567,
+ "n_strain": 1890,
+ "n_compounds": 200
+}

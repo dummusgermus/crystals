@@ -46,6 +46,8 @@ Laves_Planar_Defects/
 planar_SIMULATIONS/
 towards-principled-gts-main/
 *.dump
+# GRACE C15 evaluation set: small per-structure dumps (24-84 atoms), keep them tracked
+!laves-ase-grace-c15/**/*.dump
 *.data
 
 # -----------------------------

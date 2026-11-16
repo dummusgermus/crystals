@@ -1,0 +1,187 @@
+[
+  {
+    "system": "NpAl2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuAl2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "ThAl2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "UAl2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "AmIr2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "AmPt2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "BkIr2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "CmIr2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "CmPt2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "NpCo2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuCo2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "UCo2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "NpFe2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuFe2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "UFe2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "NpIr2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuIr2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "ThIr2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "UIr2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "ThMg2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "NpMn2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuMn2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "UMn2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "NpNi2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuNi2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "NpOs2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "NpRu2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuOs2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "ThOs2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "UOs2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuPt2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuRh2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuRu2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "PuZn2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "ThRu2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "AmNi2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  },
+  {
+    "system": "AmRh2",
+    "reason": "element not in model",
+    "model": "GRACE-2L-SMAX-large"
+  }
+]

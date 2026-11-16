@@ -1,6 +1,6 @@
 # Model optimisation: what changed and how much it helped
 
-*Status: 2026-11-15. Short version; details and statistics are in `MODEL_OPTIMISATION_SUMMARY.md`.*
+*Status: 2026-11-16. Short version; details and statistics are in `MODEL_OPTIMISATION_SUMMARY.md`.*
 
 ## What we changed, component by component
 
@@ -25,18 +25,34 @@ Not adopted after testing:
 
 All four production models were retrained with every change above, on exactly the same train/validation split as the old production models. Below, old vs. new is shown on the delivery validation set, with "new" as the mean of 3 seeds.
 
-| Model | Per-atom MAE (meV/atom) | R_tot, median total-energy error |
-|---|---|---|
-| CGCNN · point | 12.0 → **5.6** (−54 %) | 34.8 → **11.4 %** |
-| CGCNN · planar | 26.5 → **6.1** (−77 %) | 32.8 → **7.0 %** |
-| Transformer · point | 7.3 → **6.9** (−5 %) | 16.0 → **9.9 %** |
-| Transformer · planar | 32.9 → **12.8** (−61 %) | 46.5 → **7.4 %** |
+How to read the table:
+- **MAE** is an absolute error in meV/atom. Its change is given as a relative change in %.
+- **R_tot** is already a percentage: the median relative error of a structure's total defect energy. "34.8 → 11.4 %" means a typical structure's total energy was off by 34.8 % before and by 11.4 % now.
+- A difference between two percentages is given in **percentage points (pp)**: 34.8 % − 11.4 % = 23.4 pp. The relative change of R_tot (−67 % in this example) is shown as well.
+
+| Model | Per-atom MAE (meV/atom) | R_tot (median total-energy error) | R_tot change |
+|---|---|---|---|
+| CGCNN · point | 12.0 → **5.6** (−54 %) | 34.8 % → **11.4 %** | −23.4 pp (−67 % relative) |
+| CGCNN · planar | 26.5 → **6.1** (−77 %) | 32.8 % → **7.0 %** | −25.8 pp (−79 % relative) |
+| Transformer · point | 7.3 → **6.9** (−5 %) | 16.0 % → **9.9 %** | −6.1 pp (−38 % relative) |
+| Transformer · planar | 32.9 → **12.8** (−61 %) | 46.5 % → **7.4 %** | −39.1 pp (−84 % relative) |
 
 - **In short:** the per-atom error is roughly halved, and the total-energy error drops by a factor of 2–6. The planar models gain the most, because they suffered most from the plateau problem.
-- **The accurate (ensemble) mode improves this further.** On the independent test splits, the mean of 5 seeds beat a single model in 24 of 24 cases: R_tot −3.6 pp and MAE −6 % on average.
-  - The ensemble costs a few milliseconds more per crystal: about 1–3 ms of model time per member on GPU. The whole inference pipeline goes from about 5–7.5 ms to about 9–19 ms per crystal.
-  - On the delivery split, averaging the 3 seeds we already have gives e.g. planar CGCNN R_tot 7.0 → 5.9 %.
+- **The accurate (ensemble) mode improves this further.** On the independent test splits, the mean of 5 seeds beat a single model in 24 of 24 cases: R_tot −3.6 pp (percentage points) and MAE −6 % (relative) on average.
+  - On the delivery validation set, compared with the average single seed:
+    - planar CGCNN: R_tot 6.7 → 5.6 %, MAE 5.9 → 5.4 meV/atom;
+    - planar Transformer: R_tot 7.7 → 6.6 %;
+    - point models: MAE better (CGCNN 5.3 → 4.9, Transformer 7.4 → 7.0 meV/atom), but R_tot mixed. The point validation set has only 63 structures, so its median is noisy.
+  - **Speed** (GPU inference mode, median per crystal, including pre- and post-processing):
+    - fast mode: 2.4–3.9 ms;
+    - ensemble mode: 5.8–10.8 ms, about 2–3× slower.
 - **Caveat:** the delivery validation set is also used to choose the best epoch, for both old and new models, so the absolute numbers are slightly optimistic. The point set has only 63 structures. The paired test-set results from the individual studies point the same way.
+
+## Where things are
+- **Fast mode (default):** `--job-profile global_v2`. One model per job (seed 0) in the usual production checkpoint files.
+- **Accurate mode:** `--job-profile global_v2_ensemble`. Mean of 5 seeds from `ensemble_checkpoints/`, written to `<job>_ensemble/` output folders.
+  - Alternatively, give `--checkpoint a.pt,b.pt,...` for any ensemble.
+- **Old production checkpoints:** backed up in `production_backup_2026-11-16/`. To roll back, copy them back.
 
 Plots:
 - `production_retrain/retrain_results.png`: old vs. new;

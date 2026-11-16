@@ -27,14 +27,14 @@ def preds(path, domain, kind, val_idx):
             TG.append(select_total_targets(b, target_mode="graph").double().cpu()); TF.append(select_total_targets(b, target_mode="full").double().cpu())
     return torch.cat(P).numpy(), {"y": torch.cat(Y), "graph": torch.cat(G), "tot_graph": torch.cat(TG), "tot_full": torch.cat(TF)}
 
-out, L = {}, ["# Delivery val set: old vs. retrained single seeds vs. 3-seed mean ensemble\n",
+out, L = {}, ["# Delivery val set: old vs. retrained single seeds vs. 3- and 5-seed mean ensembles\n",
               "| model | method | MAE (meV) | R_tot graph % | R_tot full % | |dE| graph (eV) |", "|---|---|---|---|---|---|"]
 for key in ["point_cgcnn", "planar_cgcnn", "point_transformer", "planar_transformer"]:
     domain, kind = key.split("_", 1)
     old = torch.load(CHECKPOINTS[key], map_location="cpu", weights_only=False); vi = old["val_indices"]
     po, d = preds(CHECKPOINTS[key], domain, kind, vi)
-    pn = [preds(os.path.join(ROOT, "production_retrain", "ckpts", f"{key}_s{s}.pt"), domain, kind, vi)[0] for s in range(3)]
-    rows = {"old": evaluate(po, d), **{f"new s{s}": evaluate(p, d) for s, p in enumerate(pn)}, "new ensemble (3)": evaluate(np.mean(pn, 0), d)}
+    pn = [preds(os.path.join(ROOT, "production_retrain", "ckpts", f"{key}_s{s}.pt"), domain, kind, vi)[0] for s in range(5)]
+    rows = {"old": evaluate(po, d), **{f"new s{s}": evaluate(p, d) for s, p in enumerate(pn)}, "new ensemble (3)": evaluate(np.mean(pn[:3], 0), d), "new ensemble (5)": evaluate(np.mean(pn, 0), d)}
     out[key] = rows
     for meth, v in rows.items():
         L.append(f"| {key} | {meth} | {v['mae']*1000:.2f} | {v['rtot_graph']:.2f} | {v['rtot_full']:.2f} | {v['dE_graph']:.3f} |")

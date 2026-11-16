@@ -258,7 +258,7 @@ The held-out MAE of the planar Transformer jumps between seeds by a factor of 7 
 
 New defaults in `delivery_global_v2.py`: `LAMBDA_TRANSFORMER_BY_DOMAIN = {point: 0.06, planar: 0.3}`. CGCNN is unchanged.
 
-## 7. Production retrain (done: waiting for your approval)
+## 7. Production retrain (done: deployed 2026-11-16)
 All four production models were retrained with every new default: the atom encoding, the plateau fix, the RBF bond features and 4 CGCNN layers, the robust target scaling and the new loss weights.
 - Each was trained with 3 seeds on exactly the same train/validation split as the current production checkpoint.
 - Both old and new were scored on the delivery validation set (`production_retrain/comparison.md`, plot `production_retrain/retrain_results.png`).
@@ -276,7 +276,7 @@ Caveats:
 - The point validation set is small (63 structures).
 - The validation set is also used to pick the best epoch, for both old and new, so these numbers are slightly optimistic. The independent test numbers from the sweeps above are the cleaner measure.
 
-The new checkpoints are in `production_retrain/ckpts/`. The production checkpoints are unchanged until you approve.
+The new checkpoints are in `production_retrain/ckpts/`. **Deployed on 2026-11-16:** seed 0 replaced the four production checkpoint files (fast mode), and the old files are backed up in `production_backup_2026-11-16/`.
 
 ## 8. Ensembling (done)
 ### The question
@@ -301,4 +301,7 @@ On the delivery split, the 3 retrained seeds per production model already form a
 - point CGCNN: MAE 5.6 → 5.2 meV;
 - point Transformer: MAE 6.9 → 6.6 meV, but R_tot 9.9 → 13.2 %. This validation set has only 63 structures, so the median is noisy there; the 24-split test result is the more reliable evidence.
 
-Using it in production would need a small change to the prediction export so that it loads several checkpoints and averages them. This waits for your decision on replacing the production checkpoints.
+**Deployed as an optional accurate mode (2026-11-16).** Two more seeds were trained, so each model has 5 seeds in `ensemble_checkpoints/`. Use `crystal_prediction_export.py --job-profile global_v2_ensemble`, or give comma-separated `--checkpoint` paths.
+- The export averages the members (`EnsembleModel`). This was checked against the mean of the individual models (differences of about 1e-7 eV).
+- **Cost:** model time grows linearly with the number of members. The whole GPU inference per crystal goes from 2.4–3.9 ms to 5.8–10.8 ms.
+- Full numbers: `production_retrain/ensemble_eval.md`.

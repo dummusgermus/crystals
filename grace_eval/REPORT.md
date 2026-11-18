@@ -85,12 +85,30 @@ We have not yet checked which potential produced our training data. It is in the
 - **Cleanest test:** compute some of our training structures with GRACE as well, or the colleague's structures with our potential. Disagreement between the two potentials on the same structure is not model error.
 - **Longer term:** if the project moves to GRACE, retrain on GRACE-computed data. The model architecture and pipeline carry over unchanged.
 
+## Training on the GRACE data itself
+
+*Setup:* same architectures and settings as production (CGCNN and Transformer), trained **only** on the GRACE 0 %-strain structures (FFHFF, Primitive, XYZ; no strained cells, no old data), 2000 epochs. 5-fold cross-validation by compound: each fold trains on 128 compounds, validates on 23, tests on 38 unseen compounds, so every one of the 189 compounds is tested exactly once. Learning curve with 25 / 50 / 100 / all 128 training compounds; 3 seeds each (120 runs, wandb group `grace-newonly`). Numbers below: mean prediction of the 3 seeds, all training compounds. Plot: `grace_train/learning_curve.png`; full tables: `grace_train/analysis.md`.
+
+| Structure | No relaxation | Zero-shot Transformer (old data) | GRACE-trained CGCNN | GRACE-trained Transformer |
+|---|---|---|---|---|
+| FFHFF, median error (meV/atom) | 0.67 | **0.12** | 0.22 | 0.33 |
+| FFHFF, mean error (meV/atom) | – | 7.7 | **0.9** | 1.2 |
+| Primitive, median error | 3.7 | 4.6 | 3.3 | **2.9** |
+| XYZ (true 0), median error | 0 | 4.1 | **0.02** | 0.66 |
+
+- **Typical stacking faults: the old model is still better.** On the median FFHFF compound the zero-shot Transformer (0.12 meV/atom) beats every GRACE-trained model (best 0.22). 128 compounds are far less than the 1978 training structures, and the learning curve is nearly flat from 50 compounds on.
+- **Outliers: the GRACE-trained models are much better.** The mean FFHFF error drops from 7.7 to 0.9 meV/atom. On the 10 worst zero-shot compounds (the unstable Mg compounds, CoTi₂, the Mn compounds) the error drops from 138 to 9–13 meV/atom on average. These are exactly the cases where GRACE disagrees with our old potential, so the trained models learn GRACE's behaviour there.
+- **The two are complementary.** Taking the better of the two per compound would give 0.09 meV/atom. This argues for combining old and new data (joint training or fine-tuning the production model on GRACE) rather than training on GRACE alone.
+- **Already-relaxed cells are learned.** CGCNN predicts essentially zero relaxation for XYZ (0.02 meV/atom); zero-shot it predicted about 4.
+- **Volume relaxation is still not really learned.** Primitive improves somewhat (Transformer 2.9 vs 3.7 for "no relaxation"), but R_tot stays at 85–100 %. The input (unrelaxed positions and per-atom energies of a pristine cell) contains little information about how far the lattice constant is from GRACE's equilibrium.
+
 ## Points for the meeting
 1. On the task we were trained for, the relaxation energy of stacking faults at fixed strain, the Transformer transfers to a new potential and new cells. Its median error is 0.12 meV/atom, 5× better than assuming no relaxation.
 2. Strain, volume relaxation, the energy–strain curve and geometry are different tasks. Covering them would need different training data, with strained cells and cell relaxation, and probably a different model output.
 3. Several "C15" compounds in this set are far from stable in GRACE, e.g. Mg₂Si-type compounds. They should probably be treated separately in any evaluation.
 4. Per-atom energies are specific to each potential. Comparisons across potentials should use total energies.
 5. The reference energies come from a different potential (GRACE) than our training data. The 0.12 meV/atom therefore already includes the disagreement between the two potentials. To separate model error from potential differences, the same structures should be computed with both potentials (see "Why the interatomic potential matters").
+6. Training only on the GRACE data (128 compounds per fold) fixes most outliers: the mean stacking-fault error drops from 7.7 to 0.9 meV/atom, and already-relaxed cells are correctly predicted as not relaxing. On typical stacking faults, however, the old model stays better (median 0.12 vs 0.22 meV/atom). The two are complementary, so the natural next step is joint training on old + GRACE data or fine-tuning the production model on GRACE. More GRACE compounds of the same kind would help little: the learning curve is nearly flat from 50 compounds on.
 
 Files:
 - `grace_eval/build_graphs.py`: builds the graphs.

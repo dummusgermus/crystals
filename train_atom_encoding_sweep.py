@@ -163,6 +163,26 @@ def chem_split(dataset, seed: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     return pick(keys[:n_tr]), pick(keys[n_tr : n_tr + n_va]), pick(keys[n_tr + n_va :])
 
 
+def cv_split(dataset, fold: int, n_folds: int = 5, n_train_compounds=None):
+    """Compound-grouped K-fold split (GRACE study): test = compounds of fold *fold*;
+    15 % of the remaining compounds -> val; optional subsample of the train compounds
+    (learning curve). Fold assignment is fixed (independent of the model seed)."""
+    groups: Dict[str, List[int]] = {}
+    for i, d in enumerate(dataset):
+        groups.setdefault(element_pair_key(d), []).append(i)
+    keys = sorted(groups)
+    np.random.default_rng(5000).shuffle(keys)
+    test_k = keys[fold::n_folds]
+    rest = [k for k in keys if k not in set(test_k)]
+    np.random.default_rng(6000 + fold).shuffle(rest)
+    n_va = int(round(0.15 * len(rest)))
+    val_k, train_k = rest[:n_va], rest[n_va:]
+    if n_train_compounds is not None:
+        train_k = list(np.random.default_rng(7000 + fold).permutation(train_k))[:n_train_compounds]
+    pick = lambda ks: np.array(sorted(i for k in ks for i in groups[k]), dtype=int)
+    return pick(train_k), pick(val_k), pick(test_k)
+
+
 def _tot_dict(tot) -> dict:
     return {
         "r_tot_median": tot.median_rel_total_err_pct,
@@ -187,7 +207,7 @@ def run(args) -> dict:
         with open(out_json, encoding="utf-8") as fh:
             return json.load(fh)
 
-    raw = torch.load(TOTALS_DATASETS[domain], weights_only=False)
+    raw = torch.load(args.dataset_path or TOTALS_DATASETS[domain], weights_only=False)
     ensure_graph_delta_field(raw)
     dataset = encode_dataset(raw, encoding)
     if args.edge is None:  # default: production setting per model
@@ -200,7 +220,9 @@ def run(args) -> dict:
         dataset, _pad = apply_pe(dataset, load_or_build_cache(raw, domain), pe)
         k_lap = parse_pe(pe).get("lap", 0)
     split_seed = args.seed if args.split_seed is None else args.split_seed
-    if args.split == "random":
+    if args.split == "cv5":
+        tr, va, te = cv_split(dataset, args.fold, 5, args.n_train_compounds)
+    elif args.split == "random":
         tr, va, te = random_split(len(dataset), split_seed)
     else:
         tr, va, te = chem_split(dataset, split_seed)
@@ -331,7 +353,7 @@ def run(args) -> dict:
             # global-loss v2
             **_flatten("total_loss", total_cfg.__dict__),
             # data
-            "dataset": TOTALS_DATASETS[domain],
+            "dataset": args.dataset_path or TOTALS_DATASETS[domain],
             "x_dim": int(dataset[0].x.size(-1)),
             "edge_dim": int(dataset[0].edge_attr.size(-1)),
             "n_train": len(train_set),
@@ -348,7 +370,7 @@ def run(args) -> dict:
     )
 
     ev = lambda loader, mode=total_cfg.target_mode: evaluate_with_total_energy(
-        model, loader, device, t_mean, t_std, total_target_mode=mode
+        model, loader, device, t_mean, t_std, total_target_mode=mode, min_delta_eV=args.rtot_min_delta
     )
 
     curves = {"val_mae": [], "val_r_tot_median": []}
@@ -567,7 +589,12 @@ def main() -> None:
     p.add_argument("--model", choices=["cgcnn", "transformer"], required=True)
     p.add_argument("--encoding", choices=ENCODINGS, required=True)
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--split", choices=["random", "chem"], default="random")
+    p.add_argument("--split", choices=["random", "chem", "cv5"], default="random")
+    p.add_argument("--fold", type=int, default=0, help="cv5: test fold 0-4")
+    p.add_argument("--n-train-compounds", type=int, default=None, help="cv5: subsample train compounds (learning curve)")
+    p.add_argument("--dataset-path", default=None, help="override dataset (default: production totals dataset)")
+    p.add_argument("--rtot-min-delta", type=float, default=1e-6,
+                   help="R_tot only over graphs with |true dE| >= this (eV); 1e-6 = old behaviour")
     p.add_argument("--epochs", type=int, default=None)
     p.add_argument("--out-dir", default=OUT_DIR_DEFAULT)
     p.add_argument("--save-model", action="store_true")

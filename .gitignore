@@ -96,12 +96,7 @@ uae_embeddings/
 # -----------------------------
 # Media / papers / plots
 # -----------------------------
-*.png
-*.jpg
-*.jpeg
 *.gif
-*.pdf
-*.svg
 *.mp4
 *.webm
 

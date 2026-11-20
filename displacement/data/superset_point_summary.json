@@ -1,0 +1,11 @@
+{
+ "domain": "point",
+ "n_graphs": 651,
+ "n_errors": 0,
+ "errors": [],
+ "nodes_median": 643.0,
+ "edges_median": 25392.0,
+ "n_unstable": 66,
+ "r_edge": 6.0,
+ "r_node": 14.0
+}

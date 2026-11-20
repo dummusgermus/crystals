@@ -1,0 +1,11 @@
+{
+ "domain": "planar",
+ "n_graphs": 1978,
+ "n_errors": 0,
+ "errors": [],
+ "nodes_median": 33.0,
+ "edges_median": 1596.0,
+ "n_unstable": 68,
+ "r_edge": 6.0,
+ "r_node": null
+}

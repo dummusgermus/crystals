@@ -15,7 +15,7 @@ import torch
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-KEYS = ("r_disp", "skill", "mae", "cos", "r_disp_all", "skill_all", "cell_mae", "null_max_pred")
+KEYS = ("r_disp", "r_disp_mean", "skill", "mae", "cos", "r_disp_all", "skill_all", "cell_mae", "null_max_pred")
 
 
 def force_baseline(domain, view):
@@ -52,7 +52,8 @@ def main():
                    best_epoch=float(np.mean([r["best_epoch"] for r in rs])),
                    time_min=float(np.mean([r["train_time_s"] for r in rs]) / 60),
                    view=rs[0]["config"]["spec"], head=rs[0]["config"]["head"], loss=rs[0]["config"]["loss"],
-                   head_force=rs[0]["config"]["head_force"])
+                   head_force=rs[0]["config"]["head_force"], tag=rs[0]["config"].get("tag", ""),
+                   norm=rs[0]["config"].get("norm", False), std=rs[0]["config"].get("std_inputs", False))
         for part in ("val", "test"):
             for m in KEYS:
                 vals = [r[part].get(m) for r in rs if r[part].get(m) is not None]
@@ -72,7 +73,7 @@ def main():
          "r_disp = per-structure |error| / |true displacement| (median; 1 = predicting no motion, 0 = perfect); "
          "skill = 1 - SSE/SS (pooled); mae in A. Stable moving structures unless '_all'. Mean over seeds; "
          "ranked by validation r_disp. Test split = unseen compounds.\n"]
-    for dom in ("point", "planar"):
+    for dom in ("point", "point_full", "planar"):
         b = base.get(dom, {})
         if "test" in b:
             L.append(f"\n**{dom} reference 'd = c * F0'** (c = {b['c']:.4f} A^2/eV): val r_disp {f(b['val']['r_disp'])}, "
@@ -88,8 +89,11 @@ def main():
                   "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
             for i, r in enumerate(rs, 1):
                 v = r["view"]
-                vs = (f"rt{v['rt']:g}/buf{v['buf']:g} " if dom == "point" else "") + f"{v['edge']} {v['feat']}" + \
-                     (" stable-only" if v["stable"] else "")
+                vs = (f"rt{v['rt']:g}/buf{v['buf']:g} " if dom == "point" else f"rt{v['rt']:g} " if dom == "point_full" else "") + f"{v['edge']} {v['feat']}" + \
+                     (f" head-edges {v['hedge']}" if v.get("hedge") and v["hedge"] != v["edge"] else "") + \
+                     (" stable-only" if v["stable"] else "") + \
+                     (" LN" if r.get("norm") else "") + (" std-in" if r.get("std") else "") + \
+                     (f" [{r['tag']}]" if r.get("tag") else "")
                 L.append(f"| {i} | {vs} | {r['head']}{'+F' if r['head_force'] else ''} | {r['loss']} | {r['n']} | "
                          f"{f(r['val_r_disp'])} ± {f(r['val_r_disp_sd'], 2)} | {f(r['test_r_disp'])} | {f(r['test_skill'])} | "
                          f"{f(r['test_mae'], 4)} | {f(r['test_cos'], 2)} | {f(r['test_r_disp_all'])} | {f(r['test_cell_mae'], 4)} | "

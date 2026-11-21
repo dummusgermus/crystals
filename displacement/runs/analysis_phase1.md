@@ -72,6 +72,40 @@ r_disp = per-structure |error| / |true displacement| (median; 1 = predicting no 
 | 27 | rt8.9/buf4 k5 base+cyc | eqv | mse | 2 | 0.498 ± 0.07 | 0.475 | 0.641 | 0.0122 | 0.96 | 0.561 | – | 0.1438 | 268 | 27 |
 | 28 | rt8.9/buf4 k3 base+cyc | eqv | l1 | 2 | 1.000 ± 0.00 | 1.000 | 0.001 | 0.0155 | 0.62 | 1.000 | – | 0.0004 | 5 | 38 |
 
+## point · painn
+
+| # | view | head | loss | n | val r_disp | test r_disp | test skill | test mae | test cos | test r_disp (all) | cell mae | null max | ep | min |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | rt8.9/buf4 k3 base+cyc | eqv | mse | 2 | 0.154 ± 0.01 | 0.230 | 0.625 | 0.0082 | 0.99 | 0.284 | – | 0.2503 | 235 | 60 |
+| 2 | rt8.9/buf4 k3 base+cyc+force | eqv | mse | 2 | 0.194 ± 0.09 | 0.225 | 0.726 | 0.0071 | 0.99 | 0.283 | – | 0.0602 | 192 | 61 |
+| 3 | rt8.9/buf4 k3 base+cyc+force | eqvF | mse | 2 | 0.289 ± 0.02 | 0.306 | 0.734 | 0.0080 | 0.98 | 0.334 | – | 0.0260 | 20 | 60 |
+
+## point_full · cgcnn
+
+| # | view | head | loss | n | val r_disp | test r_disp | test skill | test mae | test cos | test r_disp (all) | cell mae | null max | ep | min |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | rt8.9 k3 base+force | eqvF+F | mse | 2 | 0.144 ± 0.01 | 0.195 | 0.801 | 0.0062 | 0.99 | 0.233 | – | 0.3115 | 318 | 97 |
+| 2 | rt8.9 k2 base+force | eqv | mse | 2 | 0.146 ± 0.01 | 0.249 | 0.762 | 0.0069 | 0.99 | 0.309 | – | 0.1587 | 315 | 99 |
+| 3 | rt0 k3 base+force | eqv | mse | 2 | 0.181 ± 0.01 | 0.235 | 0.693 | 0.0119 | 0.99 | 0.291 | – | 1.2076 | 305 | 198 |
+| 4 | rt8.9 k3 base+force | eqv | mse | 2 | 0.188 ± 0.02 | 0.286 | 0.761 | 0.0099 | 0.98 | 0.355 | – | 0.7317 | 310 | 256 |
+| 5 | rt8.9 k3 base | eqv | mse | 2 | 0.209 ± 0.00 | 0.361 | 0.685 | 0.0101 | 0.98 | 0.433 | – | 0.3835 | 340 | 247 |
+| 6 | rt8.9 k4 base+force | eqv | mse | 2 | 0.426 ± 0.11 | 0.479 | 0.637 | 0.0435 | 0.94 | 0.525 | – | 6.8710 | 315 | 272 |
+
+## point_full · transformer
+
+| # | view | head | loss | n | val r_disp | test r_disp | test skill | test mae | test cos | test r_disp (all) | cell mae | null max | ep | min |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | rt8.9 k3 base+force | eqv | mse | 2 | 0.257 ± 0.07 | 0.270 | 0.750 | 0.0070 | 0.99 | 0.308 | – | 0.0935 | 250 | 287 |
+
+## point_full · painn
+
+| # | view | head | loss | n | val r_disp | test r_disp | test skill | test mae | test cos | test r_disp (all) | cell mae | null max | ep | min |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | rt8.9 k3 base+force | eqv | mse | 2 | 0.101 ± 0.00 | 0.153 | 0.663 | 0.0062 | 1.00 | 0.184 | – | 0.0055 | 265 | 157 |
+| 2 | rt8.9 k3 base | eqv | mse | 2 | 0.151 ± 0.00 | 0.231 | 0.695 | 0.0064 | 1.00 | 0.274 | – | 0.0100 | 232 | 164 |
+| 3 | rt0 k3 base+force | eqv | mse | 2 | 0.205 ± 0.01 | 0.221 | 0.792 | 0.0063 | 0.99 | 0.246 | – | 0.0334 | 80 | 182 |
+| 4 | rt8.9 k3 base+force | eqvF | mse | 2 | 0.328 ± 0.04 | 0.351 | 0.734 | 0.0083 | 0.98 | 0.383 | – | 0.0308 | 15 | 105 |
+
 **planar reference 'd = c * F0'** (c = 0.0773 A^2/eV): val r_disp 0.684, test r_disp 0.715, test skill 0.260, test mae 0.0155 (zero-motion mae 0.0190)
 
 
@@ -124,3 +158,12 @@ r_disp = per-structure |error| / |true displacement| (median; 1 = predicting no 
 | 18 | k3 base+cyc+dirs | direct | mse | 2 | 0.651 ± 0.00 | 0.572 | -0.238 | 0.0173 | 0.98 | 0.572 | 0.0435 | – | 145 | 41 |
 | 19 | k1 base+cyc | eqv | mse | 2 | 0.745 ± 0.10 | 0.736 | 0.245 | 0.0146 | 0.94 | 0.736 | 0.0413 | – | 48 | 28 |
 | 20 | k2 base+cyc | eqv | mse | 2 | 0.788 ± 0.06 | 0.763 | 0.236 | 0.0150 | 1.00 | 0.763 | 0.0332 | – | 92 | 28 |
+
+## planar · painn
+
+| # | view | head | loss | n | val r_disp | test r_disp | test skill | test mae | test cos | test r_disp (all) | cell mae | null max | ep | min |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | k3 base+cyc+force | eqvF | mse | 2 | 0.170 ± 0.02 | 0.137 | 0.609 | 0.0066 | 1.00 | 0.137 | 0.0368 | – | 168 | 50 |
+| 2 | k3 base+cyc+force | eqv | mse | 2 | 0.178 ± 0.02 | 0.154 | 0.603 | 0.0068 | 1.00 | 0.154 | 0.0387 | – | 155 | 73 |
+| 3 | k2 base+cyc+force | eqvF | mse | 2 | 0.215 ± 0.01 | 0.193 | 0.550 | 0.0077 | 1.00 | 0.193 | 0.0417 | – | 52 | 50 |
+| 4 | k3 base+cyc | eqv | mse | 2 | 0.286 ± 0.02 | 0.268 | 0.552 | 0.0085 | 1.00 | 0.268 | 0.0306 | – | 140 | 73 |

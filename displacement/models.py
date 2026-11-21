@@ -35,9 +35,13 @@ def mlp(i, h, o, act=nn.SiLU):
 class DisplacementModel(nn.Module):
     def __init__(self, kind: str, in_dim: int, edge_dim: int, head: str = "eqv", hidden: int = 128,
                  num_layers: int = 4, use_force_in_head: bool = False, cell_head: bool = False,
-                 num_heads: int = 4, dropout: float = 0.1, n_rbf: int = 16):
+                 num_heads: int = 4, dropout: float = 0.1, n_rbf: int = 16, norm: bool = False):
         super().__init__()
         self.kind, self.head, self.n_rbf = kind, head, n_rbf
+        # norm: LayerNorm after the input MLP and after every gated conv (CGCNN) and on h before
+        # the head -- the production CGCNN sums ~30 messages per layer without normalisation,
+        # which lets activations grow geometrically on out-of-distribution compounds.
+        self.norm = norm
         self.use_force = use_force_in_head
         if kind == "cgcnn":
             self.backbone = GatedGNNNodeRegressor(in_dim, edge_dim, hidden_dim=hidden, num_layers=num_layers,
@@ -57,9 +61,24 @@ class DisplacementModel(nn.Module):
         else:
             raise ValueError(head)
         self.cell = mlp(hidden, hidden, 3) if cell_head else None
+        if norm:
+            n_conv = num_layers if kind == "cgcnn" else 0
+            self.lns = nn.ModuleList(nn.LayerNorm(hidden) for _ in range(n_conv + 1))
+            self.ln_h = nn.LayerNorm(hidden)
+
+    def _backbone(self, data):
+        if not self.norm:
+            return self.backbone(data)
+        if self.kind == "cgcnn":
+            bb = self.backbone
+            x = self.lns[0](bb.input_mlp(data.x))
+            for conv, ln in zip(bb.convs, self.lns[1:]):
+                x = ln(conv(x, data.edge_index, data.edge_attr))
+            return self.ln_h(bb.output_mlp(x))
+        return self.ln_h(self.backbone(data))
 
     def forward(self, data):
-        h = self.backbone(data)
+        h = self._backbone(data)
         if self.head == "direct":
             d = self.out(h)
         else:
@@ -113,8 +132,14 @@ class PaiNNDisplacement(nn.Module):
     the initial force); output d_i = Linear(v_i) (vector channel mix) [+ eqv edge head]."""
 
     def __init__(self, in_dim: int, edge_dim: int, hidden: int = 128, num_layers: int = 4,
-                 force_init: bool = False, cell_head: bool = False):
+                 force_init: bool = False, cell_head: bool = False, norm: bool = False):
         super().__init__()
+        # norm: LayerNorm on the scalars and an equivariant RMS norm on the vectors after
+        # every layer (v / sqrt(mean_c |v_c|^2), learnable per-channel gain).
+        self.norm = norm
+        if norm:
+            self.ln_s = nn.ModuleList(nn.LayerNorm(hidden) for _ in range(num_layers))
+            self.g_v = nn.ParameterList(nn.Parameter(torch.ones(hidden)) for _ in range(num_layers))
         self.embed = mlp(in_dim, hidden, hidden)
         self.layers = nn.ModuleList(PaiNNLayer(hidden, edge_dim) for _ in range(num_layers))
         self.out = nn.Linear(hidden, 1, bias=False)
@@ -129,8 +154,11 @@ class PaiNNDisplacement(nn.Module):
         v = s.new_zeros(s.size(0), 3, s.size(1))
         if self.force_init:
             v = v + self.f0(data.force0.unsqueeze(-1))  # (N,3,H)
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
             s, v = layer(s, v, nb, ctr, u, data.edge_attr)
+            if self.norm:
+                s = self.ln_s[i](s)
+                v = v / torch.sqrt((v ** 2).sum(1, keepdim=True).mean(-1, keepdim=True) + 1e-6) * self.g_v[i]
         d = self.out(v).squeeze(-1)
         cell = None
         if self.cell is not None:

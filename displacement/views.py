@@ -6,7 +6,8 @@ A view spec is a dict (or a compact string, see parse_spec), e.g.
 keys
   rt     point only: target radius (A). Atoms with dist <= rt carry the loss; 0 = all atoms.
   buf    point only: extra context shell (A) around the target region (no loss there).
-  edge   message-passing edges: kN = neighbour shells 1..N of the centre atom, rX = radius X A.
+  edge   message-passing edges: kN = neighbour shells 1..N of the centre atom, rX = radius X A,
+         rXnK = radius X A and at most K nearest neighbours per centre atom (DefiNet / E3Relax).
   hedge  edges used by the vector output head (default = edge).
   feat   '+'-joined node/edge feature groups:
            base   type, initial PE, is_defect, dist to defect          (= production x[:4])
@@ -16,6 +17,7 @@ keys
            dirs   raw Cartesian components (bond vector, dvec, F0) -> only for the
                   non-equivariant 'direct' head control
   stable 1 = drop structures flagged unstable from TRAINING (evaluation always reports both)
+  fsat   >0: smooth cap of the initial force magnitude used as INPUT, |F| -> fsat*tanh(|F|/fsat) (eV/A)
 
 Graph layout produced (PyG Data):
   x, z, edge_index (row 0 = neighbour j, row 1 = centre i: messages j -> i),
@@ -30,7 +32,7 @@ import math
 import torch
 from torch_geometric.data import Data
 
-DEFAULT = dict(rt=8.9, buf=4.0, edge="k3", hedge="", feat="base+cyc", stable=0)
+DEFAULT = dict(rt=8.9, buf=4.0, edge="k3", hedge="", feat="base+cyc", stable=0, fsat=0)
 
 
 def parse_spec(s) -> dict:
@@ -44,12 +46,25 @@ def parse_spec(s) -> dict:
 
 
 def spec_key(spec: dict) -> str:
-    return "rt{rt:g}_buf{buf:g}_{edge}_h{h}_{feat}_st{stable:g}".format(h=spec["hedge"] or spec["edge"], **spec)
+    k = "rt{rt:g}_buf{buf:g}_{edge}_h{h}_{feat}_st{stable:g}".format(h=spec["hedge"] or spec["edge"], **spec)
+    return k + (f"_fs{spec['fsat']:g}" if spec.get("fsat") else "")
 
 
 def _edge_mask(g, rule: str):
     if rule.startswith("k"):
         return g.edge_shell.long() <= int(rule[1:])
+    if rule.startswith("r") and "n" in rule:  # rXnK: radius X, at most K nearest neighbours per centre
+        r, k = rule[1:].split("n")
+        m = g.edge_dist <= float(r) + 1e-6
+        ctr = g.edge_index[0].long()
+        key = ctr.double() * 1e4 + g.edge_dist.double() + (~m).double() * 1e3  # group by centre, then distance
+        order = torch.argsort(key)
+        cs = ctr[order]
+        start = torch.zeros(int(ctr.max()) + 2, dtype=torch.long)
+        start.scatter_reduce_(0, cs + 1, torch.ones_like(cs), reduce="sum")
+        start = torch.cumsum(start, 0)
+        rank = torch.empty_like(order); rank[order] = torch.arange(len(order)) - start[cs]
+        return m & (rank < int(k))
     if rule.startswith("r"):
         return g.edge_dist <= float(rule[1:]) + 1e-6
     raise ValueError(rule)
@@ -82,6 +97,9 @@ def make_view(g, spec: dict) -> Data:
     c, n, vec, d, m = edges(spec["edge"])
     u = vec / d.unsqueeze(-1)
     F = g.force0[idx]; dv = g.dvec[idx]
+    if spec.get("fsat"):
+        fn = F.norm(dim=-1, keepdim=True)
+        F = F * torch.where(fn > 1e-9, spec["fsat"] * torch.tanh(fn / spec["fsat"]) / fn.clamp(min=1e-9), torch.ones_like(fn))
     # ---- node features
     cols = [g.type[idx].float().unsqueeze(-1), g.pe0[idx].unsqueeze(-1), g.is_defect[idx].unsqueeze(-1),
             g.dist[idx].unsqueeze(-1)]
@@ -110,6 +128,14 @@ def make_view(g, spec: dict) -> Data:
         out.hedge_index = torch.stack([hn, hc]); out.hedge_u = hvec / hd.unsqueeze(-1)
         out.hedge_dist = hd.unsqueeze(-1)
     out.dist = g.dist[idx]
+    # geometry for the position-updating models (DefiNet / E3Relax): positions, cell and the
+    # integer image offset of every edge, edge_vec = pos[j] + off @ cell - pos[i]
+    out.pos0 = g.rel[idx].float()
+    out.cell0 = g.cell0.view(1, 3, 3).float()
+    cinv = torch.linalg.inv(g.cell0.view(3, 3).double())
+    out.cell_off = torch.round((vec.double() - (out.pos0[n] - out.pos0[c]).double()) @ cinv).float()
+    out.n_edges = torch.tensor([len(c)])
+    out.is_def = (g.is_defect[idx] > 0.5).long()
     out.unstable = torch.tensor([bool(g.unstable)])
     out.null = torch.tensor([bool(g.disp[idx][loss[idx]].norm(dim=-1).max() < 1e-4)])
     if not point:

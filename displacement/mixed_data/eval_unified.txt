@@ -1,0 +1,20 @@
+joint_painn_rt8.9_buf4_k3_hk3_base+cyc+force_st1_eqvF_l1_norm_std_ema_nodf_ew0.3_uni_dfrec
+   mixed r_disp all 0.373 | point region 0.433 | pure faults 0.165 | c MAE 0.0351 A | E rel err: -1/2F0.d 0.109 head 0.237 | splits 3 cells/split 225
+joint_painn_rt8.9_buf4_k3_hk3_base+cyc+force_st1_eqvF_l1_norm_std_ema_nodf_ew0.3_uni_mx_df
+   mixed r_disp all 0.194 | point region 0.230 | pure faults 0.121 | c MAE 0.0334 A | E rel err: -1/2F0.d 0.053 head 0.088 | splits 3 cells/split 225
+joint_painn_rt8.9_buf4_k3_hk3_base+cyc+force_st1_eqvF_l1_norm_std_ema_nodf_ew0.3_uni_mx_eh
+   mixed r_disp all 0.191 | point region 0.221 | pure faults 0.127 | c MAE 0.0339 A | E rel err: -1/2F0.d 0.053 head 0.067 | splits 3 cells/split 225
+Traceback (most recent call last):
+  File "/work/log1/erik.mueller/code/displacement/mixed/eval_mixed.py", line 95, in <module>
+    main()
+  File "/work/log1/erik.mueller/code/displacement/mixed/eval_mixed.py", line 84, in main
+    rows.append([metrics(items)["r_disp"], metrics(pd, R_EVAL_POINT)["r_disp"], metrics(no)["r_disp"],
+  File "/work/log1/erik.mueller/code/displacement/train_disp.py", line 309, in metrics
+    res["cell_mae"] = float(torch.stack([(it["cell_pred"] - it["cell_y"]).abs().mean() for it in st]).mean())
+  File "/work/log1/erik.mueller/code/displacement/train_disp.py", line 309, in <listcomp>
+    res["cell_mae"] = float(torch.stack([(it["cell_pred"] - it["cell_y"]).abs().mean() for it in st]).mean())
+TypeError: unsupported operand type(s) for -: 'NoneType' and 'Tensor'
+joint_definet_rt8.9_buf4_k3_hk3_base+cyc+force_st1_eqv_l1_std_xf_xF_h512_ema_nodf_uni
+   mixed r_disp all 0.304 | point region 0.350 | pure faults 0.181 | c MAE nan A | E rel err: -1/2F0.d 0.072 head nan | splits 3 cells/split 225
+joint_definet_rt8.9_buf4_k3_hk3_base+cyc+force_st1_eqv_l1_std_xf_xF_h512_ema_nodf_uni_mx
+   mixed r_disp all 0.200 | point region 0.238 | pure faults 0.129 | c MAE nan A | E rel err: -1/2F0.d 0.051 head nan | splits 3 cells/split 225

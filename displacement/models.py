@@ -132,8 +132,13 @@ class PaiNNDisplacement(nn.Module):
     the initial force); output d_i = Linear(v_i) (vector channel mix) [+ eqv edge head]."""
 
     def __init__(self, in_dim: int, edge_dim: int, hidden: int = 128, num_layers: int = 4,
-                 force_init: bool = False, cell_head: bool = False, norm: bool = False):
+                 force_init: bool = False, cell_head=False, norm: bool = False, zemb: bool = False,
+                 energy_head: bool = False, e_coupling: bool = False):
         super().__init__()
+        # cell_head: True = 3 invariant c-vector components (planar); "tensor" = equivariant 3x3 T with
+        #   relaxed cell = cell0 @ (I + T) (bulk benchmarks): node term sum_c w_c(s) v_c (x) U v_c, edge term
+        #   phi_ij u_ij (x) u_ij, isotropic a(s) I and b(s) * initial stress (when data.stress0 exists).
+        # zemb: learned element embedding added to the scalar features (multi-element benchmarks).
         # norm: LayerNorm on the scalars and an equivariant RMS norm on the vectors after
         # every layer (v / sqrt(mean_c |v_c|^2), learnable per-channel gain).
         self.norm = norm
@@ -145,10 +150,40 @@ class PaiNNDisplacement(nn.Module):
         self.out = nn.Linear(hidden, 1, bias=False)
         self.force_init = force_init
         self.f0 = nn.Linear(1, hidden, bias=False) if force_init else None
-        self.cell = mlp(hidden, hidden, 3) if cell_head else None
+        self.tensor_head = cell_head == "tensor"
+        if self.tensor_head:
+            self.cell = None
+            self.t_U = nn.Linear(hidden, hidden, bias=False); self.t_w = nn.Linear(hidden, hidden)
+            self.t_phi = mlp(hidden, hidden, hidden); self.t_e = nn.Linear(edge_dim, hidden)
+            self.t_phi_out = nn.Linear(hidden, 1)
+            self.t_iso = mlp(hidden, hidden, 2)
+        else:
+            self.cell = mlp(hidden, hidden, 3) if cell_head else None
+        self.zemb = nn.Embedding(119, hidden) if zemb else None
+        # energy head (multi-task): per-atom relaxation energy e_i (target units), stored in self.e_atom.
+        # e_coupling: + a * F0_i . d_i (the harmonic estimate -1/2 F.d, from the PREDICTED displacement)
+        self.e_out = mlp(hidden, hidden, 1) if energy_head else None
+        self.e_a = nn.Parameter(torch.zeros(1)) if e_coupling else None
+        self.e_atom = None
+
+    def _tensor(self, s, v, nb, ctr, u, e, batch, data):
+        B = int(batch.max()) + 1 if batch.numel() else 1
+        H = s.size(1)
+        tn = torch.einsum("nah,nbh,nh->nab", v, self.t_U(v), self.t_w(s)) / H
+        T = scatter(tn, batch, 0, dim_size=B, reduce="mean")
+        phi = self.t_phi_out(self.t_phi(s)[ctr] * self.t_e(e))  # (E,1)
+        te = phi.unsqueeze(-1) * u.unsqueeze(-1) * u.unsqueeze(-2)
+        T = T + scatter(te, batch[ctr], 0, dim_size=B, reduce="mean")
+        ab = self.t_iso(scatter(s, batch, 0, dim_size=B, reduce="mean"))
+        T = T + ab[:, 0, None, None] * torch.eye(3, device=s.device)
+        if getattr(data, "stress0", None) is not None:
+            T = T + ab[:, 1, None, None] * 100.0 * data.stress0.view(B, 3, 3)
+        return T
 
     def forward(self, data):
         s = self.embed(data.x)
+        if self.zemb is not None:
+            s = s + self.zemb(data.z.long())
         nb, ctr = data.edge_index
         u = data.edge_u
         v = s.new_zeros(s.size(0), 3, s.size(1))
@@ -160,7 +195,15 @@ class PaiNNDisplacement(nn.Module):
                 s = self.ln_s[i](s)
                 v = v / torch.sqrt((v ** 2).sum(1, keepdim=True).mean(-1, keepdim=True) + 1e-6) * self.g_v[i]
         d = self.out(v).squeeze(-1)
+        if self.e_out is not None:
+            e = self.e_out(s).squeeze(-1)
+            if self.e_a is not None:
+                e = e + self.e_a * (data.force0 * d).sum(-1)
+            self.e_atom = e
         cell = None
+        if self.tensor_head:
+            batch = data.batch if getattr(data, "batch", None) is not None else s.new_zeros(s.size(0), dtype=torch.long)
+            return d, self._tensor(s, v, nb, ctr, u, data.edge_attr, batch, data)
         if self.cell is not None:
             batch = data.batch if getattr(data, "batch", None) is not None else s.new_zeros(s.size(0), dtype=torch.long)
             cell = self.cell(scatter(s, batch, 0, reduce="mean"))

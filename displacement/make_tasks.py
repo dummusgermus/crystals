@@ -263,6 +263,153 @@ def abl_planar():
     return _abl("planar")
 
 
+# ---- combined point + planar model (one model for both defect kinds) ----
+def joint():
+    """Joint point+planar models vs separate models, all on ONE compound split over the union of compounds
+    (--union-split; joint always), same view (k3, base+cyc+force, stable). 3 splits x 2 seeds."""
+    V = "rt=8.9,buf=4,edge=k3,feat=base+cyc+force,stable=1"
+    PT = " --bs 4 --epochs 250"
+    R = NS + " " + EXT + " --tag dfrecipe"        # PaiNN with the DefiNet recipe (best in the ablation)
+    D = EXT + " --ext-feats --ext-force --std-inputs"  # DefiNet + our inputs
+    us = " --union-split"
+    c = [("point", "painn", V, "eqv", R + PT + us),        # separate baselines
+         ("planar", "painn", V, "eqvF", R + us),
+         ("point", "definet", V, "eqv", D + PT + us),
+         ("planar", "definet", V, "eqv", D + us),
+         ("point", "painn", V, "eqv", NS + PT + us),       # previous production recipes
+         ("planar", "painn", V, "eqvF", NS + " --lr 5e-4 --tag lr5e-4" + us),
+         ("joint", "painn", V, "eqvF", R + PT),            # joint models
+         ("joint", "painn", V, "eqv", R + PT),
+         ("joint", "definet", V, "eqv", D + PT),
+         ("joint", "painn", V, "eqvF", R + PT + " --no-dom-balance"),
+         ("joint", "painn", V, "eqvF", R + PT + " --no-domflag")]
+    return _p3(c, g="disp-joint", out="runs_joint")
+
+
+def final():
+    """Production position model: joint PaiNN (DefiNet recipe) + joint DefiNet (our inputs), 2 seeds each,
+    trained on 90 % of ALL compounds (10 % validation for checkpoint selection, no test set)."""
+    V = "rt=8.9,buf=4,edge=k3,feat=base+cyc+force,stable=1"
+    PT = " --bs 4 --epochs 250 --final --save-preds --split-seed 0"
+    out = []
+    for seed in (0, 1):
+        out.append(cmd("joint", "painn", V, "eqvF", "mse", seed, group="disp-final", out="runs_final",
+                       extra=NS + " " + EXT + " --tag dfrecipe" + PT))
+        out.append(cmd("joint", "definet", V, "eqv", "mse", seed, group="disp-final", out="runs_final",
+                       extra=EXT + " --ext-feats --ext-force --std-inputs" + PT))
+    return out
+
+
+def final_mt():
+    """Multi-task production candidate: joint PaiNN (DefiNet recipe) with energy as second output (lambda 0.3,
+    best in runs_energy), 2 seeds, same 90/10 all-compound split as final(); out runs_final_mt."""
+    V = "rt=8.9,buf=4,edge=k3,feat=base+cyc+force,stable=1"
+    PT = " --bs 4 --epochs 250 --final --save-preds --split-seed 0 --energy-weight 0.3"
+    return [cmd("joint", "painn", V, "eqvF", "mse", seed, group="disp-final", out="runs_final_mt",
+                extra=NS + " " + EXT + " --tag dfrecipe" + PT) for seed in (0, 1)]
+
+
+def unified():
+    """One model for point defects, planar faults and cells with both (train_disp --unified: no domain input,
+    separate point-defect / fault channels, one output unit). All runs score the mixed cells of their test
+    compounds (--mixed eval = zero-shot); --mixed train also trains on the mixed cells of training compounds."""
+    V = "rt=8.9,buf=4,edge=k3,feat=base+cyc+force,stable=1"
+    R = NS + " " + EXT + " --tag dfrecipe --bs 4 --epochs 250 --unified"
+    E = " --energy-weight 0.3"
+    D = EXT + " --ext-feats --ext-force --std-inputs --bs 4 --epochs 250 --unified"
+    c = [("joint", "painn", V, "eqvF", R + " --mixed eval"),
+         ("joint", "painn", V, "eqvF", R + " --mixed eval" + E),
+         ("joint", "painn", V, "eqvF", R + " --mixed eval" + E + " --e-harm"),
+         ("joint", "painn", V, "eqvF", R + " --mixed eval" + E + " --e-harm-detach"),
+         ("joint", "painn", V, "eqvF", R + " --mixed train" + E),
+         ("joint", "painn", V, "eqvF", R + " --mixed train" + E + " --e-harm"),
+         ("joint", "definet", V, "eqv", D + " --mixed eval"),
+         ("joint", "definet", V, "eqv", D + " --mixed train")]
+    return _p3(c, g="disp-unified", out="runs_unified")
+
+
+def final_unified():
+    """Unified production candidates (best configs of runs_unified), 2 seeds each, trained on the 90/10
+    all-compound production split incl. the mixed cells of the training compounds; out runs_final_unified.
+    PaiNN lambda 0.3 + harmonic-residual energy (best energy, best mixed r_disp), PaiNN lambda 0.3 (best point/
+    planar r_disp) and DefiNet (positions only) as ensemble partners."""
+    V = "rt=8.9,buf=4,edge=k3,feat=base+cyc+force,stable=1"
+    F = " --bs 4 --epochs 250 --unified --mixed train --final --save-preds --split-seed 0"
+    R = NS + " " + EXT + " --tag dfrecipe" + F + " --energy-weight 0.3"
+    D = EXT + " --ext-feats --ext-force --std-inputs" + F
+    c = [("painn", "eqvF", R + " --e-harm"), ("painn", "eqvF", R), ("definet", "eqv", D)]
+    return [cmd("joint", m, V, h, "mse", seed, group="disp-final-unified", out="runs_final_unified", extra=x)
+            for m, h, x in c for seed in (0, 1)]
+
+
+def exact():
+    """Exact point energy labels (--e-exact, data/superset_point_exact.pt): the recommended production PaiNN
+    (unified, mixed-trained, lambda 0.3 + harmonic-residual energy) 3 splits x 2 seeds (compare with runs_unified,
+    rescored on the exact labels) + the 2 production members (--final). Out runs_exact."""
+    V = "rt=8.9,buf=4,edge=k3,feat=base+cyc+force,stable=1"
+    R = NS + " " + EXT + " --tag dfrecipe --bs 4 --epochs 250 --unified --mixed train --energy-weight 0.3 --e-harm --e-exact"
+    study = _p3([("joint", "painn", V, "eqvF", R)], g="disp-exact", out="runs_exact")
+    fin = [cmd("joint", "painn", V, "eqvF", "mse", seed, group="disp-exact", out="runs_exact",
+               extra=R + " --final --save-preds --split-seed 0") for seed in (0, 1)]
+    return study + fin
+
+
+def separate():
+    """Separate vs unified heads: the unified, mixed-trained PaiNN as a position-only model and as an energy-only
+    model (plain head; and with the harmonic term -1/2 F0.d of its own, unsupervised d as a learned feature).
+    Compare with the multi-task runs in runs_unified (ew0.3, ew0.3 + e-harm). Out runs_separate."""
+    V = "rt=8.9,buf=4,edge=k3,feat=base+cyc+force,stable=1"
+    R = NS + " " + EXT + " --tag dfrecipe --bs 4 --epochs 250 --unified --mixed train"
+    c = [("joint", "painn", V, "eqvF", R),
+         ("joint", "painn", V, "eqvF", R + " --energy-weight 1 --pos-weight 0"),
+         ("joint", "painn", V, "eqvF", R + " --energy-weight 1 --pos-weight 0 --e-harm")]
+    return _p3(c, g="disp-separate", out="runs_separate")
+
+
+def energy():
+    """Energy as a second output of the joint PaiNN: energy only / multi-task (3 weights) / + F0.d coupling.
+    Position-only reference = runs_joint (same view, recipe, splits, seeds)."""
+    V = "rt=8.9,buf=4,edge=k3,feat=base+cyc+force,stable=1"
+    R = NS + " " + EXT + " --tag dfrecipe --bs 4 --epochs 250"
+    c = [("joint", "painn", V, "eqvF", R + " --energy-weight 1 --pos-weight 0"),
+         ("joint", "painn", V, "eqvF", R + " --energy-weight 1"),
+         ("joint", "painn", V, "eqvF", R + " --energy-weight 0.3"),
+         ("joint", "painn", V, "eqvF", R + " --energy-weight 3"),
+         ("joint", "painn", V, "eqvF", R + " --energy-weight 1 --e-coupling")]
+    return _p3(c, g="disp-energy", out="runs_energy")
+
+
+# ---- external benchmarks (the authors' datasets and splits; bench/README in RESULTS) ----
+BENCH_EPOCHS = {"definet_low": 100, "definet_high": 300, "c2db": 300, "vdW": 300, "jarvis": 60, "xmno": 60, "mp": 40}
+
+
+def bench_confs(ds):
+    """4 arms x 3 seeds on one dataset: the authors' model as published, + our inputs, our PaiNN, our PaiNN
+    without GRACE inputs. Defect sets use DefiNet, bulk sets (cell relaxes) E3Relax."""
+    ext = "definet" if ds.startswith("definet") else "e3relax"
+    ep = BENCH_EPOCHS[ds]
+    bs = "--bs 8" if ds.startswith("definet") else "--bs 32"  # bulk sets: ~10-30 atoms per cell
+    arms = [(ext, "eqv", EXT),
+            (ext, "eqv", EXT + " --ext-feats --ext-force --std-inputs"),
+            ("painn", "eqvF", NS + " --zemb"),
+            ("painn", "eqv", NS + " --zemb --bench-feats none"),
+            ("painn", "eqvF", NS + " --zemb " + EXT + " --tag dfrecipe")]  # best recipe of the ablation
+    lines = []
+    for seed in (0, 1, 2):
+        for m, head, extra in arms:
+            lines.append(cmd(f"bench:{ds}", m, "", head, "mse", seed, epochs=ep, group="disp-bench", out="runs_bench",
+                             extra=f"--save-preds --eval-every 2 {bs} {extra}".strip()))
+    return lines
+
+
+def bench():
+    import glob as _g
+    names = [os.path.basename(f)[:-3] for f in sorted(_g.glob(os.path.join(HERE, "bench_data", "views", "*.pt")))]
+    names = [n for n in names if n in BENCH_EPOCHS and n not in os.environ.get("BENCH_SKIP", "").split(",")]
+    print("datasets:", names)
+    return [l for n in names for l in bench_confs(n)]
+
+
 if __name__ == "__main__":
     which = sys.argv[1]
     out = globals()[which]()
@@ -274,5 +421,5 @@ if __name__ == "__main__":
         open(path, "w").write("\n".join(lines) + "\n")
         print(f"{path}: {len(heavy) + len(light)} runs in {len(lines)} tasks")
     else:
-        per = {"ext_planar": 3, "ext_point": 1, "abl_planar": 3, "abl_point": 1}.get(which, 2 if which.endswith("h") else 4)
+        per = {"ext_planar": 3, "ext_point": 1, "abl_planar": 3, "abl_point": 1, "bench": 1, "joint": 1, "final": 1, "final_mt": 1, "unified": 1, "final_unified": 1, "separate": 1, "exact": 1, "energy": 1}.get(which, 2 if which.endswith("h") else 4)
         write(which, out, per_line=per)

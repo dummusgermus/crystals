@@ -29,11 +29,13 @@ KINDS = {"definet": DefiNet, "e3relax": E3Relax, "e3relaxh2": E3RelaxH2}
 class ExtRelax(nn.Module):
     def __init__(self, kind: str, feat_dim: int | None = None, force_init: bool = False, hidden: int = 512,
                  num_layers: int = 4, num_rbf: int = 128, cutoff: float = 30.0, planar: bool = False,
-                 static_geom: bool = False, no_vn: bool = False):
+                 static_geom: bool = False, no_vn: bool = False, mode: str | None = None):
         super().__init__()
         # authors' defaults: hidden 512, 4 layers, 128 Gaussian RBFs, RBF cutoff 30 A, 118 elements
         kw = dict(hidden_channels=hidden, num_layers=num_layers, num_rbf=num_rbf, cutoff=cutoff, num_elements=118)
         self.kind, self.planar = kind, planar
+        # mode: 'planar' (c-vector), 'cell' (full relaxed cell, E3Relax benchmarks), else fixed cell
+        self.mode = mode or ("planar" if planar else "fixed")
         self.net = KINDS[kind](**kw)
         self.net.static_geom, self.net.no_vn = static_geom, no_vn  # DefiNet ablations
         if feat_dim:
@@ -59,7 +61,12 @@ class ExtRelax(nn.Module):
         norms0 = cell0.norm(dim=-1)  # (B, 3)
         self.layers = []
         for pos, cell in zip(pos_list, cell_list):
-            if self.planar:
+            if self.mode == "cell":  # non-affine displacement in the initial cell + T with cell = cell0 (I + T)
+                s = torch.einsum("np,npq->nq", pos, torch.linalg.inv(cell)[batch])
+                s0 = torch.einsum("np,npq->nq", data.pos0, cinv0[batch])
+                d = torch.einsum("nq,nqv->nv", s - s0, cell0[batch])
+                cy = torch.einsum("bpq,bqv->bpv", cinv0, cell) - torch.eye(3, device=d.device)
+            elif self.planar:
                 s = torch.einsum("np,npq->nq", pos, torch.linalg.inv(cell)[batch])
                 s0 = torch.einsum("np,npq->nq", data.pos0, cinv0[batch])
                 d = torch.einsum("nq,nqv->nv", s - s0, cell0[batch])
@@ -70,11 +77,13 @@ class ExtRelax(nn.Module):
                 d = pos - data.pos0
                 cy = torch.zeros(cell0.size(0), 3, device=d.device)
             self.layers.append((d / self.scale, cell / self.scale))
-        return d / self.scale, (cy / self.cell_scale if self.planar else None)
+        return d / self.scale, (cy / self.cell_scale if self.mode in ("planar", "cell") else None)
 
     def cell_target(self, data):
         """Relaxed cell (A) per graph: initial cell with the c row changed by cell_y (planar)."""
         cell0 = data.cell0.view(-1, 3, 3)
+        if self.mode == "cell":
+            return data.cell_r.view(-1, 3, 3)
         if not self.planar:
             return cell0
         frac = data.cell_y.view(-1, 3) / cell0.norm(dim=-1)

@@ -14,14 +14,16 @@ for part in ("val", "test"):
     res = []
     for sp in (0, 1, 2):
         P = [torch.load(p, weights_only=False)[part] for pre in prefixes for p in sorted(glob.glob(f"{pre}_s*_sp{sp}.pt"))]
+        P = [[i for i in x if i.get("dom", int(planar)) == int(planar)] for x in P]  # joint models: this domain only
         keys = [sorted(range(len(x)), key=lambda i: (x[i]["folder"], str(x[i].get("key", "")))) for x in P]
         items = []
         for j in range(len(P[0])):
             its = [x[k[j]] for x, k in zip(P, keys)]
             assert all(i["folder"] == its[0]["folder"] and i["pred"].shape == its[0]["pred"].shape for i in its)
             it = dict(its[0]); it["pred"] = torch.stack([i["pred"] for i in its]).mean(0)
-            if it.get("cell_pred") is not None:
-                it["cell_pred"] = torch.stack([i["cell_pred"] for i in its]).mean(0)
+            cp = [i["cell_pred"] for i in its if i.get("cell_pred") is not None]  # DefiNet has no cell head
+            if cp:
+                it["cell_pred"] = torch.stack(cp).mean(0)
             items.append(it)
         m = metrics(items, r_eval); res.append((m["r_disp"], m["skill"], len(P)))
     print(part, "r_disp per split", [round(r[0], 3) for r in res], "mean %.3f" % np.mean([r[0] for r in res]),

@@ -1,0 +1,8 @@
+3 splits x 2 seeds, old labels (6 runs)
+   point r_disp 0.126+-0.035 | point E exact 0.071+-0.005 | point E old 0.058+-0.006 | planar r_disp 0.143+-0.005 | planar E 0.097+-0.023 | mixed r_disp 0.202+-0.013 | mixed E 0.071+-0.014
+3 splits x 2 seeds, exact labels (6 runs)
+   point r_disp 0.118+-0.026 | point E exact 0.072+-0.006 | point E old 0.059+-0.011 | planar r_disp 0.141+-0.005 | planar E 0.098+-0.023 | mixed r_disp 0.199+-0.010 | mixed E 0.069+-0.012
+final (held-out 10%), old labels (2 runs)
+   point r_disp 0.077+-0.007 | point E exact 0.051+-0.004 | point E old 0.031+-0.004 | planar r_disp 0.129+-0.010 | planar E 0.060+-0.003 | mixed r_disp 0.178+-0.004 | mixed E 0.054+-0.003
+final (held-out 10%), exact labels (2 runs)
+   point r_disp 0.073+-0.000 | point E exact 0.058+-0.000 | point E old 0.035+-0.006 | planar r_disp 0.123+-0.009 | planar E 0.060+-0.001 | mixed r_disp 0.173+-0.007 | mixed E 0.055+-0.001

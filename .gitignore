@@ -172,3 +172,10 @@ pyg_dataset.pt.graphview.json
 !adv_datasets/ising_sfe_split_indices.json
 !adv_datasets/cycle34_graph_total_target_stats.json
 !planar_pyg_dataset_graph_total_target_c14c15_stats.json
+
+# -----------------------------
+# displacement/: downloaded benchmark data (Zenodo, re-downloadable) and generated simulation data
+# -----------------------------
+displacement/bench_data/raw/
+displacement/bench_data/ext/
+displacement/gen_data/

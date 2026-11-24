@@ -1,0 +1,2 @@
+joint_painn_rt8.9_buf4_k3_hk3_base+cyc+force_st1_eqvF_l1_norm_std_ema_ew0.3_dfrecipe
+   mixed r_disp all 0.426 | point region 0.497 | pure faults 0.158 | c MAE 0.0349 A | E rel err: -1/2F0.d 0.161 head 0.282 | splits 3 cells/split 225

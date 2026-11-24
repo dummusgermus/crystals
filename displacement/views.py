@@ -75,7 +75,7 @@ def make_view(g, spec: dict) -> Data:
     feats = set(spec["feat"].split("+"))
     # ---- nodes
     full = bool(getattr(g, "full_cell", False))
-    if full and "cyc" in feats:
+    if full and "cyc" in feats and bool(torch.isnan(g.cyc_k3).any()):
         raise ValueError("full-cell point graphs have no cycle features")
     if point and spec["rt"] > 0:
         keep = torch.ones(g.num_nodes, dtype=torch.bool) if full else g.dist <= spec["rt"] + spec["buf"] + 1e-6
@@ -128,6 +128,7 @@ def make_view(g, spec: dict) -> Data:
         out.hedge_index = torch.stack([hn, hc]); out.hedge_u = hvec / hd.unsqueeze(-1)
         out.hedge_dist = hd.unsqueeze(-1)
     out.dist = g.dist[idx]
+    out.de = (g.pe1 - g.pe0)[idx].float()  # per-atom relaxation energy (eV), energy multi-task target
     # geometry for the position-updating models (DefiNet / E3Relax): positions, cell and the
     # integer image offset of every edge, edge_vec = pos[j] + off @ cell - pos[i]
     out.pos0 = g.rel[idx].float()
@@ -143,6 +144,9 @@ def make_view(g, spec: dict) -> Data:
         out.cell_y = g.cell_change_frac.view(1, 3) * g.cell0[0].norm(dim=-1).view(1, 3)
     else:
         out.cell_y = torch.zeros(1, 3)
+    if hasattr(g, "dist_fault"):  # mixed cells (point defect + planar fault): fault channels for the unified model
+        out.is_fault = g.is_fault[idx].float(); out.dist_fault = g.dist_fault[idx].float()
+    out.full_cell = full
     out.folder = g.folder
     out.key = getattr(g, "defect_key", getattr(g, "stack_sequence", ""))
     out.element_a, out.element_b = g.element_a, g.element_b

@@ -248,7 +248,8 @@ def build_point_one(f):
 
 def point_files():
     out = []
-    for f in sorted(glob.glob(os.path.join(ROOT, "SIMULATIONS", "C15_*", "unrelaxed_*.dump"))):
+    root = os.environ.get("DISP_SIM_ROOT", ROOT)  # generated data: displacement/gen/point_gen.py output dir
+    for f in sorted(glob.glob(os.path.join(root, "SIMULATIONS", "C15_*", "unrelaxed_*.dump"))):
         folder = os.path.basename(os.path.dirname(f))
         if folder.endswith("_MIN") or "--1-" in os.path.basename(f):
             continue

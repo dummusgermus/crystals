@@ -386,3 +386,16 @@ Findings:
 - same atom ids;
 - displacements within 0.2% (8.9 Å region; max atom difference 0.15 mÅ), after the rattle was made zero-mean. A non-zero-mean rattle shifted the whole cell by 0.6 mÅ.
 - **Cost:** about 13 min per compound on one GPU, so the full run takes about 12 h on 12 GPUs.
+
+## Energy: deployed CGCNN / Graph Transformer vs unified PaiNN (job 5548969, `energy_compare/`)
+The deployed energy models (MODEL_OPTIMISATION_SUMMARY.md) predict the same quantity as the PaiNN energy head: the per-atom residual pe_relaxed − pe_unrelaxed, which sums to ΔE. Retrained with their deployed recipe (delivery_global_v2, 2000 epochs) on our 3 union compound splits × 2 seeds (`energy_compare/train_gnn_split.py`), scored with the PaiNN on identical stable test structures and full-cell labels (point: exact LAMMPS ΔE) by `energy_compare/compare.py` (`energy_compare/results.md`, `plots/report/fig7_energy_vs_gnn`).
+
+| ΔE median relative error | point | planar |
+|---|---|---|
+| CGCNN, single / 2-seed ens. | 17.7% / 14.8% | 26.4% / 24.2% |
+| Graph Transformer, single / 2-seed ens. | 20.7% / 17.7% | 29.7% / 26.8% |
+| unified PaiNN, single / 2-seed ens. | **6.9% / 6.9%** | **9.7% / 9.0%** |
+
+- PaiNN is 2.5–3× better on both domains, with a much smaller spread across splits.
+- The deployed models' own numbers (point 11–12%, planar 5.6–6.6%) come from their delivery split, which holds out 10% of the structures *within* each defect configuration, so the test compounds are seen in training. On unseen compounds their planar error is about 4× higher.
+- The residual target is not the difference: both use it. The gain comes from the equivariant backbone with GRACE force inputs, multi-task training with positions, and the harmonic term −½ΣF0·d.

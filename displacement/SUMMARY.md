@@ -91,6 +91,7 @@ How we split and handle the data:
   - Energy: better on all three domains (−1.2 / −1.8 / −2.0 percentage points).
   - Cost: a small point-position cost (+0.008), absorbed by the ensemble.
 - **Mixed cells in training.** Without them, cells with both defects fail: r_disp 0.39 zero-shot vs 0.22 trained. Point + planar data alone does not cover an antisite inside a relaxing fault.
+- **Unified PaiNN replaces the deployed CGCNN / GT energy models in accuracy.** Same residual target (Σ(pe1 − pe0) = ΔE), same test structures, unseen compounds: ΔE error 6.9% / 9.7% (point / planar) vs CGCNN 17.7% / 26.4% and GT 20.7% / 29.7% (fig 7, `energy_compare/`).
 - **Exact point energy labels: not adopted for production.** Retraining on them changed nothing (paired, within noise).
 
 ## Known limitations
@@ -125,3 +126,4 @@ How we split and handle the data:
 | `fig4_examples` | predicted vs true displacement field: one point defect, one planar fault |
 | `fig5_energy` | relaxation-energy parity, held-out |
 | `fig6_data_generation` | our generator vs the team's LAMMPS labels |
+| `fig7_energy_vs_gnn` | relaxation energy: unified PaiNN vs the deployed CGCNN / Graph Transformer on identical test structures |

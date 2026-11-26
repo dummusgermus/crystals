@@ -1,0 +1,50 @@
+{
+ "single model (3 splits \u00d7 2 seeds)|CGCNN|point": [
+  0.17651185678356573,
+  0.030964850150022722
+ ],
+ "single model (3 splits \u00d7 2 seeds)|CGCNN|planar": [
+  0.26432272933316564,
+  0.04264517966809368
+ ],
+ "single model (3 splits \u00d7 2 seeds)|Graph Transformer|point": [
+  0.20672108077299414,
+  0.03827228660963733
+ ],
+ "single model (3 splits \u00d7 2 seeds)|Graph Transformer|planar": [
+  0.29707546058751244,
+  0.08117908536006307
+ ],
+ "single model (3 splits \u00d7 2 seeds)|unified PaiNN|point": [
+  0.06911530664216486,
+  0.005270399508352604
+ ],
+ "single model (3 splits \u00d7 2 seeds)|unified PaiNN|planar": [
+  0.09668537108746823,
+  0.02266336371828305
+ ],
+ "2-seed ensemble (mean over 3 splits)|CGCNN|point": [
+  0.14837339240006728,
+  0.015734924476564615
+ ],
+ "2-seed ensemble (mean over 3 splits)|CGCNN|planar": [
+  0.24176223034410002,
+  0.019368208519980917
+ ],
+ "2-seed ensemble (mean over 3 splits)|Graph Transformer|point": [
+  0.17670374159129668,
+  0.03240160552317796
+ ],
+ "2-seed ensemble (mean over 3 splits)|Graph Transformer|planar": [
+  0.26796935284670537,
+  0.0625412799855537
+ ],
+ "2-seed ensemble (mean over 3 splits)|unified PaiNN|point": [
+  0.06899692064548059,
+  0.003032050713673178
+ ],
+ "2-seed ensemble (mean over 3 splits)|unified PaiNN|planar": [
+  0.0898961072806737,
+  0.020300787917956812
+ ]
+}

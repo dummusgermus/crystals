@@ -1,0 +1,903 @@
+{
+ "tag": "point_transformer_sp1_s1",
+ "model_key": "point_transformer",
+ "split_seed": 1,
+ "seed": 1,
+ "summary": {
+  "test/r_tot_full_median": 0.2965747802620239,
+  "test/n": 99
+ },
+ "test": [
+  {
+   "folder": "C15_Ce-Co",
+   "key": "1-1-1-8a",
+   "compound": "Ce-Co",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": 5.056790541857481e-10,
+   "n": 252
+  },
+  {
+   "folder": "C15_Ce-Co",
+   "key": "1-1-2-8a",
+   "compound": "Ce-Co",
+   "pred": -0.49882689118385315,
+   "graph_true": -0.6324198842048645,
+   "full_true": -0.6684000002242101,
+   "n": 252
+  },
+  {
+   "folder": "C15_Ce-Co",
+   "key": "9-2-1-16d",
+   "compound": "Ce-Co",
+   "pred": -0.7939026951789856,
+   "graph_true": -1.084070086479187,
+   "full_true": -1.351859999995213,
+   "n": 144
+  },
+  {
+   "folder": "C15_Ce-Fe",
+   "key": "1-1-1-8a",
+   "compound": "Ce-Fe",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": -9.1313268058002e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Ce-Fe",
+   "key": "1-1-2-8a",
+   "compound": "Ce-Fe",
+   "pred": -0.4775790870189667,
+   "graph_true": -0.4228900074958801,
+   "full_true": -0.3994099999508762,
+   "n": 253
+  },
+  {
+   "folder": "C15_Ce-Fe",
+   "key": "9-2-1-16d",
+   "compound": "Ce-Fe",
+   "pred": -0.49760472774505615,
+   "graph_true": -0.8064999580383301,
+   "full_true": -0.8307400001067435,
+   "n": 144
+  },
+  {
+   "folder": "C15_Er-Al",
+   "key": "1-1-1-8a",
+   "compound": "Er-Al",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 1.5643308870494366e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Er-Al",
+   "key": "1-1-2-8a",
+   "compound": "Er-Al",
+   "pred": -0.20968292653560638,
+   "graph_true": -0.18792997300624847,
+   "full_true": -0.17548999994323822,
+   "n": 253
+  },
+  {
+   "folder": "C15_Er-Al",
+   "key": "9-2-1-16d",
+   "compound": "Er-Al",
+   "pred": -0.33420711755752563,
+   "graph_true": -0.36735999584198,
+   "full_true": -0.35829999991619843,
+   "n": 144
+  },
+  {
+   "folder": "C15_Er-Co",
+   "key": "1-1-1-8a",
+   "compound": "Er-Co",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": -1.0913936421275139e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Er-Co",
+   "key": "1-1-2-8a",
+   "compound": "Er-Co",
+   "pred": -0.6439600586891174,
+   "graph_true": -0.6022100448608398,
+   "full_true": -0.6462699998846801,
+   "n": 253
+  },
+  {
+   "folder": "C15_Er-Co",
+   "key": "9-2-1-16d",
+   "compound": "Er-Co",
+   "pred": -0.8317911624908447,
+   "graph_true": -1.130369782447815,
+   "full_true": -1.1916899999341695,
+   "n": 146
+  },
+  {
+   "folder": "C15_Er-Fe",
+   "key": "1-1-1-8a",
+   "compound": "Er-Fe",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": -6.293703336268663e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Er-Fe",
+   "key": "1-1-2-8a",
+   "compound": "Er-Fe",
+   "pred": -0.4233454465866089,
+   "graph_true": -0.3434400260448456,
+   "full_true": -0.33855000019684667,
+   "n": 253
+  },
+  {
+   "folder": "C15_Er-Fe",
+   "key": "9-2-1-16d",
+   "compound": "Er-Fe",
+   "pred": -0.7649391889572144,
+   "graph_true": -0.990649938583374,
+   "full_true": -1.0075100001085957,
+   "n": 144
+  },
+  {
+   "folder": "C15_Eu-Ir",
+   "key": "1-1-1-8a",
+   "compound": "Eu-Ir",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 1.5279510989785194e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Eu-Ir",
+   "key": "1-1-2-8a",
+   "compound": "Eu-Ir",
+   "pred": -0.6776670217514038,
+   "graph_true": -0.9623600840568542,
+   "full_true": -0.931519999903685,
+   "n": 253
+  },
+  {
+   "folder": "C15_Eu-Ir",
+   "key": "9-2-1-16d",
+   "compound": "Eu-Ir",
+   "pred": -0.8709502220153809,
+   "graph_true": -0.7744500041007996,
+   "full_true": -0.9056800000289513,
+   "n": 144
+  },
+  {
+   "folder": "C15_Gd-Mn",
+   "key": "1-1-1-8a",
+   "compound": "Gd-Mn",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": 6.475602276623249e-10,
+   "n": 252
+  },
+  {
+   "folder": "C15_Gd-Mn",
+   "key": "1-1-2-8a",
+   "compound": "Gd-Mn",
+   "pred": -0.4182703495025635,
+   "graph_true": -0.4181399345397949,
+   "full_true": -0.4254499998060055,
+   "n": 252
+  },
+  {
+   "folder": "C15_Gd-Mn",
+   "key": "9-2-1-16d",
+   "compound": "Gd-Mn",
+   "pred": -1.0012519359588623,
+   "graph_true": -1.1689801216125488,
+   "full_true": -6.039549999997689,
+   "n": 144
+  },
+  {
+   "folder": "C15_Gd-Rh",
+   "key": "1-1-1-8a",
+   "compound": "Gd-Rh",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": -1.6370904631912708e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Gd-Rh",
+   "key": "1-1-2-8a",
+   "compound": "Gd-Rh",
+   "pred": -0.8066836595535278,
+   "graph_true": -0.8026300668716431,
+   "full_true": -0.7424000000355591,
+   "n": 253
+  },
+  {
+   "folder": "C15_Gd-Rh",
+   "key": "9-2-1-16d",
+   "compound": "Gd-Rh",
+   "pred": -0.6053481101989746,
+   "graph_true": -0.7810599207878113,
+   "full_true": -0.9649699999717996,
+   "n": 144
+  },
+  {
+   "folder": "C15_Hf-Fe",
+   "key": "1-1-1-8a",
+   "compound": "Hf-Fe",
+   "pred": 0.00022572165471501648,
+   "graph_true": 0.0,
+   "full_true": 9.64064383879304e-10,
+   "n": 254
+  },
+  {
+   "folder": "C15_Hf-Fe",
+   "key": "1-1-2-8a",
+   "compound": "Hf-Fe",
+   "pred": -0.5860226154327393,
+   "graph_true": -0.2946400046348572,
+   "full_true": -0.3168699999405362,
+   "n": 254
+  },
+  {
+   "folder": "C15_Hf-Fe",
+   "key": "9-2-1-16d",
+   "compound": "Hf-Fe",
+   "pred": -0.8391740322113037,
+   "graph_true": -0.6407800912857056,
+   "full_true": -0.6976099995845289,
+   "n": 144
+  },
+  {
+   "folder": "C15_Ho-Pt",
+   "key": "1-1-1-8a",
+   "compound": "Ho-Pt",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": -9.094947017729282e-10,
+   "n": 252
+  },
+  {
+   "folder": "C15_Ho-Pt",
+   "key": "1-1-2-8a",
+   "compound": "Ho-Pt",
+   "pred": -1.7775717973709106,
+   "graph_true": -1.8800398111343384,
+   "full_true": -3.7763300000042364,
+   "n": 252
+  },
+  {
+   "folder": "C15_Ho-Pt",
+   "key": "9-2-1-16d",
+   "compound": "Ho-Pt",
+   "pred": -0.7091296911239624,
+   "graph_true": -0.7158000469207764,
+   "full_true": -3.070380000015575,
+   "n": 146
+  },
+  {
+   "folder": "C15_La-Ir",
+   "key": "1-1-1-8a",
+   "compound": "La-Ir",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": -3.346940502524376e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_La-Ir",
+   "key": "1-1-2-8a",
+   "compound": "La-Ir",
+   "pred": -0.8167171478271484,
+   "graph_true": -1.1973497867584229,
+   "full_true": -1.0886200000568351,
+   "n": 253
+  },
+  {
+   "folder": "C15_La-Ir",
+   "key": "9-2-1-16d",
+   "compound": "La-Ir",
+   "pred": -1.2117273807525635,
+   "graph_true": -0.8900501728057861,
+   "full_true": -1.1378000000695465,
+   "n": 146
+  },
+  {
+   "folder": "C15_Lu-Ir",
+   "key": "1-1-1-8a",
+   "compound": "Lu-Ir",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": 7.566995918750763e-10,
+   "n": 252
+  },
+  {
+   "folder": "C15_Lu-Ir",
+   "key": "1-1-2-8a",
+   "compound": "Lu-Ir",
+   "pred": -0.713268518447876,
+   "graph_true": -0.6943700909614563,
+   "full_true": -0.6084300000875373,
+   "n": 252
+  },
+  {
+   "folder": "C15_Lu-Ir",
+   "key": "9-2-1-16d",
+   "compound": "Lu-Ir",
+   "pred": -0.6532668471336365,
+   "graph_true": -0.564009964466095,
+   "full_true": -0.7436299998844333,
+   "n": 144
+  },
+  {
+   "folder": "C15_Na-Ag",
+   "key": "1-1-1-8a",
+   "compound": "Na-Ag",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": -4.5565684558823705e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Na-Ag",
+   "key": "1-1-2-8a",
+   "compound": "Na-Ag",
+   "pred": -0.13242486119270325,
+   "graph_true": -0.07227999716997147,
+   "full_true": -0.06267000004299916,
+   "n": 253
+  },
+  {
+   "folder": "C15_Na-Ag",
+   "key": "9-2-1-16d",
+   "compound": "Na-Ag",
+   "pred": -0.3505663275718689,
+   "graph_true": -0.1446000039577484,
+   "full_true": -0.1355600000333652,
+   "n": 145
+  },
+  {
+   "folder": "C15_Nd-Ru",
+   "key": "1-1-1-8a",
+   "compound": "Nd-Ru",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 1.255102688446641e-09,
+   "n": 253
+  },
+  {
+   "folder": "C15_Nd-Ru",
+   "key": "1-1-2-8a",
+   "compound": "Nd-Ru",
+   "pred": -0.6258111000061035,
+   "graph_true": -1.3567701578140259,
+   "full_true": -6.179389999961131,
+   "n": 253
+  },
+  {
+   "folder": "C15_Nd-Ru",
+   "key": "9-2-1-16d",
+   "compound": "Nd-Ru",
+   "pred": -0.8235142230987549,
+   "graph_true": -1.1775200366973877,
+   "full_true": -6.213610000020708,
+   "n": 144
+  },
+  {
+   "folder": "C15_Np-Co",
+   "key": "1-1-1-8a",
+   "compound": "Np-Co",
+   "pred": 0.00022572165471501648,
+   "graph_true": 0.0,
+   "full_true": -3.346940502524376e-10,
+   "n": 254
+  },
+  {
+   "folder": "C15_Np-Co",
+   "key": "1-1-2-8a",
+   "compound": "Np-Co",
+   "pred": -0.45799750089645386,
+   "graph_true": -0.4223000109195709,
+   "full_true": -0.40202999983739574,
+   "n": 254
+  },
+  {
+   "folder": "C15_Np-Co",
+   "key": "9-2-1-16d",
+   "compound": "Np-Co",
+   "pred": -1.341444730758667,
+   "graph_true": -0.8646199703216553,
+   "full_true": -0.8884199997992255,
+   "n": 145
+  },
+  {
+   "folder": "C15_Np-Ir",
+   "key": "1-1-1-8a",
+   "compound": "Np-Ir",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": 1.1132215149700642e-09,
+   "n": 252
+  },
+  {
+   "folder": "C15_Np-Ir",
+   "key": "1-1-2-8a",
+   "compound": "Np-Ir",
+   "pred": -1.0908617973327637,
+   "graph_true": -0.4371499717235565,
+   "full_true": -0.315529999363207,
+   "n": 252
+  },
+  {
+   "folder": "C15_Np-Ir",
+   "key": "9-2-1-16d",
+   "compound": "Np-Ir",
+   "pred": -0.3315260410308838,
+   "graph_true": -0.6939300894737244,
+   "full_true": -0.7952600000244274,
+   "n": 144
+  },
+  {
+   "folder": "C15_Np-Mn",
+   "key": "1-1-1-8a",
+   "compound": "Np-Mn",
+   "pred": -1.453319787979126,
+   "graph_true": 0.0,
+   "full_true": 4.001776687800884e-10,
+   "n": 34
+  },
+  {
+   "folder": "C15_Np-Mn",
+   "key": "1-1-2-8a",
+   "compound": "Np-Mn",
+   "pred": -1.2335501909255981,
+   "graph_true": -0.4640299677848816,
+   "full_true": -0.4642900000435475,
+   "n": 34
+  },
+  {
+   "folder": "C15_Np-Mn",
+   "key": "9-2-1-16d",
+   "compound": "Np-Mn",
+   "pred": -2.0135011672973633,
+   "graph_true": -1.1143500804901123,
+   "full_true": -1.0974200000455312,
+   "n": 27
+  },
+  {
+   "folder": "C15_Pr-Al",
+   "key": "1-1-1-8a",
+   "compound": "Pr-Al",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 4.18367562815547e-11,
+   "n": 253
+  },
+  {
+   "folder": "C15_Pr-Al",
+   "key": "1-1-2-8a",
+   "compound": "Pr-Al",
+   "pred": -0.24106156826019287,
+   "graph_true": -0.289029985666275,
+   "full_true": -0.26943999999821244,
+   "n": 253
+  },
+  {
+   "folder": "C15_Pr-Al",
+   "key": "9-2-1-16d",
+   "compound": "Pr-Al",
+   "pred": -0.46162527799606323,
+   "graph_true": -0.7567800879478455,
+   "full_true": -0.7210199999954057,
+   "n": 144
+  },
+  {
+   "folder": "C15_Pr-Mg",
+   "key": "1-1-1-8a",
+   "compound": "Pr-Mg",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 1.291482476517558e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Pr-Mg",
+   "key": "1-1-2-8a",
+   "compound": "Pr-Mg",
+   "pred": -0.033582739531993866,
+   "graph_true": -0.06455999612808228,
+   "full_true": -0.036369999966154865,
+   "n": 253
+  },
+  {
+   "folder": "C15_Pr-Mg",
+   "key": "9-2-1-16d",
+   "compound": "Pr-Mg",
+   "pred": -0.252081960439682,
+   "graph_true": -0.23880000412464142,
+   "full_true": -0.254480000003241,
+   "n": 144
+  },
+  {
+   "folder": "C15_Pr-Rh",
+   "key": "1-1-1-8a",
+   "compound": "Pr-Rh",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 7.057678885757923e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Pr-Rh",
+   "key": "1-1-2-8a",
+   "compound": "Pr-Rh",
+   "pred": -0.7260004281997681,
+   "graph_true": -0.915459930896759,
+   "full_true": -0.8155200000692275,
+   "n": 253
+  },
+  {
+   "folder": "C15_Pr-Rh",
+   "key": "9-2-1-16d",
+   "compound": "Pr-Rh",
+   "pred": -0.7774907350540161,
+   "graph_true": -0.9237900376319885,
+   "full_true": -1.2186300000066694,
+   "n": 144
+  },
+  {
+   "folder": "C15_Pu-Al",
+   "key": "1-1-1-8a",
+   "compound": "Pu-Al",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": 1.5279510989785194e-10,
+   "n": 252
+  },
+  {
+   "folder": "C15_Pu-Al",
+   "key": "1-1-2-8a",
+   "compound": "Pu-Al",
+   "pred": -0.07665849477052689,
+   "graph_true": -0.06690000742673874,
+   "full_true": -0.029040000088571105,
+   "n": 252
+  },
+  {
+   "folder": "C15_Pu-Al",
+   "key": "9-2-1-16d",
+   "compound": "Pu-Al",
+   "pred": -0.5648535490036011,
+   "graph_true": -0.36243996024131775,
+   "full_true": -0.36241999979756656,
+   "n": 144
+  },
+  {
+   "folder": "C15_Sc-Ir",
+   "key": "1-1-1-8a",
+   "compound": "Sc-Ir",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": 9.022187441587448e-10,
+   "n": 252
+  },
+  {
+   "folder": "C15_Sc-Ir",
+   "key": "1-1-2-8a",
+   "compound": "Sc-Ir",
+   "pred": -0.3127650022506714,
+   "graph_true": -2.114949941635132,
+   "full_true": -14.910659999990457,
+   "n": 252
+  },
+  {
+   "folder": "C15_Sc-Ir",
+   "key": "9-2-1-16d",
+   "compound": "Sc-Ir",
+   "pred": -0.2834860682487488,
+   "graph_true": -0.6167799830436707,
+   "full_true": -14.292459999978746,
+   "n": 144
+  },
+  {
+   "folder": "C15_Sc-Ni",
+   "key": "1-1-1-8a",
+   "compound": "Sc-Ni",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": -2.4374458007514477e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Sc-Ni",
+   "key": "1-1-2-8a",
+   "compound": "Sc-Ni",
+   "pred": -0.6669616103172302,
+   "graph_true": -0.814560055732727,
+   "full_true": -0.7637799998883565,
+   "n": 253
+  },
+  {
+   "folder": "C15_Sc-Ni",
+   "key": "9-2-1-16d",
+   "compound": "Sc-Ni",
+   "pred": -0.41090187430381775,
+   "graph_true": -0.5837398767471313,
+   "full_true": -0.6565799999225419,
+   "n": 144
+  },
+  {
+   "folder": "C15_Ta-Be",
+   "key": "1-1-1-8a",
+   "compound": "Ta-Be",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 4.5838532969355583e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Ta-Be",
+   "key": "1-1-2-8a",
+   "compound": "Ta-Be",
+   "pred": -0.48017576336860657,
+   "graph_true": -0.45280998945236206,
+   "full_true": -0.40339000009771553,
+   "n": 253
+  },
+  {
+   "folder": "C15_Ta-Be",
+   "key": "9-2-1-16d",
+   "compound": "Ta-Be",
+   "pred": -0.8438727855682373,
+   "graph_true": -0.9997899532318115,
+   "full_true": -0.9595700001518708,
+   "n": 144
+  },
+  {
+   "folder": "C15_Tb-Mn",
+   "key": "1-1-1-8a",
+   "compound": "Tb-Mn",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": 4.3655745685100555e-10,
+   "n": 252
+  },
+  {
+   "folder": "C15_Tb-Mn",
+   "key": "1-1-2-8a",
+   "compound": "Tb-Mn",
+   "pred": -0.39976704120635986,
+   "graph_true": -0.36611998081207275,
+   "full_true": -0.3884800000778341,
+   "n": 252
+  },
+  {
+   "folder": "C15_Tb-Mn",
+   "key": "9-2-1-16d",
+   "compound": "Tb-Mn",
+   "pred": -1.171156644821167,
+   "graph_true": -1.8606297969818115,
+   "full_true": -4.482359999947221,
+   "n": 144
+  },
+  {
+   "folder": "C15_Th-Ru",
+   "key": "1-1-1-8a",
+   "compound": "Th-Ru",
+   "pred": -0.670940101146698,
+   "graph_true": 0.0,
+   "full_true": -7.60337570682168e-10,
+   "n": 70
+  },
+  {
+   "folder": "C15_Th-Ru",
+   "key": "1-1-2-8a",
+   "compound": "Th-Ru",
+   "pred": -1.7422924041748047,
+   "graph_true": -2.1759698390960693,
+   "full_true": -1.4623900000333379,
+   "n": 70
+  },
+  {
+   "folder": "C15_Th-Ru",
+   "key": "9-2-1-16d",
+   "compound": "Th-Ru",
+   "pred": -1.0670188665390015,
+   "graph_true": -1.63211989402771,
+   "full_true": -1.6259800000370888,
+   "n": 46
+  },
+  {
+   "folder": "C15_Ti-Be",
+   "key": "1-1-1-8a",
+   "compound": "Ti-Be",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 6.930349627509713e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Ti-Be",
+   "key": "1-1-2-8a",
+   "compound": "Ti-Be",
+   "pred": -0.18697470426559448,
+   "graph_true": -0.10089999437332153,
+   "full_true": -0.08075000025746704,
+   "n": 253
+  },
+  {
+   "folder": "C15_Ti-Be",
+   "key": "9-2-1-16d",
+   "compound": "Ti-Be",
+   "pred": -0.45611438155174255,
+   "graph_true": -0.6616400480270386,
+   "full_true": -0.6434499995557417,
+   "n": 145
+  },
+  {
+   "folder": "C15_Yb-Co",
+   "key": "1-1-1-8a",
+   "compound": "Yb-Co",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": 2.673914423212409e-10,
+   "n": 252
+  },
+  {
+   "folder": "C15_Yb-Co",
+   "key": "1-1-2-8a",
+   "compound": "Yb-Co",
+   "pred": -0.4660685062408447,
+   "graph_true": -0.4272199273109436,
+   "full_true": -0.45434000010391173,
+   "n": 252
+  },
+  {
+   "folder": "C15_Yb-Co",
+   "key": "9-2-1-16d",
+   "compound": "Yb-Co",
+   "pred": -0.6505007743835449,
+   "graph_true": -0.807155966758728,
+   "full_true": -0.858066000024337,
+   "n": 144
+  },
+  {
+   "folder": "C15_Yb-Pt",
+   "key": "1-1-1-8a",
+   "compound": "Yb-Pt",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": -2.4010660126805305e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Yb-Pt",
+   "key": "1-1-2-8a",
+   "compound": "Yb-Pt",
+   "pred": -0.5588989853858948,
+   "graph_true": -0.535569965839386,
+   "full_true": -0.511169999899721,
+   "n": 253
+  },
+  {
+   "folder": "C15_Yb-Pt",
+   "key": "9-2-1-16d",
+   "compound": "Yb-Pt",
+   "pred": -0.2698485553264618,
+   "graph_true": -0.4233500361442566,
+   "full_true": -0.5514499999444524,
+   "n": 144
+  },
+  {
+   "folder": "C15_Zr-Co",
+   "key": "1-1-1-8a",
+   "compound": "Zr-Co",
+   "pred": 0.00022394431289285421,
+   "graph_true": 0.0,
+   "full_true": -1.0077201295644045e-09,
+   "n": 252
+  },
+  {
+   "folder": "C15_Zr-Co",
+   "key": "1-1-2-8a",
+   "compound": "Zr-Co",
+   "pred": -0.8846927285194397,
+   "graph_true": -0.7814000248908997,
+   "full_true": -0.7369699998853321,
+   "n": 252
+  },
+  {
+   "folder": "C15_Zr-Co",
+   "key": "9-2-1-16d",
+   "compound": "Zr-Co",
+   "pred": -0.5405268669128418,
+   "graph_true": -1.0028998851776123,
+   "full_true": -1.1085499998553132,
+   "n": 144
+  },
+  {
+   "folder": "C15_Zr-Fe",
+   "key": "1-1-1-8a",
+   "compound": "Zr-Fe",
+   "pred": 0.00022661032562609762,
+   "graph_true": 0.0,
+   "full_true": -1.3023964129388332e-09,
+   "n": 255
+  },
+  {
+   "folder": "C15_Zr-Fe",
+   "key": "1-1-2-8a",
+   "compound": "Zr-Fe",
+   "pred": -0.4339831471443176,
+   "graph_true": -0.33830997347831726,
+   "full_true": -0.34230999999999767,
+   "n": 255
+  },
+  {
+   "folder": "C15_Zr-Fe",
+   "key": "9-2-1-16d",
+   "compound": "Zr-Fe",
+   "pred": -0.6989789009094238,
+   "graph_true": -0.6978400945663452,
+   "full_true": -0.7263300000522577,
+   "n": 144
+  },
+  {
+   "folder": "C15_Zr-Ni",
+   "key": "1-1-1-8a",
+   "compound": "Zr-Ni",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 4.3655745685100555e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Zr-Ni",
+   "key": "1-1-2-8a",
+   "compound": "Zr-Ni",
+   "pred": -1.2057491540908813,
+   "graph_true": -1.9627900123596191,
+   "full_true": -2.0668299999488227,
+   "n": 253
+  },
+  {
+   "folder": "C15_Zr-Ni",
+   "key": "9-2-1-16d",
+   "compound": "Zr-Ni",
+   "pred": -0.41366204619407654,
+   "graph_true": -1.1369000673294067,
+   "full_true": -1.741230000014184,
+   "n": 144
+  },
+  {
+   "folder": "C15_Zr-Zn",
+   "key": "1-1-1-8a",
+   "compound": "Zr-Zn",
+   "pred": 0.00022483298380393535,
+   "graph_true": 0.0,
+   "full_true": 1.709850039333105e-10,
+   "n": 253
+  },
+  {
+   "folder": "C15_Zr-Zn",
+   "key": "1-1-2-8a",
+   "compound": "Zr-Zn",
+   "pred": -0.09301566332578659,
+   "graph_true": -0.18084998428821564,
+   "full_true": -0.1599200000091514,
+   "n": 253
+  },
+  {
+   "folder": "C15_Zr-Zn",
+   "key": "9-2-1-16d",
+   "compound": "Zr-Zn",
+   "pred": -0.5039637088775635,
+   "graph_true": -0.37988996505737305,
+   "full_true": -0.3727799999232957,
+   "n": 144
+  }
+ ]
+}
